@@ -4,20 +4,64 @@
   "nombre": "MiDerecho",
   "idioma": "es",
   "primer_mensaje": "Hola. Soy el asistente de voz de MiDerecho, un servicio gratuito. Soy una máquina, no una persona, y no soy abogado. La app no guarda lo que usted me cuente. ¿En qué le puedo ayudar?",
-  "llm": { "modelo": "gemini-3.5-flash", "temperatura": 0, "respaldo": "el que elija ElevenLabs" },
+  "llm": {
+    "modelo": "gemini-3.5-flash",
+    "temperatura": 0,
+    "respaldo": "el que elija ElevenLabs"
+  },
   "voz": {
     "voice_id": "o2vbTbO3g4GrKUg7rehy",
     "nombre": "Cristian Sanchez - Lively and Deep (paisa, conversacional)",
     "modelo_tts": "eleven_v4_turbo",
     "velocidad": 0.92,
-    "alternativa_preferida": { "voice_id": "l7mz7X0JldPlSP6WNhdd", "nombre": "Gabriel (andino nariñense, pausado)", "nota": "Es de la biblioteca: hay que agregarla a 'Mis voces' en elevenlabs.io antes de usarla" }
+    "alternativa_preferida": {
+      "voice_id": "l7mz7X0JldPlSP6WNhdd",
+      "nombre": "Gabriel (andino nariñense, pausado)",
+      "nota": "Es de la biblioteca: hay que agregarla a 'Mis voces' en elevenlabs.io antes de usarla"
+    }
   },
   "transcripcion": {
     "proveedor": "scribe_realtime",
-    "palabras_clave": ["tutela", "derecho de petición", "EPS", "Personería", "Defensoría", "alcaldía", "acueducto", "vereda", "Agencia Nacional de Tierras", "El Carmen de Bolívar", "Ovejas", "San Jacinto", "María La Baja", "Chaparral", "Planadas", "Rioblanco", "Ataco", "Mesetas", "La Macarena", "Vista Hermosa", "Puerto Rico", "Uribe", "Mapiripán", "San José del Guaviare"]
+    "palabras_clave": [
+      "tutela",
+      "derecho de petición",
+      "EPS",
+      "Personería",
+      "Defensoría",
+      "alcaldía",
+      "acueducto",
+      "vereda",
+      "Agencia Nacional de Tierras",
+      "El Carmen de Bolívar",
+      "Ovejas",
+      "San Jacinto",
+      "María La Baja",
+      "Chaparral",
+      "Planadas",
+      "Rioblanco",
+      "Ataco",
+      "Mesetas",
+      "La Macarena",
+      "Vista Hermosa",
+      "Puerto Rico",
+      "Uribe",
+      "Mapiripán",
+      "San José del Guaviare"
+    ]
   },
-  "turnos": { "paciencia": "patient", "espera_respuesta_s": 10, "colgar_tras_silencio_s": 60, "relleno_si_tarda": "Un momento, por favor. (a los 2,5 s)", "duracion_maxima_s": 600 },
-  "base_de_conocimiento": { "id": "c9faTGDzGEHJTSY97M4h", "nombre": "MiDerecho - conocimiento basico (borrador)", "uso": "prompt (completa en el prompt, sin RAG)", "fuente": "conocimiento.md" },
+  "turnos": {
+    "paciencia": "patient",
+    "espera_respuesta_s": 10,
+    "colgar_tras_silencio_s": 60,
+    "relleno_si_tarda": "Un momento, por favor. (a los 2,5 s)",
+    "duracion_maxima_s": 600
+  },
+  "base_de_conocimiento": {
+    "id": "c9faTGDzGEHJTSY97M4h",
+    "nombre": "MiDerecho - conocimiento basico (borrador)",
+    "uso": "prompt (completa en el prompt, sin RAG)",
+    "fuente": "conocimiento.md"
+  },
   "herramientas_cliente": [
     {
       "id": "tool_0401m5dg87gyehjv2qtzs5spj5ka",
@@ -25,19 +69,61 @@
       "mapea_a": "window.miderecho.iniciarCaso(datos)",
       "espera_respuesta": true,
       "parametros": {
-        "tipo": ["peticion", "tutela_salud", "tutela", "servicios_publicos"],
-        "tema": ["agua", "vias", "salud", "ayudas", "tierras", "educacion", "otro"],
+        "tipo": [
+          "peticion",
+          "tutela_salud",
+          "tutela",
+          "servicios_publicos"
+        ],
+        "tema": [
+          "agua",
+          "vias",
+          "salud",
+          "ayudas",
+          "tierras",
+          "educacion",
+          "otro"
+        ],
         "municipio": "texto (nombre exacto de la lista de contenido.js si está en ella)",
-        "entidad": ["alcaldia", "eps", "ant"],
-        "desde": ["hace una semana", "hace un mes", "hace tres meses", "hace seis meses", "hace más de un año"]
+        "entidad": [
+          "alcaldia",
+          "eps",
+          "ant"
+        ],
+        "desde": [
+          "hace una semana",
+          "hace un mes",
+          "hace tres meses",
+          "hace seis meses",
+          "hace más de un año"
+        ]
       },
-      "requeridos": ["tipo", "tema"],
+      "requeridos": [
+        "tipo",
+        "tema"
+      ],
       "devuelve": "pantalla actual { id, titulo, texto, opciones } con números largos tapados"
     },
-    { "id": "tool_7901m5dg8a2gfcvap8az4zayzs7a", "nombre": "pantalla_actual", "mapea_a": "window.miderecho.pantallaActual()", "espera_respuesta": true },
-    { "id": "tool_4901m5dg8cc1f3htrvdbh95kbckd", "nombre": "elegir_opcion", "mapea_a": "window.miderecho.elegir(texto)", "espera_respuesta": true, "parametros": { "texto": "texto exacto de la opción" }, "regla": "agente-voz.js rechaza 'Sí, acepto': el aviso lo acepta la persona con su dedo" }
+    {
+      "id": "tool_7901m5dg8a2gfcvap8az4zayzs7a",
+      "nombre": "pantalla_actual",
+      "mapea_a": "window.miderecho.pantallaActual()",
+      "espera_respuesta": true
+    },
+    {
+      "id": "tool_4901m5dg8cc1f3htrvdbh95kbckd",
+      "nombre": "elegir_opcion",
+      "mapea_a": "window.miderecho.elegir(texto)",
+      "espera_respuesta": true,
+      "parametros": {
+        "texto": "texto exacto de la opción"
+      },
+      "regla": "agente-voz.js rechaza 'Sí, acepto': el aviso lo acepta la persona con su dedo"
+    }
   ],
-  "herramientas_sistema": ["end_call (solo cuando la persona se despide; en riesgo, nunca de golpe)"],
+  "herramientas_sistema": [
+    "end_call (solo cuando la persona se despide; en riesgo, nunca de golpe)"
+  ],
   "guardrails": {
     "inyeccion_de_prompt": true,
     "foco": true,
@@ -50,14 +136,21 @@
     "nota": "Con retención cero el resumen y el título de la conversación quedan <REDACTED>. Las conversaciones de prueba anteriores a activarlo (datos inventados) conservan su resumen."
   },
   "acceso": {
-    "dominios_permitidos": ["miderecho-two.vercel.app", "miderecho-jjgg310s-projects.vercel.app", "*.vercel.app", "localhost", "127.0.0.1"],
+    "dominios_permitidos": [
+      "miderecho-two.vercel.app",
+      "miderecho-jjgg310s-projects.vercel.app",
+      "miderecho-git-claude-agente-voz-08012a-jjgg310s-projects.vercel.app",
+      "localhost",
+      "127.0.0.1"
+    ],
     "exigir_origin": false,
     "por_que_no_exigir_origin": "La voz va por WebRTC (LiveKit) y esa conexión no manda Origin; con la exigencia activa ElevenLabs la rechaza (error 3000).",
     "firma_de_sesion": false,
     "concurrencia_max": 3,
     "conversaciones_por_dia": 60,
     "rafagas": false,
-    "anulaciones_desde_el_cliente": "todas apagadas (el navegador no puede cambiar prompt, voz ni herramientas)"
+    "anulaciones_desde_el_cliente": "todas apagadas (el navegador no puede cambiar prompt, voz ni herramientas)",
+    "comodines": "No funcionan: con '*.vercel.app' un preview fue rechazado ('Host ... is not allowed'). Cada preview que deba usar el agente se agrega con su alias fijo (miderecho-git-<rama>-jjgg310s-projects.vercel.app)."
   },
   "sdk_navegador": {
     "paquete": "@elevenlabs/client@1.26.0",
