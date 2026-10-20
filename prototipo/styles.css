@@ -49,6 +49,7 @@ h1::first-letter, .plazo .fecha::first-letter { text-transform: uppercase; }
 .op b { display: block; font-size: 1.05rem; }
 .op small { display: block; margin-top: .15rem; color: var(--suave); font-size: .85rem; }
 .op.grande { min-height: 88px; }
+.op.grande + .op:not(.grande) { margin-top: .75rem; }   /* en el inicio separa los documentos del resto */
 .op.principal { background: var(--verde); border-color: var(--verde); color: #fff; }
 .op.principal small { color: #d6eadf; }
 .op.sugerida { border-color: var(--tierra); box-shadow: 0 4px 0 #f3dccb; }
@@ -75,6 +76,8 @@ button.secundario { min-height: 48px; background: #fff; color: var(--verde); bor
 .plazo { padding: 1rem; text-align: center; background: var(--verde-claro); border-radius: 16px; }
 .plazo p { margin: .2rem 0; }
 .plazo .fecha { color: var(--verde); font-size: 1.35rem; font-weight: 800; }
+.plazo.urgente { background: #fbe9e7; }
+.plazo.urgente .fecha { color: var(--rojo); }
 .simulado { margin: .8rem 0; padding: .7rem .9rem; font-size: .9rem; background: #fff7e6; border: 2px dashed #e0a84b; border-radius: 12px; }
 
 .casos { display: grid; gap: .7rem; padding: 0; list-style: none; }
