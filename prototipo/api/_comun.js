@@ -12,7 +12,9 @@ export async function atender(req, res, metodos) {
   try {
     const f = metodos[req.method];
     if (!f) throw falla(405, 'Método no permitido');
-    res.status(200).json(await f(req.body || {}));
+    let body;
+    try { body = req.body || {}; } catch { throw falla(400, 'El cuerpo debe ser JSON'); }   // Vercel lo interpreta al leerlo
+    res.status(200).json(await f(body));
   } catch (e) {
     if (!e.status) console.error('[api] error:', e.message);
     res.status(e.status || 500).json({ ok: false, simulado: false, error: e.status ? e.message : 'Error del servidor' });
