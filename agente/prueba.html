@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba del agente de voz</title>
+  <!-- Solo para probar agente-voz.js con un window.miderecho falso. No se publica.
+       Servir la raíz del repo (python3 -m http.server 8000) y abrir http://localhost:8000/agente/prueba.html -->
+  <link rel="stylesheet" href="../prototipo/styles.css">
+  <style>
+    main { padding: 1rem; max-width: 46rem; }
+    #opciones button { margin: .2rem; }
+    #registro, #charla { font: .85rem/1.4 ui-monospace, monospace; background: #fff; border: 1px solid var(--borde); border-radius: 8px; padding: .6rem 1.6rem; }
+    #chat { display: flex; gap: .5rem; } #chat input { flex: 1; min-height: 48px; font: inherit; }
+  </style>
+</head>
+<body>
+  <header class="barra">
+    <span id="asistente" class="asistente" data-estado="reposo" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="44" height="44"><path d="M32 6c14.4 0 26 10.3 26 23S46.4 52 32 52c-3 0-5.9-.4-8.6-1.3L12 56l2.6-10.2C9.3 41.6 6 35.7 6 29 6 16.3 17.6 6 32 6z" fill="#faf6ef"/>
+        <g class="ojos"><circle cx="23" cy="26" r="4.2" fill="#1d1b16"/><circle cx="41" cy="26" r="4.2" fill="#1d1b16"/></g>
+        <path class="boca" d="M24 36q8 6 16 0" stroke="#b5541b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <ellipse class="boca-abierta" cx="32" cy="37.5" rx="5.5" ry="4.5" fill="#b5541b"/></svg>
+    </span>
+    <span class="marca">Prueba del agente (mock)</span>
+  </header>
+  <main>
+    <p class="nota">Pantalla falsa de la app (la maneja el agente con sus herramientas):</p>
+    <h1 id="titulo"></h1><p id="texto"></p><div id="opciones"></div>
+    <h2>Llamadas a window.miderecho</h2>
+    <ol id="registro"></ol>
+    <h2>Probar el agente por texto (sin micrófono)</h2>
+    <form id="chat"><input id="msg" placeholder="Escriba como si hablara" aria-label="Mensaje"><button class="principal">Enviar</button></form>
+    <ol id="charla"></ol>
+  </main>
+  <script type="module">
+    import { AGENTE, cargarSDK, herramientas } from '../prototipo/agente-voz.js';
+    const $ = s => document.querySelector(s);
+    const anotar = (lista, txt) => $(lista).insertAdjacentHTML('beforeend', `<li>${txt.replace(/</g, '&lt;')}</li>`);
+
+    // Flujo mínimo de la app según CONTRATOS.md: aviso de privacidad -> pregunta de riesgo -> pasos que falten.
+    const P = {
+      inicio: ['MiDerecho', '¿Qué necesita hoy?', ['Hacer un derecho de petición', 'Mis casos']],
+      aviso: ['Antes de empezar', 'MiDerecho es un servicio gratuito que le ayuda a armar un derecho de petición. No somos abogados. No le vamos a pedir nada sensible. Puede borrar todo cuando quiera.', ['Sí, acepto', 'No acepto']],
+      riesgo: ['Una pregunta importante', '¿Hay alguien en peligro hoy, o le han amenazado por reclamar?', ['No', 'Sí', 'No sé']],
+      ayuda: ['Esto es serio. Busque ayuda ahora', 'Si hay peligro ahora: llame al 123. La Personería o la Defensoría pueden activar rutas de protección.', ['Salir']],
+      vereda: ['¿Dónde vive?', 'Formulario: escriba su vereda y toque Continuar.', []],
+      documento: ['Su documento', 'Yo, Pedro Pérez, identificado con cédula 1.234.567.890, celular 310 555 1234, presento la siguiente petición: reparar el acueducto de la vereda.', ['Imprimir o guardar en PDF', 'Anotar cuándo la entregué']],
+    };
+    const SIGUE = { inicio: { 'Hacer un derecho de petición': 'aviso' }, aviso: { 'Sí, acepto': 'riesgo', 'No acepto': 'inicio' }, riesgo: { 'No': 'vereda', 'Sí': 'ayuda', 'No sé': 'ayuda' }, ayuda: { 'Salir': 'inicio' } };
+    let actual = 'inicio';
+    function ir(id) {
+      actual = id;
+      const [titulo, texto, ops] = P[id];
+      $('#titulo').textContent = titulo; $('#texto').textContent = texto;
+      $('#opciones').innerHTML = ops.map(o => `<button class="secundario">${o}</button>`).join('') + (id === 'vereda' ? '<button class="principal">(Simular) La persona escribió la vereda</button>' : '');
+      $('#opciones').querySelectorAll('button').forEach(b => b.onclick = () => b.textContent.startsWith('(Simular)') ? ir('documento') : window.miderecho.elegir(b.textContent));
+    }
+    window.miderecho = {
+      iniciarCaso(datos) { anotar('#registro', 'iniciarCaso ' + JSON.stringify(datos)); ir('aviso'); },
+      pantallaActual() { const [titulo, texto, opciones] = P[actual]; anotar('#registro', 'pantallaActual -> ' + actual); return { id: actual, titulo, texto, opciones }; },
+      elegir(texto) { const sig = SIGUE[actual]?.[texto]; anotar('#registro', `elegir ${JSON.stringify(texto)} -> ${sig ? sig : 'false'}`); if (sig) ir(sig); return !!sig; },
+    };
+    ir('inicio');
+    window.prueba = { herramientas, ir };   // para revisar a mano desde la consola
+
+    let charla = null;
+    $('#chat').onsubmit = async e => {
+      e.preventDefault();
+      const txt = $('#msg').value.trim(); $('#msg').value = '';
+      if (!txt) return;
+      if (!charla) {
+        const { Conversation } = await cargarSDK();
+        charla = await Conversation.startSession({
+          agentId: AGENTE, textOnly: true, clientTools: herramientas,
+          onMessage: m => anotar('#charla', `${m.source || m.role}: ${m.message}`),
+          onDisconnect: d => { anotar('#charla', '— fin: ' + JSON.stringify(d)); charla = null; },
+          onGuardrailTriggered: g => anotar('#charla', 'GUARDRAIL: ' + JSON.stringify(g)),
+          onError: m => anotar('#charla', 'ERROR: ' + m),
+        });
+      }
+      anotar('#charla', 'persona: ' + txt);
+      charla.sendUserMessage(txt);
+    };
+  </script>
+</body>
+</html>
