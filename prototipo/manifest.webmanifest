@@ -1,0 +1,12 @@
+{
+  "name": "MiDerecho",
+  "short_name": "MiDerecho",
+  "description": "Derechos de petición fáciles, sin internet y sin abogado.",
+  "lang": "es-CO",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf6ef",
+  "theme_color": "#1f6f4a",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiDerecho</title>
+  <meta name="description" content="Derechos de petición fáciles, sin internet y sin abogado.">
+  <meta name="theme-color" content="#1f6f4a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="barra">
+    <span id="asistente" class="asistente" data-estado="reposo" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="44" height="44">
+        <path d="M32 6c14.4 0 26 10.3 26 23S46.4 52 32 52c-3 0-5.9-.4-8.6-1.3L12 56l2.6-10.2C9.3 41.6 6 35.7 6 29 6 16.3 17.6 6 32 6z" fill="#faf6ef"/>
+        <g class="ojos"><circle cx="23" cy="26" r="4.2" fill="#1d1b16"/><circle cx="41" cy="26" r="4.2" fill="#1d1b16"/></g>
+        <path class="boca" d="M24 36q8 6 16 0" stroke="#b5541b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <ellipse class="boca-abierta" cx="32" cy="37.5" rx="5.5" ry="4.5" fill="#b5541b"/>
+        <circle class="signo" cx="54" cy="10" r="9" fill="#e8743b"/><path class="signo" d="M54 5v6m0 3.5v.5" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="marca">MiDerecho</span>
+    <button data-accion="leer" aria-label="Escuchar esta pantalla" title="Escuchar esta pantalla">🔊</button>
+    <button id="btn-voz" data-accion="voz" aria-pressed="false" title="La app le lee todo en voz alta">Modo voz</button>
+    <button data-accion="bloquear" aria-label="Bloquear la app" title="Bloquear la app">🔒</button>
+  </header>
+  <main id="app"></main>
+  <div id="aviso" role="status" aria-live="assertive"></div>
+  <footer><span id="estado-red"></span> · Prototipo: envíos y SMS simulados · <button class="enlace" data-accion="borrar">Borrar todo</button></footer>
+  <div id="imprimir"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
