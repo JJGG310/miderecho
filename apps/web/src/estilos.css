@@ -167,7 +167,7 @@ h1, h2, h3 { margin: 0; }
 .btn-secundario { border: 2px solid var(--verde); color: var(--verde); border-radius: 14px; min-height: 52px; padding: 10px 16px; font-weight: 800; display: flex; gap: 8px; align-items: center; justify-content: center; text-align: center; background: var(--papel); text-decoration: none; }
 .btn-peligro { border: 2px solid var(--rojo); color: var(--rojo); background: var(--papel); border-radius: 14px; min-height: 52px; padding: 10px 16px; font-weight: 800; display: flex; gap: 8px; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
 .btn-peligro.lleno { background: var(--rojo); color: #fff; min-height: 56px; }
-.btn-enlace { min-height: 44px; color: var(--verde); font-weight: 700; text-decoration: underline; align-self: center; padding: 0 8px; }
+.btn-enlace { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--verde); font-weight: 700; text-decoration: underline; align-self: center; padding: 0 8px; }
 .btn-icono { color: var(--suave); min-width: 44px; min-height: 44px; display: grid; place-items: center; border-radius: 50%; flex: none; }
 
 /* Asistente */

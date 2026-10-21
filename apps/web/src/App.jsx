@@ -13,6 +13,7 @@ import Historial from './pantallas/Historial.jsx';
 import Perfil from './pantallas/Perfil.jsx';
 import Clave from './pantallas/Clave.jsx';
 import Peligro, { PreguntaPeligro } from './pantallas/Peligro.jsx';
+import Consentimiento, { consintio } from './pantallas/Consentimiento.jsx';
 
 // Documentos nuevos: antes de empezar se pregunta si hay alguien en peligro.
 const NUEVOS = ['peticion', 'servicios_publicos', 'tutela_salud', 'tutela'];
@@ -22,6 +23,8 @@ function Pantallas({ p, a }) {
   const [, seguir] = useState(0);
   const preguntar = !memoria.sinPeligro && (p === 'asistente' || (p === 'documento' && NUEVOS.includes(a)));
   if (preguntar) return <PreguntaPeligro alSeguir={() => seguir(n => n + 1)} />;
+  // Antes de mandar algo a la inteligencia artificial, el aviso y la autorización (una vez por versión del aviso).
+  if (p === 'asistente' && !consintio()) return <Consentimiento alAceptar={() => seguir(n => n + 1)} />;
   switch (p) {
     case 'derechos': return a ? <Derecho id={a} /> : <Derechos />;
     case 'asistente': return <Asistente />;

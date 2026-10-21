@@ -2,6 +2,7 @@
 // cifrados con la clave de 4 números (PBKDF2 + AES-GCM, como el prototipo). El celular puede ser compartido (investigacion/03).
 // Las preferencias (leer en voz alta) no son sensibles y van aparte, sin cifrar. "Borrar todo" lo elimina todo.
 import { useSyncExternalStore } from 'react';
+import { derechoInfo } from '@miderecho/nucleo/derechos';
 
 const CIFRADO = 'miderecho-v2-cifrado', PREF = 'miderecho-v2-pref', VIEJO = 'miderecho-v2';
 const cod = new TextEncoder(), decod = new TextDecoder();
@@ -76,8 +77,10 @@ export const almacen = {
   borrarCaso(id) { escribir({ ...datos, casos: datos.casos.filter(c => c.id !== id) }); },
   historial: () => datos.historial,
   guardarOrientacion(o) {
-    // No se guarda el resumen ni los datos del caso: solo el tema y la ruta.
-    const item = { id: crypto.randomUUID?.() || String(Date.now()), fecha: new Date().toISOString(), tema: o.tema, derecho: o.derecho, documento: o.documento, documento_titulo: o.documento_titulo, pasos: o.pasos, donde_acudir: o.donde_acudir, buscar_abogado_si: o.buscar_abogado_si, ley: o.ley };
+    // No se guarda el resumen ni los datos del caso: solo la ruta. Y como tema, una categoría general ("Salud"),
+    // no el título que escribe la IA, que puede revelar un dato sensible ("La EPS niega la quimioterapia").
+    const tema = o.documento === 'servicios_publicos' ? 'Servicios públicos' : derechoInfo(o.derecho)?.menu || 'Consulta';
+    const item = { id: crypto.randomUUID?.() || String(Date.now()), fecha: new Date().toISOString(), tema, derecho: o.derecho, documento: o.documento, documento_titulo: o.documento_titulo, pasos: o.pasos, donde_acudir: o.donde_acudir, buscar_abogado_si: o.buscar_abogado_si, ley: o.ley };
     escribir({ ...datos, historial: [item, ...datos.historial].slice(0, 30) });
   },
   borrarHistorial() { escribir({ ...datos, historial: [] }); },

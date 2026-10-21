@@ -12,7 +12,7 @@ assert.equal(almacen.hayClave(), false);
 
 await almacen.crear('1234');
 almacen.guardarCaso({ id: 'a', entidad: 'EPS Sur', municipio: 'Tumaco' });
-almacen.guardarOrientacion({ tema: 'La EPS niega la cita' });
+almacen.guardarOrientacion({ tema: 'La EPS niega la cita', derecho: 'salud', documento: 'tutela_salud' });
 await almacen.esperar();
 const crudo = [...ls.values()].join(' ');
 for (const s of ['EPS Sur', 'Tumaco', 'Chaparral', 'niega la cita']) assert.ok(!crudo.includes(s), `quedó sin cifrar: ${s}`);
@@ -28,6 +28,7 @@ almacen.guardarCaso({ id: 'b', entidad: 'Alcaldía' });
 await almacen.abrir('1234');
 assert.deepEqual(almacen.casos().map(c => c.id).sort(), ['a', 'b', 'viejo']);
 assert.equal(almacen.historial().length, 1);
+assert.equal(almacen.historial()[0].tema, 'Salud', 'guarda la categoría, no el título de la IA');
 await almacen.esperar();
 almacen.bloquear();
 await almacen.abrir('1234');
