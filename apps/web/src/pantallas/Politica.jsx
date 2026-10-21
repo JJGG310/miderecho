@@ -85,6 +85,7 @@ const PASOS = [
     ['a', 'No guardamos la conversación con el asistente.'],
     ['a', 'El nombre y la cédula del documento no se guardan ni van a la inteligencia artificial.'],
     ['a', 'Solo van en el papel. No los escriba en el chat.'],
+    ['a', 'Sin señal, lo que pidió enviar espera cifrado en este celular y sale al volver la señal.'],
     ['r', '¿Y si guardo el documento en PDF?'],
     ['a', 'Ese archivo es suyo y queda donde lo guarde. Cuídelo.']] },
   { titulo: 'Lo que queda en su celular', escena: asis(10, 50, 1.25, 'corazon') + celular(124, 22, filas) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
@@ -291,6 +292,7 @@ const SECCIONES = [
     <li><b>Lo que escribe en el formulario del documento</b>, como lo que pasó o lo de su salud: va en el documento. La app no guarda ese texto.</li>
     <li><b>En este celular:</b> Mis casos (el tipo de documento, la entidad, el municipio y la vereda, lo que pidió, las fechas del plazo y en qué va), Historial (el tema de cada consulta, aunque sea de salud, el derecho, el documento sugerido, los pasos y a dónde acudir; las últimas 30) y sus preferencias (leer en voz alta, modo sin conexión). Se quedan hasta que usted los borre. Si otras personas usan su celular, póngale clave o bórrelos en Perfil.</li>
     <li><b>Si pide recordatorios</b> {PRONTO}: su número de celular se guarda cifrado en nuestro servidor (Upstash), con el código del caso, el canal y las fechas, y se borra 3 días después del último recordatorio. Para frenar abusos, una huella cifrada del número (no el número) dura hasta 370 días.</li>
+    <li><b>Sin señal:</b> si pide enviar el documento o un recordatorio y no hay señal, el envío (con lo que el servidor necesita, como el documento y el número de celular) espera en este celular, cifrado con su clave junto a sus casos. Sale solo al volver la señal o al abrir la app con la clave, y se borra apenas sale.</li>
     <li><b>Si pide que enviemos el documento por correo</b> {PRONTO}: el documento, con su nombre y su cédula, pasa por nuestro servidor y por Resend, en Estados Unidos, hasta la entidad. No guardamos copia.</li>
     <li><b>Registros técnicos:</b> si algo falla, el servidor anota el tipo de error, sin lo que usted escribió. El servicio que aloja la app ve la dirección de internet (IP) de su celular, como cualquier página web.</li></ul>],
   ['4. Lo que no guardamos', <>

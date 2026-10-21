@@ -58,8 +58,9 @@ function Menu() {
 
 // Valores iniciales: solo lo que el asistente entendió del relato (sin datos personales). Lo demás queda vacío:
 // la app no inventa qué niega la EPS, si es urgente ni desde cuándo pasa.
-function inicial(tipo) {
-  const d = memoria.orientacion?.documento === tipo ? memoria.orientacion.datos || {} : {};
+// vecino: el documento de un vecino no se precarga con la orientación que quedó en memoria (puede ser del líder).
+function inicial(tipo, vecino) {
+  const d = !vecino && memoria.orientacion?.documento === tipo ? memoria.orientacion.datos || {} : {};
   const base = { municipio: '', vereda: '', entidad: '', desde: DESDE.includes(d.desde) ? d.desde : '', palabras: '', modo: 'mano' };
   let c;
   if (tipo === 'peticion') {
@@ -223,7 +224,7 @@ function Formulario({ tipo }) {
     return caso;
   };
 
-  if (paso === 'para') return <ParaQuien alElegir={v => { setVecino(v === 'vecino'); setPaso(v === 'vecino' ? 'aviso' : 'caso'); }} />;
+  if (paso === 'para') return <ParaQuien alElegir={v => { setVecino(v === 'vecino'); if (v === 'vecino') setC(inicial(tipo, true).c); setPaso(v === 'vecino' ? 'aviso' : 'caso'); }} />;
   if (paso === 'aviso') return <AvisoVecino alVolver={() => setPaso('para')} alAceptar={() => setPaso('caso')} />;
   if (paso === 'datos') return <DatosPersonales tipo={tipo} valores={persona} cambiar={setPersona} volver={() => setPaso('lugar')} listo={() => setPaso('vista')} paso={[3, 4]} vecino={vecino} />;
   if (paso === 'vista') return <Vista tipo={tipo} datos={{ ...datos, ...personaParaDocumento(persona) }} volver={() => setPaso('datos')} alEntregar={entregar} paso={[4, 4]} vecino={vecino} />;
