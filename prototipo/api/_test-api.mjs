@@ -56,7 +56,7 @@ for (const tel of ['12345', '+1 415 555 0100', '601 234 5678', '+57 300 111 223'
 // topes de texto, (11) GSM-7 y (12) TwiML de 4000
 assert.equal(gsm('Petición está: mañana ¿qué? ¡Ü! `x` 👍 Ça ça'), 'Peticion esta: mañana ¿qué? ¡Ü! x  Ça ca');
 assert.equal(septetos('a{b'), 4);
-assert.ok(twiml('A & B <x>').includes('A &#38; B &#60;x&#62;'));
+assert.ok(twiml('A & B <x>').includes('A &amp; B &lt;x&gt;'));
 
 // (4) en modo simulado no hay límites: más de POR_IP_HORA desde la misma IP al mismo número
 for (let i = 0; i <= POR_IP_HORA; i++) assert.equal((await sms('3001112233', '10.0.0.5')).status, 200);
