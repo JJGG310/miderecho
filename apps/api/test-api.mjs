@@ -5,9 +5,10 @@ for (const k of ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GEMINI_MODEL', 'GEMINI_
 const { app } = await import('./src/app.js');
 
 // La query (?gemini) carga otra instancia de app.js que vuelve a leer las variables de entorno.
-const abrir = a => {
+// extra: campos que se agregan a cada POST (el consentimiento que manda la app).
+const abrir = (a, extra = {}) => {
   const srv = a.listen(0), base = `http://127.0.0.1:${srv.address().port}`;
-  const post = (ruta, body) => fetch(base + ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async r => ({ status: r.status, body: await r.json() }));
+  const post = (ruta, body) => fetch(base + ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...extra, ...body }) }).then(async r => ({ status: r.status, body: await r.json() }));
   return { srv, post, salud: () => fetch(base + '/api/salud').then(r => r.json()) };
 };
 const { srv, post, salud } = abrir(app);
@@ -21,6 +22,7 @@ try {
   assert.equal(r.body.orientacion.documento, 'servicios_publicos');
   assert.match(r.body.orientacion.ley.texto, /Ley 142 de 1994/);
   assert.equal(r.body.orientacion.datos.servicio, 'acueducto');
+  assert.equal(r.body.aviso, undefined); // sin IA no hace falta consentimiento
 
   // Salud: pregunta si es urgente y luego orienta a tutela de salud
   const m1 = { rol: 'persona', texto: 'La EPS no me da la cita con el cardiólogo hace dos meses' };
@@ -91,8 +93,23 @@ try {
 }
 
 process.env.GEMINI_PLAN = ' Pago ';
-const g = abrir((await import('./src/app.js?gemini')).app);
+const appGemini = (await import('./src/app.js?gemini')).app;
+const g = abrir(appGemini, { consentimiento: 'ia-v1' });
+const sinConsentimiento = abrir(appGemini);
 try {
+  // Sin consentimiento válido no se llama a la IA: modo básico con aviso. El riesgo por reglas sigue.
+  responder = valida;
+  pedidos = 0;
+  for (const consentimiento of [undefined, '', 'si', 'ia-v', 'ia-v1234', 'IA-V1', 'ia-v1 ', 1, ['ia-v1']]) {
+    r = await sinConsentimiento.post('/api/asistente', { mensajes: [relato], consentimiento });
+    assert.equal(r.body.fuente, 'simulada', String(consentimiento));
+    assert.equal(r.body.accion, 'orientar');
+    assert.equal(r.body.aviso, 'Para usar la inteligencia artificial primero debe aceptar el aviso.');
+  }
+  r = await sinConsentimiento.post('/api/asistente', { mensajes: [{ rol: 'persona', texto: 'un grupo armado me amenazó' }] });
+  assert.equal(r.body.fuente, 'reglas');
+  assert.equal(pedidos, 0);
+
   assert.deepEqual(await g.salud(), { ok: true, ia: 'gemini', modelo: 'gemini-3.8-flash', plan: 'pago' });
   assert.ok(!JSON.stringify(await g.salud()).includes('clave-de-prueba'));
 
@@ -185,12 +202,13 @@ try {
   assert.ok(![...errores, ...avisos].join(' ').includes('factura'));
 } finally {
   g.srv.close();
+  sinConsentimiento.srv.close();
 }
 
 // Plan gratis + Vertex: toda respuesta lleva el aviso de prueba; otro dominio, la clave también va en cabecera
 process.env.GEMINI_PLAN = 'gratis';
 process.env.GEMINI_ENDPOINT = ' Vertex';
-const v = abrir((await import('./src/app.js?vertex')).app);
+const v = abrir((await import('./src/app.js?vertex')).app, { consentimiento: 'ia-v12' });
 try {
   assert.equal((await v.salud()).plan, 'gratis');
   responder = valida;
@@ -210,7 +228,7 @@ try {
 
 // Claude manda si hay las dos claves; sin reintentos: un 529 cae de una vez al modo básico
 process.env.ANTHROPIC_API_KEY = 'clave-de-prueba';
-const c = abrir((await import('./src/app.js?claude')).app);
+const c = abrir((await import('./src/app.js?claude')).app, { consentimiento: 'ia-v1' });
 try {
   assert.equal((await c.salud()).ia, 'claude');
   responder = () => json({ type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } }, 529);

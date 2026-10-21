@@ -24,6 +24,8 @@ const AVISO_GRATIS = IA === 'gemini' && GEMINI.plan === 'gratis'
   : null;
 const enviar = (res, r) => res.json(AVISO_GRATIS ? { ...r, aviso: [r.aviso, AVISO_GRATIS].filter(Boolean).join(' ') } : r);
 const MAX_MENSAJES = 12, MAX_TEXTO = 2000;
+// La app manda la versión del aviso que la persona aceptó antes de usar la IA (la define apps/web).
+const CONSENTIMIENTO = /^ia-v\d{1,3}$/;
 
 export const app = express();
 app.disable('x-powered-by');
@@ -59,6 +61,11 @@ app.post('/api/asistente', async (req, res) => {
   // El protocolo de riesgo no espera a la IA.
   if (hayRiesgo(mensajes.filter(m => m.rol === 'persona').map(m => m.texto).join(' '))) {
     return enviar(res, { ...armarRespuesta(RESPUESTA_RIESGO), ayuda: AYUDA_RIESGO, fuente: 'reglas' });
+  }
+
+  // Sin el aviso aceptado, el relato no va a ningún proveedor de IA: contesta el modo básico.
+  if (IA !== 'simulada' && !CONSENTIMIENTO.test(typeof req.body.consentimiento === 'string' ? req.body.consentimiento : '')) {
+    return enviar(res, { ...armarRespuesta(responderSimulado(mensajes)), fuente: 'simulada', aviso: 'Para usar la inteligencia artificial primero debe aceptar el aviso.' });
   }
 
   try {

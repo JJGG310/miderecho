@@ -12,6 +12,7 @@ Para saber cuál está activo: `GET /api/salud` → `{ "ok": true, "ia": "claude
 
 ## Reglas iguales para los dos
 
+- **Consentimiento:** la app manda `consentimiento: "ia-vN"` en el cuerpo de `POST /api/asistente` cuando la persona aceptó el aviso antes de usar la IA (la versión la define `apps/web`; el servidor acepta el patrón `ia-v` + 1 a 3 dígitos). Sin ese campo, el relato **no va a ningún proveedor**: contesta el modo básico con el aviso *"Para usar la inteligencia artificial primero debe aceptar el aviso."* El protocolo de riesgo por reglas funciona igual. Sin proveedor activo (modo básico) no hace falta.
 - El mismo prompt (`prompt.js`: no es abogado, no inventa normas, no pide datos personales) y la misma herramienta `responder` (`orientacion.js`). Gemini la recibe como *function calling* obligatorio.
 - Filtro de privacidad antes de enviar (cédulas, teléfonos y correos) y protocolo de riesgo por reglas fijas **antes** de llamar a la IA. Máximo 12 mensajes de 2.000 caracteres.
 - **La salida se valida en el servidor** (`armarRespuesta`) contra el esquema de `responder`: solo acciones, documentos y derechos del catálogo, listas solo de textos, textos de máximo 600 caracteres y sin claves desconocidas. Si no cumple (por ejemplo, `orientar` sin orientación), contesta el modo básico. La IA no puede cambiar "Qué dice la ley", los plazos ni el aviso legal: salen de contenido fijo.
@@ -64,7 +65,7 @@ Con una clave de Vertex, cambiar la URL por `https://aiplatform.googleapis.com/v
 3. Si la clave es de Vertex, agregar también `GEMINI_ENDPOINT` = `vertex`.
 4. Verificar que **no** exista `ANTHROPIC_API_KEY`; si existe, manda Claude.
 5. **Redeploy** (las variables solo se aplican a despliegues nuevos).
-6. Abrir `https://miderecho-two.vercel.app/api/salud`: debe decir `"ia": "gemini"` y el plan. Luego escribirle al asistente: la respuesta debe traer `"fuente": "gemini"`. Si trae `"simulada"` con aviso, mirar los registros de la función `api/asistente` en Vercel: aparece algo como `asistente: gemini 403 Gemini respondió 403` o `Gemini no usó la herramienta: RECITATION`.
+6. Abrir `https://miderecho-two.vercel.app/api/salud`: debe decir `"ia": "gemini"` y el plan. Luego escribirle al asistente desde una versión de la app que envíe el consentimiento (si no, siempre contesta el modo básico pidiendo aceptar el aviso): la respuesta debe traer `"fuente": "gemini"`. Si trae `"simulada"` con aviso, mirar los registros de la función `api/asistente` en Vercel: aparece algo como `asistente: gemini 403 Gemini respondió 403` o `Gemini no usó la herramienta: RECITATION`.
 
 Con la CLI: `vercel env add GEMINI_API_KEY production` (pide el valor sin mostrarlo).
 
