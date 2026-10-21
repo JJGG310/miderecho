@@ -29,7 +29,7 @@ export function AvisoIA({ alAceptar, alRechazar }) {
     </section>
     <button className="btn-primario" onClick={aceptar}>Sí, acepto</button>
     <button className="btn-secundario" onClick={alRechazar}>No, prefiero elegir una opción</button>
-    <a className="btn-enlace" href="#/politica/completa">Ver la política de datos</a>
+    <a className="btn-enlace" href="#/politica">Ver la política de datos en historieta</a>
   </>);
 }
 
