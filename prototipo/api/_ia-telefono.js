@@ -8,7 +8,7 @@ import { responderSimulado } from '../../apps/api/src/simulado.js';
 
 const env = process.env;
 const leer = k => (env[k] || '').trim();
-export const VOZ = 'SmgKjOvC1aIujLWcMzqq';   // "Alisson", colombiana cálida; se cambia con ELEVENLABS_VOZ
+export const VOZ = 'SmgKjOvC1aIujLWcMzqq';   // "Alisson", colombiana cálida: la misma de los dos agentes; se cambia con ELEVENLABS_VOZ
 export const MAX_TURNOS = 5;    // la cuenta de prueba de Twilio corta a los 10 saltos de URL y el menú gasta hasta 4
 export const MAX_SEGUNDOS = 240;
 // La cuenta de prueba de Twilio espera el TwiML máximo 5 segundos: Gemini tiene 3 y la voz 1,5; si no, el respaldo.
