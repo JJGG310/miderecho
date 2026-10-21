@@ -20,10 +20,6 @@ export function enviarSMS(telefono, texto) {
 export function enviarWhatsApp(telefono, texto, { pdfUrl } = {}) {
   return pedir('whatsapp', 'POST', { telefono, texto, pdfUrl });
 }
-// Llamada con voz que lee el mensaje.
-export function llamar(telefono, mensaje) {
-  return pedir('llamada', 'POST', { telefono, mensaje });
-}
 // canal: 'sms' | 'whatsapp' | 'llamada'; fechas: ['AAAA-MM-DD']. Solo con autorización expresa de la persona.
 // Devuelve además `token`: guárdelo con el caso, porque sin él no se puede cancelar.
 // `mensaje` se ignora: el servidor arma el texto con una plantilla fija (código y fecha).

@@ -8,7 +8,7 @@ Estado (20-oct-2026): el código está listo y **funciona en modo simulado**. No
 |---|---|---|
 | `POST /api/sms` `{ telefono, texto }` | Un SMS en GSM-7: conserva ñ, é, ü, ¿ y ¡, cambia á, í, ó, ú por la vocal sola y quita emojis y la comilla invertida, para que quepa en un solo mensaje | 160 posiciones (`^{}[]~\|€` ocupan dos) |
 | `POST /api/whatsapp` `{ telefono, texto, pdfUrl? }` | Aviso o documento por WhatsApp (sandbox de Twilio para el demo). El PDF debe estar en el mismo sitio, con https | 1.000 |
-| `POST /api/llamada` `{ telefono, mensaje }` | Llamada que lee el mensaje con voz neural de español latino (`Polly.Mia-Neural`, es-MX), con una pausa al inicio y el mensaje dos veces | 400 (y TwiML de máximo 4.000) |
+| ~~`POST /api/llamada`~~ | **Quitada el 21-oct-2026** (texto libre, sin horario y sin uso en la v2; límite de 12 funciones de Vercel). La voz leída (`Polly.Mia-Neural`) sigue en los recordatorios por llamada del cron, con texto fijo, y la llamada del asistente es `/api/llamar` (`docs/llamadas-y-notificaciones.md`) | |
 | `POST /api/recordatorios` `{ codigo, telefono, canal, fechas }` → `{ ok, simulado, token }` | Programa de 1 a 6 recordatorios (`canal`: `sms`, `whatsapp` o `llamada`; `fechas`: `AAAA-MM-DD`, desde hoy y dentro de un año; hoy solo antes de las 8 a. m.). El texto lo arma el servidor con una plantilla fija; `mensaje` se ignora. Devuelve un `token` secreto que la app debe guardar con el caso | Fijo |
 | `DELETE /api/recordatorios` `{ codigo, token }` | Cancela y borra los recordatorios de ese caso. Siempre responde igual, exista o no | |
 | `GET /api/cron-recordatorios` | La llama Vercel Cron todos los días a las 13:00 UTC (8 a. m. en Colombia). Envía los recordatorios de hoy y los que quedaron de ayer, en tandas de 10 y máximo 40 segundos, y respeta `LIMITE_DIARIO`. Exige `Authorization: Bearer <CRON_SECRET>` | |
@@ -34,7 +34,7 @@ Estado (20-oct-2026): el código está listo y **funciona en modo simulado**. No
    - Solo envía al **país del celular con que se registró** (por eso, uno colombiano) y solo a **5 números verificados**. Se agregan en *Console → Phone Numbers → Manage → Verified Caller IDs*, con un código por SMS.
    - El número de origen lo asigna Twilio; no se puede escoger.
    - Los SMS llegan con el prefijo "Sent from a Twilio trial account", que los vuelve de dos segmentos.
-   - Llamadas de máximo 10 minutos. La documentación de la prueba describe las llamadas salientes por API solo con plantillas de Twilio; si `/api/llamada` responde un error de Twilio, hay que pasar la cuenta a pago (*Upgrade*, recarga inicial; las restricciones de la prueba desaparecen).
+   - Llamadas de máximo 10 minutos. La documentación de la prueba describe las llamadas salientes por API solo con plantillas de Twilio; si una llamada responde un error de Twilio, hay que pasar la cuenta a pago (*Upgrade*, recarga inicial; las restricciones de la prueba desaparecen).
 3. Activar Colombia: *Messaging → Settings → Geo permissions* y *Voice → Settings → Geo permissions*, marcar Colombia. Sin esto Twilio rechaza con los códigos 21408 (SMS) o 21215 (voz).
 4. Copiar el **Account SID** y el **Auth Token** de la página principal de la consola (*Account Info*).
 5. Poner una alerta de gasto: *Monitor → Usage triggers* (por ejemplo, avisar al correo si se gastan US$10 en un día) y no activar la recarga automática.

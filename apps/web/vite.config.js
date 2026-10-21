@@ -29,6 +29,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
         globIgnores: ['**/*cyrillic*', '**/*vietnamese*'],
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ['sw-avisos.js'],   // notificaciones push de los plazos (public/sw-avisos.js)
       },
     }),
   ],

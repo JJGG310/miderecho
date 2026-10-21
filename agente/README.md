@@ -6,13 +6,17 @@ Agente conversacional en ElevenLabs que es la voz del Asistente de la v2: en la 
 - **Agente de pruebas:** `agent_3301m5e2amx2f9etc6k5hzwp7kct` ("MiDerecho (pruebas locales)"). Igual al principal, pero sin sesión firmada, solo `localhost`/`127.0.0.1`, con modo texto y 20 conversaciones al día. Si se cambia el principal, cambiar también este.
 - **En la v2:** `apps/web/src/lib/agenteVoz.js` (SDK, sesión y herramientas, sin React) y `apps/web/src/componentes/ModoVoz.jsx` (aviso, estados y colgar). `#/asistente/voz` abre el modo voz directo, sin relato escrito.
 - **Prototipo (referencia, ya no coincide con el agente):** `prototipo/agente-voz.js` usaba `window.miderecho` con las herramientas `iniciar_caso`, `pantalla_actual` y `elegir_opcion`.
+- **Agente telefónico:** `agent_3901m5fd72hyedssc8h6r4gznevn` ("MiDerecho teléfono"). Copia del principal para llamadas salientes que pide la persona (`prototipo/api/llamar.js`): sin herramientas de pantalla, con las variables `codigo` y `vence`. Prompt en `prompt-telefono.md`, configuración en `configuracion-telefono.json`. Si se cambian las reglas del principal, cambiarlas también aquí.
 
 | Archivo | Qué es |
 |---|---|
 | `prompt.md` | Prompt del sistema: protocolo de riesgo, frases fijas, botones que solo toca la persona, listas cerradas |
 | `conocimiento.md` | Base de conocimiento en lenguaje claro (borrador sin validar por un consultorio jurídico) |
 | `configuracion.json` | Todo lo demás para recrearlo: primer mensaje, voz, herramientas con ids, guardrails, privacidad, acceso, límites, SDK |
-| `telefono.md` | Cómo pasar el agente a una línea de Twilio y registrar sus herramientas de servidor (§5). Solo preparado |
+| `telefono.md` | Cómo pasar el agente a una línea de Twilio y registrar sus herramientas de servidor (§5). Solo preparado; el agente de llamadas salientes queda sin herramientas de documentos (decisión de integración) |
+| `prompt-telefono.md`, `configuracion-telefono.json` | Agente telefónico: seguimiento de plazos y qué documento sirve, por llamada |
+
+| `prueba.html` | Página de prueba con un `window.miderecho` falso que imita `app.js`. **No se publica** |
 | `test-sesion.mjs` | Prueba de la función de sesión sin red: `node agente/test-sesion.mjs` |
 
 Las pruebas de las herramientas (de cliente y de servidor) y de los avisos están en `prototipo/api/_test-agente-avisos.mjs`. Variables, costos y qué falta: `docs/agente-y-avisos.md`.

@@ -27,7 +27,7 @@ async function api(ruta, method, body, { ip = '10.0.0.1', headers = {} } = {}) {
 const listo = telefono => ({ plantilla: 'documento_listo', telefono, datos: { codigo: 'ABCD' } });
 const sms = (telefono, ip) => api('sms', 'POST', listo(telefono), { ip });
 const cron = () => api('cron-recordatorios', 'GET', null, { headers: { authorization: 'Bearer secreto-de-prueba' } });
-const rec = { codigo: 'K7P2', telefono: '3125550000', canal: 'sms', fechas: ['2026-10-20', '2026-10-30'] };
+const rec = { codigo: 'K7P2', telefono: '3125550000', canal: 'sms', fechas: ['2026-10-20', '2026-10-30'], acepto: true, aviso: 'avisos-v1' };
 const programar = (cambios, ip) => api('recordatorios', 'POST', { ...rec, ...cambios }, { ip });
 const cancelar = (codigo, token) => api('recordatorios', 'DELETE', { codigo, token });
 const idsDel = async f => (await kv(['SMEMBERS', 'dia:' + f]))[0];
@@ -38,7 +38,6 @@ let r;
 r = await sms('300 111 2233');
 assert.deepEqual([r.status, r.ok, r.simulado], [200, true, true]);
 assert.equal((await api('whatsapp', 'POST', listo('+57 300 111 2233'))).simulado, true);
-assert.equal((await api('llamada', 'POST', { telefono: '573001112233', mensaje: 'Su petición vence mañana.' })).simulado, true);
 assert.equal((await api('sms', 'GET')).status, 405);
 
 // (3) solo JSON y solo desde la propia app
@@ -55,8 +54,6 @@ for (const tel of ['12345', '+1 415 555 0100', '601 234 5678', '+57 300 111 223'
   assert.equal((await sms(tel)).status, 400, `debió rechazar ${tel}`);
 
 // topes de texto, (11) GSM-7 y (12) TwiML de 4000
-assert.equal((await api('llamada', 'POST', { telefono: '3001112233', mensaje: 'x'.repeat(401) })).status, 400);
-assert.equal((await api('llamada', 'POST', { telefono: '3001112233', mensaje: '&'.repeat(400) })).status, 400);
 assert.equal(gsm('Petición está: mañana ¿qué? ¡Ü! `x` 👍 Ça ça'), 'Peticion esta: mañana ¿qué? ¡Ü! x  Ça ca');
 assert.equal(septetos('a{b'), 4);
 assert.ok(twiml('A & B <x>').includes('A &#38; B &#60;x&#62;'));
@@ -70,6 +67,10 @@ assert.equal((await programar({ fechas: ['2027-02-30'] })).status, 400);   // no
 assert.equal((await programar({ fechas: ['2028-01-01'] })).status, 400);   // a más de un año
 assert.equal((await programar({ fechas: [1, 2, 3, 4, 5, 6, 7].map(d => `2026-11-0${d}`) })).status, 400);
 assert.equal((await programar({ canal: 'paloma' })).status, 400);
+// autorización expresa y versión del texto que vio la persona
+assert.match((await programar({ acepto: undefined })).error, /autorización/);
+assert.match((await programar({ aviso: undefined })).error, /versión del aviso/);
+assert.match((await programar({ aviso: 'v1; DROP' })).error, /versión del aviso/);
 assert.equal((await programar({ codigo: 'a b' })).status, 400);
 
 // (1, 5) token secreto, sin texto libre, teléfono cifrado
@@ -155,9 +156,6 @@ const textoListo = 'Su documento ABCD quedo listo. Si necesita ayuda, vaya con s
 assert.deepEqual(salidas.at(-1).datos, { To: '+573001112233', From: '+15005550006', Body: textoListo });
 await api('whatsapp', 'POST', listo('3001112233'));
 assert.deepEqual(salidas.at(-1).datos, { To: 'whatsapp:+573001112233', From: 'whatsapp:+14155238886', Body: textoListo });
-await api('llamada', 'POST', { telefono: '3001112233', mensaje: 'Su petición vence el lunes.' });
-assert.match(salidas.at(-1).url, /Calls\.json$/);
-assert.ok(salidas.at(-1).datos.Twiml.includes('<Say language="es-MX" voice="Polly.Mia-Neural">Su petición vence el lunes.</Say>'));
 assert.deepEqual([(r = await sms('3009999999')).status, r.error], [502, 'Twilio no aceptó el envío (código 21608)']);
 
 // lista blanca

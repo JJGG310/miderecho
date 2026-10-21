@@ -3,6 +3,7 @@ import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, CheckCirc
 import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, sumarHabiles, iso } from '@miderecho/nucleo';
 import { Encabezado, Titulo, BotonVoz } from '../componentes/comunes.jsx';
 import EnvioCorreo from '../componentes/EnvioCorreo.jsx';
+import { ElegirAvisos } from '../componentes/Avisos.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir, memoria } from '../lib/ruta.js';
 
@@ -259,7 +260,7 @@ function Vista({ tipo, datos: base, volver, caso }) {
   const [porCorreo, setPorCorreo] = useState(null);
   const datos = useMemo(() => (porCorreo ? { ...base, ...porCorreo } : base), [base, porCorreo]);
   const html = useMemo(() => generarDocumento(tipo, datos), [tipo, datos]);
-  const [guardado, setGuardado] = useState(false);
+  const [guardado, setGuardado] = useState(null);   // el caso guardado: ofrece los avisos del plazo
   // "Lo entregué" y el envío por correo actualizan el mismo caso; un documento de otro tipo (la tutela de una petición) es un caso nuevo.
   const [id] = useState(() => (base.tipo === tipo && base.id) || crypto.randomUUID?.() || String(Date.now()));
   const t = TIPOS[tipo];
@@ -267,15 +268,19 @@ function Vista({ tipo, datos: base, volver, caso }) {
 
   const entregar = (extra = {}) => {
     const hoy = new Date();
-    almacen.guardarCaso({
+    // Se mezcla con el caso ya guardado para no perder sus avisos (tokens) ni su código.
+    const previo = almacen.casos().find(c => c.id === id) || {};
+    const nuevo = {
+      ...previo,
       id,
       tipo, titulo: t.titulo, icono: t.icono,
       entidad: datos.entidad, municipio: datos.municipio, vereda: datos.vereda,
       rad: iso(hoy), venc: t.plazo ? iso(sumarHabiles(hoy, t.plazo)) : null, plazo: t.plazo || null,
       // Solo los textos de plantilla de lo que pidió: sirven para la tutela si no responden.
       peticiones: (datos.peticiones || []).map(p => p.texto ?? p), modo: 'mano', estado: 'esperando', ...extra,
-    });
-    setGuardado(true);
+    };
+    almacen.guardarCaso(nuevo);
+    setGuardado(nuevo);
   };
 
   return (
@@ -296,6 +301,7 @@ function Vista({ tipo, datos: base, volver, caso }) {
           if (caso && memoria.caso) almacen.guardarCaso({ ...memoria.caso, estado: 'tutela' });   // la petición queda, marcada
         }} />
       </div>
+      {guardado?.venc && <ElegirAvisos caso={guardado} />}
       <section className="tarjeta tierra">
         <h2>Cómo entregarlo</h2>
         <p className="suave">{tipo.startsWith('tutela')
