@@ -16,7 +16,7 @@ export const HERRAMIENTA = {
         type: 'string', enum: ['preguntar', 'orientar', 'riesgo', 'fuera_de_alcance'],
         description: 'preguntar: falta un dato clave (máximo 3 preguntas en toda la conversación). orientar: ya entiendes el problema. riesgo: amenazas, grupos armados, violencia o peligro físico. fuera_de_alcance: no es un tema legal de la app.',
       },
-      mensaje: { type: 'string', description: 'Lo que lees a la persona. Español colombiano sencillo, tuteo, máximo 3 frases cortas. Una sola pregunta si accion=preguntar.' },
+      mensaje: { type: 'string', description: 'Lo que lees a la persona. Español colombiano sencillo, trato de usted, máximo 3 frases cortas. Una sola pregunta si accion=preguntar.' },
       opciones: { type: 'array', items: { type: 'string' }, maxItems: 3, description: 'Respuestas rápidas (botones) para la pregunta, si aplica.' },
       orientacion: {
         type: 'object',
@@ -40,7 +40,7 @@ export const HERRAMIENTA = {
               motivo: { type: 'string', enum: MOTIVOS_SP.map(m => m.id), description: 'Solo para servicios_publicos.' },
               que: { type: 'string', enum: SALUD_NIEGA.map(s => s.id), description: 'Solo para tutela_salud.' },
               derecho: { type: 'string', enum: DERECHOS.map(d => d.id), description: 'Solo para tutela.' },
-              desde: { type: 'string', enum: DESDE },
+              desde: { type: 'string', enum: DESDE, description: 'Solo si la persona dijo desde cuándo pasa.' },
               urgente: { type: 'boolean', description: 'Solo salud: la persona dice que su vida o salud corre riesgo si espera.' },
             },
           },
@@ -64,7 +64,7 @@ export function leyFija(documento, derecho) {
 }
 
 // Texto fijo del protocolo de riesgo (reglas del servidor, modo básico y bloqueos de seguridad de la IA).
-export const RESPUESTA_RIESGO = { accion: 'riesgo', mensaje: 'Lo que me cuentas es serio. No te voy a pedir más datos y no vamos a guardar nada de esto. Si hay peligro ahora mismo, llama al 123.' };
+export const RESPUESTA_RIESGO = { accion: 'riesgo', mensaje: 'Lo que me cuenta es serio. No le voy a pedir más datos y no vamos a guardar nada de esto. Si hay peligro ahora mismo, llame al 123.' };
 
 const MAX_CAMPO = 600;
 // Ajusta un valor al esquema de la herramienta: descarta claves desconocidas y valores fuera del catálogo,

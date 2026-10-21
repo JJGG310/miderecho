@@ -31,6 +31,10 @@ try {
   assert.equal(r.body.opciones.length, 3);
   r = await post('/api/asistente', { mensajes: [m1, { rol: 'asistente', texto: r.body.mensaje }, { rol: 'persona', texto: 'Sí, es urgente' }] });
   assert.equal(r.body.orientacion.documento, 'tutela_salud');
+  r = await post('/api/asistente', { mensajes: [{ rol: 'persona', texto: 'La EPS me negó la cirugía, tengo dolor y no puedo trabajar, es urgente' }] });
+  assert.equal(r.body.orientacion.documento, 'tutela_salud');
+  r = await post('/api/asistente', { mensajes: [m1, { rol: 'asistente', texto: '¿Es urgente?' }, { rol: 'persona', texto: 'No, pero lo necesito' }] });
+  assert.equal(r.body.orientacion.documento, 'peticion');
 
   // Trabajo: ruta sin documento (no hacemos contratos laborales)
   r = await post('/api/asistente', { mensajes: [{ rol: 'persona', texto: 'el patrón de la finca no me ha pagado el jornal de tres semanas' }] });
