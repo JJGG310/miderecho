@@ -56,6 +56,7 @@ export default function MisCasos() {
                     </div>
                   </>
                 )}
+                {c.estado === 'tutela' && <p className="plazo ok"><CheckCircle2 size={16} aria-hidden /><span>Ya hiciste la tutela por esta petición: está en Mis casos.</span></p>}
                 {c.estado === 'respondido' && <p className="plazo ok"><CheckCircle2 size={16} aria-hidden /><span>Te respondieron. Si la respuesta no resuelve tu caso, cuéntanos en Inicio.</span></p>}
               </li>
             );

@@ -32,7 +32,9 @@ const JUZGADOS = {
     ['Juzgado 1 Civil Municipal de San José del Guaviare', 'j01cmpalsjguaviare'], ['Juzgado 2 Civil Municipal de San José del Guaviare', 'j02cmpalsjguaviare'],
     ['Juzgado 1 Penal Municipal de San José del Guaviare', 'j01pmpalmixsjguaviare'], ['Juzgado 2 Penal Municipal de San José del Guaviare', 'j02pmpalmixsjguaviare']],
 };
-const juzgado = ([nombre, usuario]) => ({ nombre, correo: `${usuario}@cendoj.ramajudicial.gov.co`, verificado: true });
+// El Juzgado 2 de El Carmen de Bolívar aparece en ese directorio, pero una segunda revisión no lo pudo confirmar: sin verificar.
+const SIN_CONFIRMAR = ['j02prmcbolivar'];
+const juzgado = ([nombre, usuario]) => ({ nombre, correo: `${usuario}@cendoj.ramajudicial.gov.co`, verificado: !SIN_CONFIRMAR.includes(usuario) });
 const juzgados = Object.entries(JUZGADOS).flatMap(([m, [primero, ...otros]]) => [
   [`juzgado:${m}`, juzgado(primero)], ...otros.map((j, i) => [`juzgado:${m}:${i + 1}`, juzgado(j)])]);
 

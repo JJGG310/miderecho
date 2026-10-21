@@ -177,7 +177,8 @@ function Formulario({ tipo }) {
         )}
 
         <Campo etiqueta="¿Quieres agregar algo con tus palabras? (opcional)">
-          <textarea rows={3} value={c.palabras} onChange={e => set('palabras', e.target.value)} placeholder="Solo lo necesario. No escribas nombres de otras personas." />
+          <textarea rows={3} maxLength={1000} value={c.palabras} onChange={e => set('palabras', e.target.value)} placeholder="Solo lo necesario. No escribas nombres de otras personas." />
+          <small className="ayuda">{c.palabras.length} de 1.000 letras</small>
         </Campo>
 
 
@@ -253,10 +254,14 @@ function Campo({ etiqueta, children }) {
 }
 
 // Vista previa, lectura en voz alta, imprimir o guardar en PDF, y anotar en Mis casos.
-function Vista({ tipo, datos, volver, caso }) {
+function Vista({ tipo, datos: base, volver, caso }) {
+  // Al abrir el envío por correo, el documento pasa a como se envía (sin firma a mano ni anexos, con la entidad del directorio).
+  const [porCorreo, setPorCorreo] = useState(null);
+  const datos = useMemo(() => (porCorreo ? { ...base, ...porCorreo } : base), [base, porCorreo]);
   const html = useMemo(() => generarDocumento(tipo, datos), [tipo, datos]);
   const [guardado, setGuardado] = useState(false);
-  const [id] = useState(() => datos.id || crypto.randomUUID?.() || String(Date.now()));   // "Lo entregué" y el envío por correo actualizan el mismo caso
+  // "Lo entregué" y el envío por correo actualizan el mismo caso; un documento de otro tipo (la tutela de una petición) es un caso nuevo.
+  const [id] = useState(() => (base.tipo === tipo && base.id) || crypto.randomUUID?.() || String(Date.now()));
   const t = TIPOS[tipo];
   const texto = () => new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/_{3,}/g, ' espacio en blanco ');
 
@@ -286,7 +291,10 @@ function Vista({ tipo, datos, volver, caso }) {
         <button className="btn-secundario" onClick={() => window.print()}><Printer size={18} aria-hidden /> Imprimir o guardar PDF</button>
         {!guardado && !caso && <button className="btn-primario" onClick={() => entregar()}><CheckCircle2 size={18} aria-hidden /> Lo entregué hoy: avísame el plazo</button>}
         {guardado && <button className="btn-primario" onClick={() => ir('casos')}>Ver en Mis casos</button>}
-        <EnvioCorreo tipo={tipo} datos={datos} alEnviar={k => entregar({ modo: 'envio', envios: [...(datos.envios || []), k] })} />
+        <EnvioCorreo tipo={tipo} datos={datos} alAbrir={setPorCorreo} alEnviar={k => {
+          entregar({ modo: 'envio', envios: [k] });
+          if (caso && memoria.caso) almacen.guardarCaso({ ...memoria.caso, estado: 'tutela' });   // la petición queda, marcada
+        }} />
       </div>
       <section className="tarjeta tierra">
         <h2>Cómo entregarlo</h2>
