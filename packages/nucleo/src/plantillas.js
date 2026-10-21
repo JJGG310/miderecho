@@ -7,6 +7,10 @@ export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;'
 const fechaDoc = d => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 const linea = '______________________';
 const pie = `<p class="pie">Documento preparado con ${NOMBRE}. ${VERIFICADO}. No es asesoría de abogado.</p>`;
+// Datos de la persona: si los dio en el paso "Tus datos para el documento" van impresos; si no, queda la línea para llenar a mano.
+const accionante = c => `${esc(c.nombre || linea)}, C.C. ${esc(c.cedula || linea)}`;
+const dondeRecibe = c => `${c.direccion ? esc(c.direccion) : `Vereda ${esc(c.vereda)}, ${esc(c.municipio)}`}. Teléfono: ${esc(c.telefono || linea)}`;
+const firmaJudicial = c => `<p class="firma">${linea}<br>Firma<br>${c.nombre ? `${esc(c.nombre)}<br>` : ''}C.C. ${esc(c.cedula || linea)}</p>`;
 const lista = xs => `<ol>${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
 const de = (xs, id) => xs.find(x => x.id === id);
 const derecho = id => de(DERECHOS, id) || de(DERECHOS, 'otro_derecho');
@@ -49,7 +53,7 @@ function docPeticion(c, hoy) {
   const hechos = [t.hecho && llenar(t.hecho, c), c.palabras].filter(Boolean);
   const respuesta = c.modo === 'envio'
     ? `Vereda ${c.vereda}, ${c.municipio}. Correo: ${CORREO_SERVICIO} (servicio que autoricé para recibir y reenviarme la respuesta).`
-    : `Vereda ${c.vereda}, ${c.municipio}. Otra dirección o correo: ${linea}`;
+    : `Vereda ${c.vereda}, ${c.municipio}.${c.direccion ? ` Dirección o correo: ${c.direccion}.` : ` Otra dirección o correo: ${linea}`}`;
   return `<article class="doc">
     <p>${esc(c.municipio)}, ${fechaDoc(hoy)}</p>
     <p>Señores<br><b>${esc(c.entidad)}</b>${c.correo ? `<br>${esc(c.correo)}` : ''}</p>
@@ -69,7 +73,7 @@ function docPeticion(c, hoy) {
 function docTutelaPeticion(c) {
   return `<article class="doc">
     <p>Señor(a)<br><b>Juez de la República (reparto)</b><br>${esc(c.municipio)}</p>
-    <p><b>Referencia:</b> Acción de tutela para proteger el derecho fundamental de petición<br><b>Accionante:</b> ${linea}, C.C. ${linea}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
+    <p><b>Referencia:</b> Acción de tutela para proteger el derecho fundamental de petición<br><b>Accionante:</b> ${accionante(c)}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
     <h3>Hechos</h3><ol>
       <li>El ${fechaDoc(deIso(c.rad))} presenté un derecho de petición ante ${esc(c.entidad)}, en el que solicité: ${c.peticiones.map(esc).join(' ')}</li>
       <li>El plazo de ${c.plazo} días hábiles del artículo 14 de la Ley 1755 de 2015 venció el ${fechaDoc(deIso(c.venc))}, y a la fecha no he recibido una respuesta de fondo.</li></ol>
@@ -77,8 +81,8 @@ function docTutelaPeticion(c) {
     <h3>Pretensión</h3><p>Que se ordene a ${esc(c.entidad)} dar una respuesta de fondo, clara, precisa y congruente a mi petición dentro de las 48 horas siguientes a la notificación del fallo.</p>
     <h3>Pruebas</h3><p>Copia del derecho de petición y de la constancia de entrega${c.modo === 'envio' ? ' (correo electrónico de envío)' : ''}.</p>
     <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela por los mismos hechos.</p>
-    <h3>Notificaciones</h3><p>${linea}</p>
-    <p class="firma">${linea}<br>Firma<br>C.C. ${linea}</p>
+    <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
+    ${firmaJudicial(c)}
     ${pie}
   </article>`;
 }
@@ -100,7 +104,7 @@ function docTutela(c, hoy) {
   return `<article class="doc">
     <p>${esc(c.municipio)}, ${fechaDoc(hoy)}</p>
     <p>Señor(a)<br><b>Juez de la República (reparto)</b><br>${esc(c.municipio)}</p>
-    <p><b>Referencia:</b> Acción de tutela${urgente ? ' con solicitud de medida provisional' : ''}<br><b>Accionante:</b> ${linea}, C.C. ${linea}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
+    <p><b>Referencia:</b> Acción de tutela${urgente ? ' con solicitud de medida provisional' : ''}<br><b>Accionante:</b> ${accionante(c)}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
     <p>${menor // [validar] representación legal del menor por el padre, la madre o quien lo tiene a cargo
       ? `Presento acción de tutela en representación de mi hijo(a) menor de edad, ${linea} (nombre completo y documento), para que se protejan sus derechos fundamentales (artículo 10 del Decreto 2591 de 1991).`
       : 'Presento acción de tutela en nombre propio (artículo 10 del Decreto 2591 de 1991) para que se protejan mis derechos fundamentales.'}</p>
@@ -119,8 +123,8 @@ function docTutela(c, hoy) {
     ])}
     <h3>Pruebas</h3>${c.pruebas?.length ? `<p>Adjunto copia de:</p>${lista(c.pruebas)}` : `<p>No tengo documentos en este momento. Pido que se le solicite a ${esc(c.entidad)} la información de mi caso.</p>`}
     <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela por los mismos hechos.</p>
-    <h3>Notificaciones</h3><p>Vereda ${esc(c.vereda)}, ${esc(c.municipio)}. Teléfono o correo: ${linea}</p>
-    <p class="firma">${linea}<br>Firma<br>C.C. ${linea}</p>
+    <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
+    ${firmaJudicial(c)}
     ${pie}
   </article>`;
 }
@@ -131,12 +135,12 @@ function docImpugnacion(c, hoy) {
   return `<article class="doc">
     <p>${esc(c.municipio)}, ${fechaDoc(hoy)}</p>
     <p>Señor(a)<br><b>Juez ${linea}</b><br>(el mismo juzgado que decidió la tutela)<br>${esc(c.municipio)}</p>
-    <p><b>Referencia:</b> Impugnación del fallo de tutela<br><b>Radicado:</b> ${linea}<br><b>Accionante:</b> ${linea}, C.C. ${linea}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
+    <p><b>Referencia:</b> Impugnación del fallo de tutela<br><b>Radicado:</b> ${linea}<br><b>Accionante:</b> ${accionante(c)}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
     <p>Presento impugnación contra el fallo de tutela que me fue notificado el ${fechaDoc(deIso(c.rad))}, dentro del término de tres (3) días del artículo 31 del Decreto 2591 de 1991, para que el juez superior lo revise.</p>
     <h3>Razones</h3>${razones.length ? lista(razones) : '<p>No estoy de acuerdo con el fallo porque mis derechos siguen sin protección.</p>'}
     <h3>Petición</h3><p>Revocar el fallo y conceder la tutela, con las órdenes que pedí. Derechos que pido proteger: ${esc(derecho(c.derecho).texto)}</p>
-    <h3>Notificaciones</h3><p>${linea}</p>
-    <p class="firma">${linea}<br>Firma<br>C.C. ${linea}</p>
+    <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
+    ${firmaJudicial(c)}
     ${pie}
   </article>`;
 }
@@ -147,7 +151,7 @@ function docDesacato(c, hoy) {
   return `<article class="doc">
     <p>${esc(c.municipio)}, ${fechaDoc(hoy)}</p>
     <p>Señor(a)<br><b>Juez ${linea}</b><br>(el mismo juzgado que decidió la tutela)<br>${esc(c.municipio)}</p>
-    <p><b>Referencia:</b> Solicitud de incidente de desacato<br><b>Radicado:</b> ${linea}<br><b>Accionante:</b> ${linea}, C.C. ${linea}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
+    <p><b>Referencia:</b> Solicitud de incidente de desacato<br><b>Radicado:</b> ${linea}<br><b>Accionante:</b> ${accionante(c)}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
     <h3>Hechos</h3>${lista([
       `El ${fechaDoc(deIso(c.rad))} me notificaron el fallo que concedió la tutela y ordenó a ${c.entidad}: ${orden}.`,
       `El plazo que dio el juez para cumplir ya pasó y ${c.entidad} no ha cumplido.`,
@@ -157,8 +161,8 @@ function docDesacato(c, hoy) {
       'Abrir incidente de desacato contra el responsable de cumplir el fallo e imponer las sanciones del artículo 52 del Decreto 2591 de 1991.',
     ])}
     <h3>Pruebas</h3><p>Copia del fallo de tutela.</p>
-    <h3>Notificaciones</h3><p>${linea}</p>
-    <p class="firma">${linea}<br>Firma<br>C.C. ${linea}</p>
+    <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
+    ${firmaJudicial(c)}
     ${pie}
   </article>`;
 }
@@ -166,7 +170,7 @@ function docDesacato(c, hoy) {
 // Cierre del reclamo y del recurso: dónde recibe la respuesta y firma.
 const cierre = c => `<p><b>Recibiré respuesta en:</b> ${esc(c.modo === 'envio'
     ? `Vereda ${c.vereda}, ${c.municipio}. Correo: ${CORREO_SERVICIO} (servicio que autoricé para recibir y reenviarme la respuesta).`
-    : `Vereda ${c.vereda}, ${c.municipio}. Otra dirección o correo: ${linea}`)}${c.telefono ? ` Teléfono: ${esc(c.telefono)}.` : ''}</p>
+    : `Vereda ${c.vereda}, ${c.municipio}.${c.direccion ? ` Dirección o correo: ${c.direccion}.` : ` Otra dirección o correo: ${linea}`}`)}${c.telefono ? ` Teléfono: ${esc(c.telefono)}.` : ''}</p>
     <p>Atentamente,</p>
     <p class="firma">${c.modo === 'envio' ? `Enviado con autorización del usuario. Código ${c.codigo}` : linea}<br>${esc(c.nombre || 'Nombre:')}<br>C.C. ${esc(c.cedula || '')}</p>`;
 const usuario = c => `Yo, ${esc(c.nombre || linea)}, identificado(a) con cédula de ciudadanía n.º ${esc(c.cedula || linea)}, usuario(a) del servicio de ${esc(valor(c, 'servicio'))}, cuenta o contrato n.º ${esc(c.cuenta || linea)},`;

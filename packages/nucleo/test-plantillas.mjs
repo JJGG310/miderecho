@@ -91,4 +91,17 @@ assert.equal(iso(sumarHabiles(new Date(2026, 10, 9), TIPOS.recurso_servicios.pre
 // Reclamo entregado el 9-nov-2026: la empresa responde a más tardar el 1-dic-2026, si no, silencio positivo
 assert.equal(iso(sumarHabiles(new Date(2026, 10, 9), TIPOS.servicios_publicos.plazo)), '2026-12-01');
 
+// Datos de la persona (paso "Tus datos para el documento"): si los da, salen impresos; si no, queda la línea para llenar a mano
+const persona = { nombre: 'Rosa Díaz', cedula: '30111222', telefono: '3001234567', direccion: 'Finca El Roble, vereda La Esperanza' };
+for (const tipo of ['tutela_salud', 'tutela', 'impugnacion', 'desacato', 'tutela_peticion']) {
+  const conDatos = generarDocumento(tipo, { ...ejemplos[tipo], ...persona }, HOY);
+  assert.match(conDatos, /Accionante:<\/b> Rosa Díaz, C\.C\. 30111222/, tipo);
+  assert.match(conDatos, /Finca El Roble, vereda La Esperanza\. Teléfono: 3001234567/, tipo);
+  assert.match(doc[tipo], /Accionante:<\/b> _{5,}, C\.C\. _{5,}/, `${tipo} sin datos`);
+}
+const petConDatos = generarDocumento('peticion', { ...ejemplos.peticion, ...persona }, HOY);
+assert.match(petConDatos, /Yo, Rosa Díaz, identificado\(a\) con cédula de ciudadanía n\.º 30111222/);
+assert.match(petConDatos, /Dirección o correo: Finca El Roble/);
+assert.match(petConDatos, /Teléfono: 3001234567/);
+
 console.log('plantillas ok');
