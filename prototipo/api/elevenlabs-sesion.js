@@ -2,8 +2,11 @@
 // (apps/web/src/lib/agenteVoz.js). La clave vive solo en la variable de entorno ELEVENLABS_API_KEY de Vercel; sin ella
 // responde 503 y la app sigue sin voz.
 // POST /api/elevenlabs-sesion?herramienta=<nombre>: herramientas de servidor del agente telefónico (_herramientas.js),
-// con su propio secreto. Van en esta misma función para no sumar otra al límite de funciones del plan de Vercel.
+// con su propio secreto.
+// GET /api/elevenlabs-sesion?lectura=<clave>&v=<huella>: lectura en voz alta de textos fijos (_lectura.js).
+// Van en esta misma función para no sumar otra al límite de funciones del plan de Vercel.
 import { herramienta } from './_herramientas.js';
+import { lectura } from './_lectura.js';
 import { contar, incr, hoyColombia } from './_comun.js';
 
 const AGENTE = 'agent_8101m5dg7s5se9trrst6fjpvz52d';   // exige sesión firmada (enable_auth): sin este token no se puede abrir
@@ -11,7 +14,7 @@ const AGENTE = 'agent_8101m5dg7s5se9trrst6fjpvz52d';   // exige sesión firmada 
 // El total diario es el mismo tope del agente en ElevenLabs (60 conversaciones al día, 3 a la vez).
 const POR_IP_HORA = 10, POR_DIA = 60;
 // Versión vigente del aviso de voz: la misma AVISO_VOZ de apps/web/src/lib/agenteVoz.js (lo revisa _test-agente-avisos.mjs).
-export const AVISO_VOZ = 'voz-v3';
+export const AVISO_VOZ = 'voz-v4';
 
 // Solo el propio sitio (o localhost con `vercel dev`): pedido JSON, que obliga al navegador a preguntar antes si viene
 // de otro dominio, y Origin igual al host. Un programa fuera del navegador puede falsificarlo: por eso el límite.
@@ -22,6 +25,7 @@ export function mismoSitio(h) {
 }
 
 export default async function handler(req, res) {
+  if (req.query?.lectura) return lectura(req, res);   // GET: audio de un texto fijo (_lectura.js), con caché larga
   res.setHeader('Cache-Control', 'no-store');
   if (req.query?.herramienta) return herramienta(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });

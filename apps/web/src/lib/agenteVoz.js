@@ -23,7 +23,7 @@ export const cargarSDK = () => sdk ||= new Promise((ok, mal) => {
 // El servidor solo la entrega con la versión vigente del aviso aceptado: si cambia el texto de ModoVoz.jsx, subir la
 // versión aquí y en prototipo/api/elevenlabs-sesion.js (la prueba _test-agente-avisos.mjs revisa que coincidan).
 // Solo en desarrollo, VITE_AGENTE_PRUEBAS (agente de pruebas: sin firma, solo localhost) permite probar sin la clave.
-export const AVISO_VOZ = 'voz-v3';   // v3: trato de usted y la IA del asistente según la que esté activa
+export const AVISO_VOZ = 'voz-v4';   // v4: la asistente (voz femenina de Alisson); v3: trato de usted
 const PRUEBAS = import.meta.env?.DEV && import.meta.env.VITE_AGENTE_PRUEBAS;
 export async function pedirSesion() {
   if (PRUEBAS) return { agentId: PRUEBAS, connectionType: 'webrtc' };

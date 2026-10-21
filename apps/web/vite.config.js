@@ -28,6 +28,13 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,webp}'],
         navigateFallbackDenylist: [/^\/api\//],
         importScripts: ['sw-avisos.js'],   // notificaciones push de los plazos (public/sw-avisos.js)
+        // Audios de los textos fijos con la voz de la asistente (lib/voz.js): la URL lleva la huella del texto, así que el
+        // primero que llega se queda; la próxima vez suenan sin internet y sin gastar datos ni créditos.
+        runtimeCaching: [{
+          urlPattern: ({ url }) => url.pathname === '/api/elevenlabs-sesion' && url.searchParams.has('lectura'),
+          handler: 'CacheFirst',
+          options: { cacheName: 'lecturas', cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 120, maxAgeSeconds: 365 * 86400 } },
+        }],
       },
     }),
   ],

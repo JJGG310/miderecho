@@ -17,10 +17,10 @@ const { default: sesion, AVISO_VOZ } = await import('./elevenlabs-sesion.js');
 const { sumarHabiles, deIso, iso } = await import('@miderecho/nucleo');
 const { crearAgente, resumen, contexto, FRASES, AVISO_VOZ: AVISO_VOZ_APP } = await import('../../apps/web/src/lib/agenteVoz.js');
 
-async function llamar(handler, { method = 'POST', body, query, headers = {}, ip = '10.0.0.1' }) {
-  const r = {};
-  await handler({ method, body, query, headers: { 'x-real-ip': ip, host: 'miderecho.test', 'content-type': 'application/json', ...headers } },
-    { setHeader() {}, status(s) { r.status = s; return this; }, json(j) { Object.assign(r, j); return this; } });
+async function llamar(handler, { method = 'POST', body, query, url, headers = {}, ip = '10.0.0.1' }) {
+  const r = { cabeceras: {} };
+  await handler({ method, body, query, url, headers: { 'x-real-ip': ip, host: 'miderecho.test', 'content-type': 'application/json', ...headers } },
+    { setHeader(k, v) { r.cabeceras[k] = v; }, status(s) { r.status = s; return this; }, json(j) { Object.assign(r, j); return this; }, send(b) { r.cuerpo = b; return this; } });
   return r;
 }
 const api = async (ruta, body, op = {}) => llamar((await import(`./${ruta}.js`)).default, { body, ...op });
@@ -232,7 +232,78 @@ assert.doesNotMatch(ctx, /Pedro|3001234567/);
 assert.match(ctx, /Desde cuándo.*\[teléfono\].*Hace un mes/);
 assert.match(contexto([], null), /todavía no ha contado/);
 
-// ---------- 5. Los logs no llevan números, códigos ni textos de los avisos ----------
+// ---------- 5. Lectura en voz alta de textos fijos (GET /api/elevenlabs-sesion?lectura=…) ----------
+const { textoLectura, clavesDerecho, huella, urlLectura, lecturaCuadro, LECTURA_DERECHOS } = await import('@miderecho/nucleo/lectura');
+const { DERECHOS_INFO, derechoInfo } = await import('@miderecho/nucleo/derechos');
+// solo claves cerradas: todo lo que la app pide existe; nada más
+for (const d of DERECHOS_INFO) for (const c of clavesDerecho(d)) assert.ok(textoLectura(c), c);
+assert.equal(textoLectura('derechos'), LECTURA_DERECHOS);
+assert.equal(textoLectura('derecho.salud.cuadro.1'), lecturaCuadro(derechoInfo('salud').cuadros[0], 1));
+for (const c of ['hola mundo', 'derecho.salud', 'derecho.salud.cuadro.9', 'derecho.salud.cuadro.1.x', 'derecho.__proto__.titulo', 'derecho.salud.titulo.1', 'derecho.salud.resumen', 'derecho.servicios.cuadro.1', '', undefined])
+  assert.equal(textoLectura(c), null, `clave ${c}`);
+assert.equal(huella('abc'), huella('abc'));
+assert.notEqual(huella('abc'), huella('abd'));
+const tts = [];
+globalThis.fetch = async (url, op) => {
+  if (url === 'https://kv.test/pipeline') return new Response(JSON.stringify(JSON.parse(op.body).map(c => ({ result: redis(c) }))));
+  tts.push({ url, op });
+  return new Response(new Uint8Array([0x49, 0x44, 0x33, 1, 2, 3]), { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+};
+const leer = (clave, cambios = {}) => llamar(sesion, { method: 'GET', query: { lectura: clave, v: huella(textoLectura(clave) ?? '') }, url: urlLectura(clave), headers: {}, ...cambios });
+delete env.ELEVENLABS_API_KEY;
+r = await leer('derecho.salud.cuadro.1');
+assert.deepEqual([r.status, r.cabeceras['Cache-Control']], [503, 'no-store'], 'sin clave: el celular usa su voz');
+env.ELEVENLABS_API_KEY = 'clave-de-prueba';
+r = await leer('derecho.salud.cuadro.1');
+assert.equal(r.status, 200, r.error);
+assert.equal(r.cabeceras['Content-Type'], 'audio/mpeg');
+assert.equal(r.cabeceras['Cache-Control'], 'public, max-age=31536000, s-maxage=31536000, immutable');
+assert.equal(r.cuerpo.length, 6);
+assert.match(tts.at(-1).url, /text-to-speech\/SmgKjOvC1aIujLWcMzqq\?output_format=mp3_22050_32$/);
+assert.equal(tts.at(-1).op.headers['xi-api-key'], 'clave-de-prueba');
+assert.deepEqual(JSON.parse(tts.at(-1).op.body), { text: textoLectura('derecho.salud.cuadro.1'), model_id: 'eleven_flash_v2_5', language_code: 'es' });
+const generados = tts.length;
+assert.equal((await leer('texto libre que alguien quiere oír')).status, 404, 'nunca texto libre');
+assert.equal((await leer('derecho.salud.cuadro.1', { url: urlLectura('derecho.salud.cuadro.1') + '&x=1' })).status, 409, 'otra URL esquivaría la caché');
+assert.equal((await leer('derecho.salud.cuadro.1', { url: `/api/elevenlabs-sesion?v=${huella(textoLectura('derecho.salud.cuadro.1'))}&lectura=derecho.salud.cuadro.1` })).status, 409, 'otro orden');
+assert.equal((await leer('derecho.salud.cuadro.1', { url: '/api/elevenlabs-sesion?lectura=derecho.salud.cuadro.1&v=viejo' })).status, 409, 'texto cambiado');
+assert.equal((await leer('derecho.salud.cuadro.1', { method: 'POST' })).status, 405);
+assert.equal(tts.length, generados, 'nada de eso gastó créditos');
+globalThis.fetch = async (url, op) => url === 'https://kv.test/pipeline' ? new Response(JSON.stringify(JSON.parse(op.body).map(c => ({ result: redis(c) })))) : new Response('{"detail":"quota"}', { status: 401 });
+r = await leer('derechos');
+assert.deepEqual([r.status, r.cabeceras['Cache-Control']], [502, 'no-store'], 'sin créditos: no se guarda el error');
+
+// lib/voz.js en el celular: cola de audios, vuelta a la voz del sistema y "parar" (con Audio, fetch y voz simulados)
+const dichos = [], pedidos = [];
+let falla = null;
+globalThis.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+globalThis.window = { speechSynthesis: { cancel() {}, getVoices: () => [], addEventListener() {}, speak(u) { dichos.push(u.text); setTimeout(() => u.onend?.(), 0); } } };
+globalThis.URL.createObjectURL = () => 'blob:x';
+globalThis.URL.revokeObjectURL = () => {};
+globalThis.Audio = class { pause() { this.pausado = true; } play() { setTimeout(() => !this.pausado && this.onended?.(), 0); return Promise.resolve(); } };
+globalThis.fetch = async url => { pedidos.push(url); return url.includes(falla) ? new Response('', { status: 502 }) : new Response(new Blob(['mp3'])); };
+const { leerAudios, callar } = await import('../../apps/web/src/lib/voz.js');
+const espera = () => new Promise(r => setTimeout(r, 20));
+const claves = clavesDerecho(derechoInfo('salud'));
+let terminados = 0;
+leerAudios(claves, 'texto completo', () => terminados++);
+await espera();
+assert.deepEqual(pedidos, claves.map(urlLectura), 'todos en orden, con su URL canónica');
+assert.deepEqual([terminados, dichos.length], [1, 0], 'una sola vez y sin la voz del sistema');
+pedidos.length = 0; falla = 'cuadro.2';
+leerAudios(claves, 'texto completo', () => terminados++);
+await espera();
+assert.deepEqual([pedidos.length, dichos, terminados], [3, ['texto completo'], 2], 'si un audio falla, la voz del celular lee el texto');
+pedidos.length = 0; falla = null;
+globalThis.Audio.prototype.play = function () { return Promise.resolve(); };   // suena hasta que lo paren
+leerAudios(claves, 'texto completo', () => terminados++);
+await espera();
+callar();
+await espera();
+assert.deepEqual([pedidos.length, terminados], [1, 3], 'parar corta la cola y avisa a su botón');
+delete globalThis.window;
+
+// ---------- 6. Los logs no llevan números, códigos ni textos de los avisos ----------
 const codigos = [codigoA, codigoC].join('|');
-assert.ok(!logs.some(l => new RegExp(`\\d{7}|K7P2|${codigos}|documento|plazo vence|quedo listo|Chaparral|cita|amenaz`, 'i').test(l)), logs.join('\n'));
+assert.ok(!logs.some(l => new RegExp(`\\d{7}|K7P2|${codigos}|documento|plazo vence|quedo listo|Chaparral|cita|amenaz|Cuadro|Ana |derechos`, 'i').test(l)), logs.join('\n'));
 mostrar(`✓ _test-agente-avisos: todo bien (${salidas.length} envíos a Twilio falso, ${logs.length} líneas de log revisadas)`);

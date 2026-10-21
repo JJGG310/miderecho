@@ -114,6 +114,7 @@ export default function Asistente() {
           <button className="btn-mini enviar" disabled={!texto.trim() || cargando} onClick={() => responder(texto)} aria-label="Enviar"><ArrowUp size={24} aria-hidden /></button>
         </div>
       )}
+      {dictado.falla && !voz && <div className="aviso-error" role="alert">{dictado.falla.texto}{dictado.falla.otraVoz && <> <button onClick={() => { dictado.olvidarFalla(); setVoz(true); }}>Hablar con la asistente</button></>}</div>}
       {!riesgo && !orientado && !voz && <button className="btn-secundario" disabled={!enLinea} onClick={() => setVoz(true)}><AudioLines size={22} aria-hidden /> Hablar en vez de escribir</button>}
       {voz && <ModoVoz mensajes={mensajes} respuesta={respuesta} responder={responder} marcarRiesgo={marcarRiesgo} alSalir={() => setVoz(false)} />}
       {respuesta?.fuente === 'simulada' && <p className="nota-modo">Modo básico (sin IA){respuesta.aviso ? `: ${respuesta.aviso}` : ''}</p>}

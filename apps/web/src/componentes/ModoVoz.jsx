@@ -10,7 +10,7 @@ import './voz.css';
 // Aviso claro ANTES de tocar el micrófono (Ley 1581, art. 12; investigacion/11, §3.3). Si cambia, sube AVISO_VOZ.
 // Lo puede escuchar sin internet, con la voz del celular.
 const AVISO = [
-  'El asistente de voz es una máquina, no una persona, y no es abogado.',
+  'La asistente de voz es una máquina, no una persona, y no es abogada.',
   'Para qué: solo para entender lo que le pasa, orientarle y ayudarle con su documento.',
   'Su voz pasa por servicios externos para entenderla y contestarle: ElevenLabs, en Estados Unidos, con el modelo Gemini, de Google (también el de respaldo). Lo que entienda se lo pasa al asistente de MiDerecho, que usa Claude (de Anthropic) o Gemini (de Google), según el que esté activo, sin cédulas, teléfonos ni correos.',
   'La app no guarda su voz ni lo que diga, y el servicio está configurado para no grabarla ni guardarla. La voz no se usa para identificar a nadie.',
@@ -22,10 +22,10 @@ const AVISO = [
 ];
 const AVISO_HABLADO = conContactoHablado(AVISO.join(' ')) + ' La política de datos completa está en el enlace de la pantalla.';
 const ERRORES = {
-  red: 'El asistente de voz necesita internet. Puede seguir escribiendo.',
+  red: 'La asistente de voz necesita internet. Puede seguir escribiendo.',
   microfono: 'No pudimos usar el micrófono. Revise que el navegador tenga permiso. Puede seguir escribiendo.',
   corte: 'Se cortó la conversación. Puede intentar de nuevo o seguir escribiendo.',
-  general: 'El asistente de voz no está disponible ahora. Puede seguir escribiendo.',
+  general: 'La asistente de voz no está disponible ahora. Puede seguir escribiendo.',
 };
 
 // "Hablar en vez de escribir" en la pantalla del Asistente. Vive solo en esa pantalla: al salir de ella, al cerrar la app
@@ -125,7 +125,7 @@ export default function ModoVoz({ mensajes, respuesta, responder, marcarRiesgo, 
   return (
     <div className={`voz-barra ${modo === 'speaking' ? 'hablando' : ''}`}>
       <p aria-live="polite" ref={titulo} tabIndex={-1}>
-        {fase === 'conectando' ? 'Conectando…' : modo === 'speaking' ? 'El asistente está hablando…' : 'Le escucho. Hable cuando quiera.'}
+        {fase === 'conectando' ? 'Conectando…' : modo === 'speaking' ? 'La asistente está hablando…' : 'Le escucho. Hable cuando quiera.'}
       </p>
       <button className="voz-colgar" onClick={colgar}><PhoneOff size={18} aria-hidden /> Colgar</button>
     </div>

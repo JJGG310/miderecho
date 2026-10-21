@@ -1,17 +1,17 @@
 import { ChevronRight } from 'lucide-react';
 import { DERECHOS_INFO } from '@miderecho/nucleo/derechos';
+import { LECTURA_DERECHOS } from '@miderecho/nucleo/lectura';
 import { Encabezado, Titulo, ICONOS_DERECHO } from '../componentes/comunes.jsx';
 import Buho from '../componentes/Buho.jsx';
 import { ir } from '../lib/ruta.js';
 
-const LECTURA = 'Conozca sus derechos. Le explicamos con palabras sencillas y con historietas qué derechos tiene, cómo darse cuenta de que no se los respetan y qué puede hacer. Funciona sin internet. Temas: ' + DERECHOS_INFO.map(d => d.menu).join(', ') + '.';
 
 // "Derechos con Internet" y "Derechos Sin Internet" del Figma son la misma pantalla: todo funciona sin conexión.
 export default function Derechos() {
   return (
     <main className="pantalla">
       <Encabezado />
-      <Titulo lectura={LECTURA}>Conozca sus derechos</Titulo>
+      <Titulo lectura={LECTURA_DERECHOS} audio={['derechos']}>Conozca sus derechos</Titulo>
       <Buho pose="ley" primera>Con palabras sencillas y con historietas: qué derechos tiene, cómo darse cuenta de que no se los respetan y qué puede hacer. Funciona sin internet.</Buho>
 
       <section className="tarjeta clara lista-temas">

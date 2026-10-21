@@ -44,24 +44,25 @@ export function Encabezado() {
   </>);
 }
 
-export function BotonVoz({ texto, className = '' }) {
+// audio: claves de textos fijos (packages/nucleo/src/lectura.js) para oírlos con la voz de la asistente; si no, la del celular.
+export function BotonVoz({ texto, audio, className = '' }) {
   const { leyendo, alternar } = useLectura();
   const Icono = leyendo ? VolumeX : Volume2;
   return (
-    <button className={`btn-voz ${className}`} onClick={() => alternar(typeof texto === 'function' ? texto() : texto)} aria-label={leyendo ? 'Parar la lectura' : 'Escuchar'}>
+    <button className={`btn-voz ${className}`} onClick={() => alternar(typeof texto === 'function' ? texto() : texto, audio)} aria-label={leyendo ? 'Parar la lectura' : 'Escuchar'}>
       <Icono size={22} aria-hidden />
     </button>
   );
 }
 
 // Título de pantalla: flecha atrás, ícono opcional, título y bocina.
-export function Titulo({ children, icono: Icono, volver = true, alVolver, lectura }) {
+export function Titulo({ children, icono: Icono, volver = true, alVolver, lectura, audio }) {
   return (
     <div className="titulo">
       {volver && <button className="btn-atras" onClick={alVolver || atras} aria-label="Volver"><ArrowLeft size={26} strokeWidth={2.5} aria-hidden /></button>}
       {Icono && <Icono className="titulo-icono" size={26} strokeWidth={2.2} aria-hidden />}
       <h1>{children}</h1>
-      {lectura && <BotonVoz texto={lectura} />}
+      {lectura && <BotonVoz texto={lectura} audio={audio} />}
     </div>
   );
 }
@@ -103,10 +104,10 @@ export function OpcionesRapidas() {
   );
 }
 
-export function DichoDeOtraForma({ children, titulo = 'Dicho de otra forma' }) {
+export function DichoDeOtraForma({ children, titulo = 'Dicho de otra forma', audio }) {
   return (
     <section className="tarjeta oliva">
-      <div className="fila-titulo"><h2><Lightbulb size={22} strokeWidth={1.8} aria-hidden /> {titulo}</h2><BotonVoz texto={`${titulo}. ${children}`} /></div>
+      <div className="fila-titulo"><h2><Lightbulb size={22} strokeWidth={1.8} aria-hidden /> {titulo}</h2><BotonVoz texto={`${titulo}. ${children}`} audio={audio} /></div>
       <p className="texto">{children}</p>
     </section>
   );

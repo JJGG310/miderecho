@@ -11,7 +11,8 @@
     "./contenido": "./src/contenido.js",
     "./derechos": "./src/derechos.js",
     "./privacidad": "./src/privacidad.js",
-    "./directorio": "./src/directorio.js"
+    "./directorio": "./src/directorio.js",
+    "./lectura": "./src/lectura.js"
   },
   "scripts": { "test": "node test-plazos.mjs && node test-plantillas.mjs && node test-privacidad.mjs" }
 }
