@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiDerecho · Sus derechos sin abogado y sin viajar</title>
+  <meta name="description" content="App gratuita para que las familias campesinas de los municipios PDET hagan derechos de petición, tutelas y reclamos desde el celular, sin abogado y sin viajar a la cabecera.">
+  <meta name="theme-color" content="#264933">
+  <link rel="icon" href="img/avatar-sabio.webp" type="image/webp">
+
+  <!-- Al compartir en redes y en WhatsApp -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_CO">
+  <meta property="og:site_name" content="MiDerecho">
+  <meta property="og:title" content="MiDerecho · Sus derechos sin abogado y sin viajar">
+  <meta property="og:description" content="Petición, tutela o reclamo desde el celular: la app lo arma, lo envía y le avisa el plazo. Gratis, sin internet y sin guardar su nombre ni su cédula.">
+  <meta property="og:url" content="https://miderecho-landing.vercel.app/">
+  <meta property="og:image" content="https://miderecho-landing.vercel.app/img/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="El búho de MiDerecho saluda junto al título: Haga valer sus derechos sin abogado y sin viajar.">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800&family=Atkinson+Hyperlegible+Next:wght@400;700&family=Courier+Prime&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <!-- Las animaciones esconden el contenido solo si hay movimiento permitido; si GSAP no carga, todo se ve igual. -->
+  <script>
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anima');
+    setTimeout(function () { if (!window.ScrollTrigger) document.documentElement.classList.remove('anima'); }, 2500);
+  </script>
+  <script src="vendor/gsap.min.js" defer></script>
+  <script src="vendor/ScrollTrigger.min.js" defer></script>
+  <script src="animacion.js" defer></script>
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="barra">
+    <a class="marca" href="#inicio" aria-label="MiDerecho, volver al inicio">
+      <svg class="marca-svg" viewBox="0 0 124 28" aria-hidden="true">
+        <text class="marca-mi" x="0" y="25" textLength="28" lengthAdjust="spacingAndGlyphs">Mı</text>
+        <path class="marca-hoja" d="M22.5 10.5c-.5-4.5 2-8.3 6.8-9.5.6 4.6-2 8.4-6.8 9.5z"/>
+        <text class="marca-derecho" x="31" y="25" textLength="93" lengthAdjust="spacingAndGlyphs">Derecho</text>
+      </svg>
+    </a>
+    <nav class="barra-nav" aria-label="Secciones">
+      <a href="#problema">El problema</a>
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#seguridad">Privacidad</a>
+      <a href="#documentos">Documentos</a>
+      <a href="#modelo">Quién paga</a>
+    </nav>
+    <a class="btn btn-chico" href="https://miderecho-two.vercel.app">Probar la app</a>
+  </header>
+
+  <main id="contenido">
+
+    <!-- 1. PORTADA -->
+    <section id="inicio" class="portada">
+      <div class="contenedor portada-grid">
+        <div class="portada-texto">
+          <p class="antetitulo" data-intro><strong>MiDerecho</strong> · gratis, para el campo colombiano</p>
+          <h1 class="portada-titulo">
+            <span class="linea" data-intro>Haga valer</span>
+            <span class="linea" data-intro>sus derechos</span>
+            <span class="linea" data-intro>sin abogado</span>
+            <span class="linea" data-intro>y <span class="subrayado">sin viajar.<svg class="trazo" viewBox="0 0 300 18" preserveAspectRatio="none" aria-hidden="true"><path d="M4 12 C 60 4, 120 16, 180 9 S 270 6, 296 10"/></svg></span></span>
+          </h1>
+          <p class="entrada" data-intro>Desde el celular, MiDerecho le ayuda a escribir la petición, la tutela o el reclamo, lo envía a la entidad y le avisa cuándo le tienen que responder.</p>
+          <div class="botones" data-intro>
+            <a class="btn" href="https://miderecho-two.vercel.app">Probar la app</a>
+            <a class="btn btn-borde" href="#como-funciona">Ver cómo funciona</a>
+          </div>
+          <ul class="garantias" data-intro>
+            <li>No necesita cuenta</li>
+            <li>Funciona sin internet</li>
+            <li>No guarda su nombre ni su cédula</li>
+          </ul>
+        </div>
+        <div class="portada-buho">
+          <video class="buho-video" muted loop playsinline preload="none" width="720" height="406" poster="img/buho-saluda-poster.jpg" aria-hidden="true">
+            <source src="img/buho-saluda.mp4" type="video/mp4">
+          </video>
+          <button class="btn-pausa" type="button" hidden>Pausar el saludo</button>
+        </div>
+      </div>
+      <svg class="lomas" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
+        <path class="loma-atras" d="M0 92 C 220 40 430 44 640 78 S 1020 52 1180 64 S 1380 88 1440 70 V160 H0 Z"/>
+        <path class="loma-frente" d="M0 118 C 240 78 520 74 780 102 S 1200 104 1440 38 V160 H0 Z"/>
+      </svg>
+    </section>
+
+    <!-- 2. EL PROBLEMA -->
+    <section id="problema" class="banda banda-verde">
+      <div class="contenedor">
+        <h2 class="titulo" data-revela>
+          <span class="linea">La justicia queda en el pueblo.</span>
+          <span class="linea">El problema, <em>en la vereda.</em></span>
+        </h2>
+        <p class="bajada" data-revela>Jueces, personeros e inspectores atienden en la cabecera municipal, a horas de camino. Quien no puede ir, no reclama.</p>
+        <ul class="cifras">
+          <li class="cifra" data-revela>
+            <p class="cifra-numero"><span data-contar="77">77</span>%</p>
+            <p class="cifra-texto">de los 8,2 millones de problemas legales de los colombianos quedó sin resolver.</p>
+            <p class="fuente">Encuesta de Necesidades Jurídicas 2020 (DANE, DNP y MinJusticia)</p>
+          </li>
+          <li class="cifra" data-revela>
+            <p class="cifra-numero"><span data-contar="432658">432.658</span></p>
+            <p class="cifra-texto">tutelas en 2025 fueron por un derecho de petición. Es el derecho que más se reclama ante los jueces: entre el 45% y el 48% de las tutelas desde 2013.</p>
+            <p class="fuente">Consejo Superior de la Judicatura (2026); Defensoría del Pueblo; Corte Constitucional</p>
+          </li>
+          <li class="cifra" data-revela>
+            <p class="cifra-numero"><span data-contar="93">93</span>%</p>
+            <p class="cifra-texto">de las personas rurales usa el celular para llamar. Solo el 64% lo usa para mandar mensajes.</p>
+            <div class="barras" aria-hidden="true">
+              <div class="barra-fila"><span>Llamar</span><span class="barra-pista"><span class="barra-llena" style="--v:.93"></span></span><span>93%</span></div>
+              <div class="barra-fila"><span>Mensajes</span><span class="barra-pista"><span class="barra-llena barra-tenue" style="--v:.64"></span></span><span>64%</span></div>
+            </div>
+            <p class="fuente">DANE, ENTIC Hogares 2024</p>
+          </li>
+          <li class="cifra" data-revela>
+            <p class="cifra-numero"><span data-contar="55">55</span>%</p>
+            <p class="cifra-texto">de las personas en municipios PDET tuvo un problema legal serio en 4 años. La mitad no lo resolvió.</p>
+            <p class="fuente">HiiL y USAID, encuesta en 16 municipios, 2023</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 3. CÓMO FUNCIONA: el camino (firma de la página) -->
+    <section id="como-funciona" class="banda banda-crema">
+      <svg class="cresta" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 40 C 200 78 430 84 660 52 S 1040 4 1240 30 S 1400 62 1440 56 V100 H0 Z"/></svg>
+      <div class="contenedor">
+        <h2 class="titulo" data-revela>Seis pasos, y ninguno es un viaje.</h2>
+        <p class="bajada" data-revela>El búho de MiDerecho acompaña cada paso, en el celular y con palabras sencillas.</p>
+
+        <div class="camino">
+          <svg class="sendero" aria-hidden="true">
+            <path class="sendero-pendiente"/>
+            <path class="sendero-andado"/>
+            <g class="viajero">
+              <rect x="-16" y="-11" width="32" height="22" rx="3"/>
+              <path d="M-16 -9 L0 3 L16 -9"/>
+            </g>
+          </svg>
+
+          <p class="hito hito-inicio"><span class="ancla" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M6 20 L20 8 L34 20 M10 17 V32 H30 V17 M17 32 V24 H23 V32"/></svg></span>Su casa, en la vereda</p>
+
+          <ol class="pasos">
+            <li class="paso">
+              <div class="paso-buho"><img class="recorte" src="img/pensando.webp" width="217" height="253" alt="" loading="lazy"><span class="parada" aria-hidden="true"></span></div>
+              <div class="paso-texto">
+                <p class="paso-num">Paso 1</p>
+                <h3>Cuente lo que le pasa</h3>
+                <p>Escriba o hable, con sus propias palabras. No necesita saber de leyes.</p>
+                <p class="en-app">En la app: «Contar con mi voz»</p>
+              </div>
+            </li>
+            <li class="paso">
+              <div class="paso-buho"><img src="img/ley.webp" width="198" height="244" alt="" loading="lazy"><span class="parada" aria-hidden="true"></span></div>
+              <div class="paso-texto">
+                <p class="paso-num">Paso 2</p>
+                <h3>Entienda qué derecho tiene</h3>
+                <p>El asistente le explica qué derecho está en juego, qué puede hacer y a dónde acudir. Lo que dice la ley sale de textos fijos, no de lo que invente la inteligencia artificial.</p>
+                <p class="estado estado-prueba">En prueba: la IA es Gemini en su plan gratuito. Si falla, sigue un modo básico sin IA.</p>
+              </div>
+            </li>
+            <li class="paso">
+              <div class="paso-buho"><img src="img/documento.webp" width="203" height="246" alt="" loading="lazy"><span class="parada" aria-hidden="true"></span></div>
+              <div class="paso-texto">
+                <p class="paso-num">Paso 3</p>
+                <h3>Arme el documento</h3>
+                <p>Derecho de petición, tutela o reclamo de servicios públicos, con preguntas cortas. Se arma sin internet, y su nombre y su cédula van solo en el papel.</p>
+                <p class="en-app">En la app: «Crear un documento»</p>
+              </div>
+            </li>
+            <li class="paso">
+              <div class="paso-buho"><img src="img/computador.webp" width="250" height="247" alt="" loading="lazy"><span class="parada" aria-hidden="true"></span></div>
+              <div class="paso-texto">
+                <p class="paso-num">Paso 4</p>
+                <h3>Envíelo sin viajar</h3>
+                <p>La app manda el documento por correo a la alcaldía, la EPS o el juzgado, y le deja la constancia de envío. Si prefiere, lo imprime y lo entrega usted.</p>
+                <p class="estado estado-prueba">En prueba: por ahora el correo solo sale a direcciones de prueba.</p>
+              </div>
+            </li>
+            <li class="paso">
+              <div class="paso-buho"><img src="img/lupa.webp" width="197" height="255" alt="" loading="lazy"><span class="parada" aria-hidden="true"></span></div>
+              <div class="paso-texto">
+                <p class="paso-num">Paso 5</p>
+                <h3>No pierda el plazo</h3>
+                <p>Cuenta los días hábiles, con festivos, y le avisa antes de que se venzan: notificación en el celular, SMS, WhatsApp o una llamada.</p>
+                <p class="estado estado-prueba">En prueba: los avisos todavía se simulan; no llegan de verdad.</p>
+              </div>
+            </li>
+            <li class="paso">
+              <div class="paso-buho"><img src="img/avatar-sabio.webp" width="250" height="223" alt="" loading="lazy"><span class="parada" aria-hidden="true"></span></div>
+              <div class="paso-texto">
+                <p class="paso-num">Paso 6</p>
+                <h3>Si no le responden, siga</h3>
+                <p>La app arma la tutela. Si el juez la niega, la impugnación. Si la entidad no cumple, el desacato. En 2025, el 73% de las tutelas por petición terminó con respuesta u orden a favor de la persona.</p>
+                <p class="en-app">En la app: «Mis casos»</p>
+              </div>
+            </li>
+          </ol>
+
+          <p class="hito hito-fin"><span class="ancla" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M10 21 L17 28 L30 13"/></svg></span><span>El papel hizo el viaje.<br>Usted no.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PENSADO PARA EL CAMPO -->
+    <section id="campo" class="banda banda-salvia">
+      <svg class="cresta" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 62 C 180 22 360 12 560 40 S 900 92 1100 52 S 1360 12 1440 30 V100 H0 Z"/></svg>
+      <div class="contenedor campo-grid">
+        <figure class="telefono-marco" data-revela>
+          <div class="telefono"><img src="img/app-inicio.webp" width="390" height="780" alt="Pantalla de inicio de la app MiDerecho: ¡Hola! ¿Qué necesita resolver hoy?, un botón Contar con mi voz y dos opciones: Crear un documento y Conocer mis derechos." loading="lazy"></div>
+          <figcaption>Así se ve la app publicada.</figcaption>
+        </figure>
+        <div>
+          <h2 class="titulo" data-revela>Pensado para la vereda</h2>
+          <p class="bajada" data-revela>Señal que va y viene, celulares compartidos y poca costumbre de escribir: la app parte de ahí.</p>
+          <ul class="rasgos">
+            <li class="rasgo" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="15" y="6" width="18" height="34" rx="3"/><path d="M21 34 H27"/><path d="M6 14 C 9 11 12 10 15 10 M33 10 C 36 10 39 11 42 14"/><path d="M8 40 L40 8"/></svg></span>
+              <h3>Sin internet</h3>
+              <p>«Conozca sus derechos» y «Crear un documento» funcionan sin señal. La app se guarda en el celular la primera vez.</p>
+            </li>
+            <li class="rasgo" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="18" y="6" width="12" height="22" rx="6"/><path d="M12 22 C 12 30 17 34 24 34 C 31 34 36 30 36 22 M24 34 V42 M18 42 H30"/><path d="M5 18 V26 M42 17 V27"/></svg></span>
+              <h3>Voz primero</h3>
+              <p>Dicte su caso y escuche en voz alta cada respuesta y cada historieta. Sirve a quien lee poco o ve poco.</p>
+            </li>
+            <li class="rasgo" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="14" r="6"/><circle cx="33" cy="18" r="5"/><path d="M5 40 C 5 30 10 25 17 25 C 22 25 25 27 27 31 M23 40 C 23 33 27 29 33 29 C 39 29 43 33 43 40"/></svg></span>
+              <h3>Con la persona líder</h3>
+              <p>La presidenta de la Junta de Acción Comunal abre la app con su vecino al lado. El vecino decide y firma; ella no guarda listas.</p>
+              <p class="estado estado-diseno">Así se usa hoy. El kit para líderes está en diseño.</p>
+            </li>
+            <li class="rasgo" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M10 42 C 14 30 22 16 38 6 C 42 18 36 32 18 36 Z"/><path d="M10 42 L28 18 M17 31 L24 32 M21 25 L29 26"/></svg></span>
+              <h3>Liviana como una pluma</h3>
+              <p>La app entera pesa menos de 1 MB y después casi no gasta datos.</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. SEGURIDAD Y PRIVACIDAD -->
+    <section id="seguridad" class="banda banda-verde">
+      <svg class="cresta" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 70 C 260 30 520 20 760 46 S 1180 82 1440 22 V100 H0 Z"/></svg>
+      <div class="contenedor">
+        <h2 class="titulo" data-revela>Lo que usted cuenta, <em>se queda con usted.</em></h2>
+        <p class="bajada" data-revela>En el campo un celular lo usan varios, y contar un problema puede ser peligroso. Por eso la app guarda lo mínimo.</p>
+        <div class="seguridad-grid">
+          <figure class="filtro" data-revela>
+            <div class="burbuja">
+              <p class="burbuja-quien">Lo que usted escribe</p>
+              <p>La EPS no me da la cita con el cardiólogo hace dos meses, mi cédula es <mark class="dato">1.144.555.666</mark></p>
+            </div>
+            <p class="filtro-paso" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 4 H21 L14 12 V19 L10 21 V12 Z"/></svg>Filtro de privacidad</p>
+            <div class="burbuja burbuja-ia">
+              <p class="burbuja-quien">Lo que le llega a la IA</p>
+              <p>La EPS no me da la cita con el cardiólogo hace dos meses, mi cédula es <span class="tapado">[número]</span></p>
+            </div>
+            <figcaption>Así funciona el filtro en la app: quita cédulas, teléfonos y correos en el celular, y otra vez en el servidor. Los nombres no los atrapa; por eso le pedimos no escribirlos.</figcaption>
+          </figure>
+
+          <ul class="cuidados">
+            <li class="cuidado" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="10" y="21" width="28" height="20" rx="3"/><path d="M16 21 V15 C 16 10 20 7 24 7 C 28 7 32 10 32 15 V21"/><circle cx="17" cy="31" r="1.6"/><circle cx="22" cy="31" r="1.6"/><circle cx="27" cy="31" r="1.6"/><circle cx="32" cy="31" r="1.6"/></svg></span>
+              <div><h3>Clave de 4 números</h3><p>Sus casos y su historial quedan cifrados en el celular, por si alguien más lo usa. Con «Borrar todo» no queda nada.</p><p class="tecnico">PBKDF2 + AES-GCM</p></div>
+            </li>
+            <li class="cuidado" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M12 6 H30 L38 14 V42 H12 Z M30 6 V14 H38"/><path d="M18 24 H32 M18 31 H28"/></svg></span>
+              <div><h3>No guarda su nombre, su cédula ni su salud</h3><p>Se piden solo al crear el documento y van impresos en el papel. No pasan por la IA ni quedan en el celular.</p></div>
+            </li>
+            <li class="cuidado" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 5 L40 11 V22 C 40 32 33 39 24 43 C 15 39 8 32 8 22 V11 Z"/><path d="M24 15 V26 M24 32 V33"/></svg></span>
+              <div><h3>Si hay amenazas, se detiene</h3><p>Si aparece una amenaza o un grupo armado, la app deja de preguntar, no guarda nada y muestra a dónde acudir: línea 123, Personería o Defensoría del Pueblo.</p></div>
+            </li>
+            <li class="cuidado" data-revela>
+              <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M6 10 H28 V26 H16 L10 32 V26 H6 Z"/><path d="M32 18 H42 V34 H38 V40 L32 34 H22 V30"/></svg></span>
+              <div>
+                <h3>La política de datos, en historieta</h3>
+                <p>Doña Rosa pregunta y el asistente responde, en 10 viñetas y 3 preguntas que también se escuchan. Es Legal Design: entender antes de aceptar.</p>
+                <div class="vineta" aria-label="Ejemplo de la historieta">
+                  <p class="globo"><b>Doña Rosa:</b> ¿Y quién va a ver lo que yo escriba?</p>
+                  <p class="globo globo-respuesta"><b>Asistente:</b> Soy una máquina, no una persona.</p>
+                </div>
+                <p class="estado estado-prueba">Borrador: falta validarla con un abogado y publicar la dirección de MiDerecho S.A.S., la responsable de los datos.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. LO QUE PUEDE HACER SIN ABOGADO -->
+    <section id="documentos" class="banda banda-crema">
+      <svg class="cresta" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 34 C 220 74 460 80 700 50 S 1100 8 1300 34 S 1420 56 1440 50 V100 H0 Z"/></svg>
+      <div class="contenedor">
+        <h2 class="titulo" data-revela>Lo que puede hacer sin abogado</h2>
+        <p class="bajada" data-revela>Cada documento lleva al siguiente, y la app sabe cuándo vence cada paso.</p>
+
+        <div class="escalera">
+          <article class="escalon" data-revela>
+            <h3>Derecho de petición</h3>
+            <p>Para pedirle algo a la alcaldía, la EPS o cualquier entidad.</p>
+            <p class="plazo">Le responden en 15 días hábiles</p>
+            <p class="norma">Ley 1755 de 2015</p>
+          </article>
+          <article class="escalon" data-revela>
+            <p class="condicion">¿No le respondieron?</p>
+            <h3>Tutela</h3>
+            <p>Para que un juez proteja su derecho: la respuesta a su petición, la salud u otro derecho fundamental. En salud urgente, el juez puede ordenar una medida de inmediato.</p>
+            <p class="plazo">El juez decide en 10 días</p>
+            <p class="norma">Decreto 2591 de 1991</p>
+          </article>
+          <div class="escalon-par">
+            <article class="escalon" data-revela>
+              <p class="condicion">¿El juez la negó?</p>
+              <h3>Impugnación</h3>
+              <p>Para que otro juez revise el fallo.</p>
+              <p class="plazo">3 días después de la notificación</p>
+              <p class="norma">Decreto 2591 de 1991, art. 31</p>
+            </article>
+            <article class="escalon" data-revela>
+              <p class="condicion">¿Ganó y no cumplen?</p>
+              <h3>Desacato</h3>
+              <p>Para que el juez obligue y sancione a quien no cumple el fallo.</p>
+              <p class="norma">Decreto 2591 de 1991, art. 52</p>
+            </article>
+          </div>
+        </div>
+
+        <article class="aparte" data-revela>
+          <p class="condicion">Aparte: el agua, la luz o el gas</p>
+          <div>
+            <h3>Reclamo de servicios públicos</h3>
+            <p>Para cobros injustos, cortes o daños. Si la empresa no responde en 15 días hábiles, gana usted. Si lo niega, tiene 5 días hábiles para el recurso.</p>
+          </div>
+          <p class="norma">Ley 142 de 1994, arts. 154 y 158</p>
+        </article>
+
+        <aside class="por-que" data-revela>
+          <h3>¿Por qué se puede sin abogado?</h3>
+          <p>Porque la ley lo permite. El <strong>Decreto 196 de 1971, artículo 28</strong>, deja actuar sin abogado en el derecho de petición y en las acciones públicas, como la tutela. El <strong>Decreto 2591 de 1991</strong> dice que la tutela la puede presentar cualquier persona, sin formalidades. Y ante alcaldías, EPS y empresas de servicios públicos, cada quien reclama por sí mismo.</p>
+          <p class="nota">MiDerecho no es abogado ni da asesoría jurídica: le da información y plantillas para que usted haga su propio trámite.</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 7. VIDEO -->
+    <section id="video" class="banda banda-crema banda-sigue">
+      <div class="contenedor">
+        <h2 class="titulo" data-revela>Véalo funcionar</h2>
+        <p class="bajada" data-revela>Los siete momentos del servicio, de la vereda a la tutela, en 48 segundos.</p>
+        <!-- Video hecho con Remotion (rama de la presentación, presentacion/clips/MiDerecho-flujo.mp4), comprimido a 1 MB. Solo se descarga si la persona le da play. -->
+        <figure class="video-marco" data-revela>
+          <video controls preload="none" playsinline width="1280" height="720" poster="img/como-funciona-poster.jpg" aria-describedby="video-nota">
+            <source src="img/como-funciona.mp4" type="video/mp4">
+          </video>
+        </figure>
+        <p class="video-nota" id="video-nota">Sin sonido · 1 MB · el texto de cada momento aparece en pantalla.</p>
+      </div>
+    </section>
+
+    <!-- 8. MODELO Y ADOPCIÓN -->
+    <section id="modelo" class="banda banda-salvia">
+      <svg class="cresta" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 58 C 200 18 440 14 660 42 S 1060 88 1260 46 S 1410 22 1440 28 V100 H0 Z"/></svg>
+      <div class="contenedor modelo-grid">
+        <div class="modelo-col">
+          <h2 class="titulo" data-revela>El campesino no paga.</h2>
+          <p class="cero" data-revela><span class="cero-num">$0</span><span class="cero-txt">le cuesta a la familia que la usa</span></p>
+          <ul class="pagadores" data-revela>
+            <li><strong>Ministerio de Justicia</strong>, programa Sistemas Locales de Justicia, por convenio con una organización aliada.</li>
+            <li><strong>Cooperación internacional</strong> (PNUD, Unión Europea, fondos multidonante), con la contrapartida del 30%.</li>
+            <li><strong>Alcaldías y gobernaciones PDET</strong>, por contratación de mínima cuantía.</li>
+          </ul>
+          <p data-revela>La <strong>Ley 2430 de 2024</strong> obliga al Estado a llevar la justicia al campo «procurando el uso de las TIC».</p>
+          <div class="recibo" data-revela>
+            <p class="recibo-titulo">Costo por municipio, al año</p>
+            <p class="recibo-fila"><span>Licencia de la app</span><span>COP 15 M</span></p>
+            <p class="recibo-fila"><span>Red de 12 promotores</span><span>COP 14 M</span></p>
+            <p class="recibo-fila recibo-total"><span>Total</span><span>COP 29 M</span></p>
+            <p class="recibo-nota">Unos COP 55.000 a 62.000 por caso. Una consulta privada cuesta COP 85.000. Cifras estimadas, por validar.</p>
+          </div>
+        </div>
+        <div class="modelo-col">
+          <h2 class="titulo titulo-mediano" data-revela>La llevan los líderes sociales.</h2>
+          <p data-revela>En el mundo, lo que funciona no es un robot solo: es una persona de confianza con una buena herramienta, como Tele-Law en India o los paralegales de Namati en África. Aquí, esa persona ya existe: la presidenta de la Junta de Acción Comunal, el conciliador en equidad. Hay 63.833 Juntas en el país.</p>
+          <p class="kit-titulo" data-revela>Kit para líderes <span class="estado estado-diseno">en diseño</span></p>
+          <ul class="kit" data-revela>
+            <li>Credencial con QR</li>
+            <li>Volante con dibujos</li>
+            <li>Tarjeta de plazos</li>
+            <li>Audios para sus grupos</li>
+            <li>Guion de radio de 30 s</li>
+          </ul>
+          <p data-revela><strong>Capacitar no es activar.</strong> Por eso el promotor recibe un certificado con la Personería o una universidad y COP 10.000 por caso cerrado.</p>
+          <p data-revela><strong>Cuidamos al líder:</strong> la marca es colectiva («Promotores de Derechos de la vereda»), su rostro es opcional y la app no guarda listas de vecinos. Indepaz registra 1.978 líderes sociales asesinados desde 2016.</p>
+          <p data-revela><strong>Piloto propuesto:</strong> Montes de María, Sur del Tolima o Macarena-Guaviare.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. CIERRE -->
+    <section id="cierre" class="banda banda-verde">
+      <svg class="cresta" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 46 C 240 82 500 86 740 56 S 1160 6 1440 40 V100 H0 Z"/></svg>
+      <div class="contenedor">
+        <div class="cierre-grid">
+          <div class="cierre-texto">
+            <img class="cierre-buho" src="img/corazon.webp" width="231" height="253" alt="" loading="lazy">
+            <h2 class="titulo" data-revela>Pruébela hoy.</h2>
+            <p class="bajada" data-revela>Funciona en cualquier celular con navegador. No necesita cuenta ni instalar nada.</p>
+            <a class="btn btn-claro" href="https://miderecho-two.vercel.app" data-revela>Abrir MiDerecho</a>
+            <p class="url" data-revela>miderecho-two.vercel.app</p>
+          </div>
+          <figure class="qr-tarjeta" data-revela>
+            <svg id="qr" viewBox="0 0 37 37" role="img" aria-label="Código QR que abre https://miderecho-two.vercel.app" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fffdfa"/><path fill="#1a3424" d="M4 4h7v1h-7zM13 4h2v1h-2zM16 4h2v1h-2zM20 4h1v1h-1zM23 4h1v1h-1zM26 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM15 5h1v1h-1zM17 5h3v1h-3zM22 5h1v1h-1zM26 5h1v1h-1zM32 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM13 6h1v1h-1zM15 6h1v1h-1zM17 6h1v1h-1zM20 6h5v1h-5zM26 6h1v1h-1zM28 6h3v1h-3zM32 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM13 7h1v1h-1zM15 7h5v1h-5zM22 7h1v1h-1zM26 7h1v1h-1zM28 7h3v1h-3zM32 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM14 8h2v1h-2zM17 8h2v1h-2zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h3v1h-3zM32 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM14 9h5v1h-5zM22 9h2v1h-2zM26 9h1v1h-1zM32 9h1v1h-1zM4 10h7v1h-7zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h7v1h-7zM14 11h3v1h-3zM18 11h1v1h-1zM21 11h4v1h-4zM4 12h1v1h-1zM7 12h1v1h-1zM9 12h2v1h-2zM12 12h4v1h-4zM19 12h1v1h-1zM23 12h1v1h-1zM25 12h1v1h-1zM27 12h1v1h-1zM4 13h1v1h-1zM7 13h2v1h-2zM13 13h2v1h-2zM16 13h1v1h-1zM18 13h2v1h-2zM21 13h2v1h-2zM24 13h1v1h-1zM26 13h1v1h-1zM29 13h1v1h-1zM32 13h1v1h-1zM6 14h1v1h-1zM8 14h4v1h-4zM15 14h2v1h-2zM20 14h4v1h-4zM27 14h5v1h-5zM5 15h2v1h-2zM8 15h2v1h-2zM11 15h1v1h-1zM13 15h1v1h-1zM16 15h1v1h-1zM18 15h2v1h-2zM25 15h3v1h-3zM30 15h2v1h-2zM5 16h1v1h-1zM8 16h1v1h-1zM10 16h1v1h-1zM16 16h1v1h-1zM20 16h2v1h-2zM25 16h2v1h-2zM29 16h1v1h-1zM31 16h2v1h-2zM4 17h1v1h-1zM6 17h1v1h-1zM9 17h1v1h-1zM13 17h3v1h-3zM19 17h1v1h-1zM21 17h1v1h-1zM23 17h3v1h-3zM4 18h1v1h-1zM6 18h3v1h-3zM10 18h7v1h-7zM19 18h2v1h-2zM22 18h1v1h-1zM25 18h8v1h-8zM4 19h1v1h-1zM6 19h1v1h-1zM9 19h1v1h-1zM11 19h2v1h-2zM15 19h4v1h-4zM20 19h5v1h-5zM29 19h1v1h-1zM31 19h1v1h-1zM4 20h1v1h-1zM6 20h9v1h-9zM17 20h3v1h-3zM21 20h1v1h-1zM23 20h1v1h-1zM25 20h1v1h-1zM31 20h1v1h-1zM5 21h1v1h-1zM8 21h1v1h-1zM11 21h2v1h-2zM15 21h1v1h-1zM19 21h1v1h-1zM25 21h3v1h-3zM29 21h1v1h-1zM32 21h1v1h-1zM4 22h1v1h-1zM6 22h5v1h-5zM15 22h1v1h-1zM17 22h1v1h-1zM20 22h1v1h-1zM26 22h3v1h-3zM31 22h2v1h-2zM6 23h2v1h-2zM13 23h3v1h-3zM17 23h1v1h-1zM19 23h4v1h-4zM24 23h1v1h-1zM27 23h2v1h-2zM31 23h2v1h-2zM4 24h1v1h-1zM7 24h1v1h-1zM10 24h1v1h-1zM12 24h2v1h-2zM16 24h1v1h-1zM18 24h1v1h-1zM23 24h6v1h-6zM30 24h1v1h-1zM12 25h1v1h-1zM15 25h1v1h-1zM17 25h1v1h-1zM20 25h1v1h-1zM23 25h2v1h-2zM28 25h1v1h-1zM30 25h3v1h-3zM4 26h7v1h-7zM14 26h5v1h-5zM24 26h1v1h-1zM26 26h1v1h-1zM28 26h1v1h-1zM31 26h1v1h-1zM4 27h1v1h-1zM10 27h1v1h-1zM12 27h1v1h-1zM14 27h2v1h-2zM17 27h1v1h-1zM19 27h1v1h-1zM23 27h2v1h-2zM28 27h4v1h-4zM4 28h1v1h-1zM6 28h3v1h-3zM10 28h1v1h-1zM13 28h2v1h-2zM18 28h1v1h-1zM21 28h2v1h-2zM24 28h5v1h-5zM32 28h1v1h-1zM4 29h1v1h-1zM6 29h3v1h-3zM10 29h1v1h-1zM12 29h3v1h-3zM17 29h2v1h-2zM23 29h2v1h-2zM26 29h6v1h-6zM4 30h1v1h-1zM6 30h3v1h-3zM10 30h1v1h-1zM16 30h3v1h-3zM23 30h2v1h-2zM28 30h3v1h-3zM32 30h1v1h-1zM4 31h1v1h-1zM10 31h1v1h-1zM14 31h4v1h-4zM19 31h1v1h-1zM21 31h1v1h-1zM23 31h4v1h-4zM31 31h1v1h-1zM4 32h7v1h-7zM12 32h1v1h-1zM15 32h1v1h-1zM18 32h1v1h-1zM21 32h1v1h-1zM24 32h1v1h-1zM27 32h1v1h-1zM29 32h1v1h-1zM31 32h1v1h-1z"/></svg>
+            <figcaption>Apunte la cámara del celular aquí.</figcaption>
+          </figure>
+        </div>
+
+        <!-- EQUIPO: oculto hasta tener nombres y roles. Cambie [Nombre y apellido] y [Rol], copie un <li> por persona y borre el atributo hidden. -->
+        <div class="equipo" hidden>
+          <h2 class="titulo titulo-chico" data-revela>El equipo</h2>
+          <ul class="equipo-lista">
+            <li data-revela><p class="persona">[Nombre y apellido]</p><p class="rol">[Rol]</p></li>
+            <li data-revela><p class="persona">[Nombre y apellido]</p><p class="rol">[Rol]</p></li>
+            <li data-revela><p class="persona">[Nombre y apellido]</p><p class="rol">[Rol]</p></li>
+            <li data-revela><p class="persona">[Nombre y apellido]</p><p class="rol">[Rol]</p></li>
+          </ul>
+        </div>
+
+        <aside class="aviso" data-revela>
+          <h2>Aviso honesto</h2>
+          <p>MiDerecho es un <strong>prototipo de hackathon</strong> (Reto 2: acceso a la justicia rural con bajo consumo de datos, octubre de 2026). Las plantillas, los plazos y los textos legales están <strong>pendientes de validación</strong> por un consultorio jurídico. No es abogado ni reemplaza a uno.</p>
+          <p>Lo que todavía está en prueba:</p>
+          <ul>
+            <li>El asistente usa Gemini en su plan gratuito.</li>
+            <li>El envío por correo solo llega a direcciones de prueba.</li>
+            <li>Los avisos por notificación, SMS, WhatsApp y llamada se simulan.</li>
+            <li>La política de datos es un borrador: la responsable es MiDerecho S.A.S. y falta publicar su dirección.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie-fila">
+      <svg class="marca-svg" viewBox="0 0 124 28" role="img" aria-label="MiDerecho">
+        <text class="marca-mi" x="0" y="25" textLength="28" lengthAdjust="spacingAndGlyphs">Mı</text>
+        <path class="marca-hoja" d="M22.5 10.5c-.5-4.5 2-8.3 6.8-9.5.6 4.6-2 8.4-6.8 9.5z"/>
+        <text class="marca-derecho" x="31" y="25" textLength="93" lengthAdjust="spacingAndGlyphs">Derecho</text>
+      </svg>
+      <p>Información y plantillas gratuitas para hacer valer sus derechos. Hecho en Colombia para un hackathon de acceso a la justicia rural.</p>
+    </div>
+  </footer>
+</body>
+</html>
