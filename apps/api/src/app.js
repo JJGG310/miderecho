@@ -5,9 +5,13 @@ import { limpiar, hayRiesgo, generarDocumento, TIPOS, sumarHabiles, habilesEntre
 import { SISTEMA } from './prompt.js';
 import { HERRAMIENTA, armarRespuesta } from './orientacion.js';
 import { responderSimulado } from './simulado.js';
+import { pedirGemini, MODELO_GEMINI } from './gemini.js';
 
+// Proveedor: Claude si hay ANTHROPIC_API_KEY; si no, Gemini si hay GEMINI_API_KEY; si no, modo básico (docs/ia.md).
+const IA = process.env.ANTHROPIC_API_KEY ? 'claude' : process.env.GEMINI_API_KEY ? 'gemini' : 'simulada';
 const MODELO = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
-const claude = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+const claude = IA === 'claude' ? new Anthropic() : null;
+const GEMINI = { clave: process.env.GEMINI_API_KEY, modelo: process.env.GEMINI_MODEL || MODELO_GEMINI, vertex: process.env.GEMINI_ENDPOINT === 'vertex' };
 const MAX_MENSAJES = 12, MAX_TEXTO = 2000;
 
 export const app = express();
@@ -25,7 +29,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/salud', (req, res) => res.json({ ok: true, ia: claude ? 'claude' : 'simulada', modelo: claude ? MODELO : null }));
+app.get('/api/salud', (req, res) => res.json({ ok: true, ia: IA, modelo: { claude: MODELO, gemini: GEMINI.modelo }[IA] || null }));
 
 // Conversación con el asistente. La app manda el historial (no se guarda en el servidor).
 app.post('/api/asistente', async (req, res) => {
@@ -56,6 +60,10 @@ app.post('/api/asistente', async (req, res) => {
       r = msg.content.find(b => b.type === 'tool_use')?.input;
       fuente = 'claude';
     }
+    if (IA === 'gemini') {
+      r = await pedirGemini(unirTurnos(mensajes), GEMINI);
+      fuente = 'gemini';
+    }
     if (!r?.accion) r = responderSimulado(mensajes);
     const out = armarRespuesta(r);
     if (out.riesgo) out.ayuda = AYUDA_RIESGO;
@@ -67,7 +75,7 @@ app.post('/api/asistente', async (req, res) => {
   }
 });
 
-// La API de Anthropic exige turnos alternados que empiecen por "user".
+// La API de Anthropic exige turnos alternados que empiecen por "user" (Gemini también los acepta así).
 function unirTurnos(mensajes) {
   const out = [];
   for (const m of mensajes) {
