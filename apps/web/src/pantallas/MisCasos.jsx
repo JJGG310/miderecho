@@ -26,7 +26,6 @@ function etiqueta(c, hoy) {
   if (c.estado === 'tutela') return ['✅', 'verde', 'Ya hizo la tutela por esta petición'];
   if (c.estado === 'ganada') return ['✅', 'verde', 'El juez le dio la razón'];
   if (c.estado === 'desacato') return ['⏳', 'verde', `Pidió el desacato el ${fecha(c.rad)}`];
-  if (c.estado === 'tutela') return <p className="plazo ok"><CheckCircle2 size={20} aria-hidden /><span>La tutela por esta petición está en Mis casos.</span></p>;
   if (c.estado === 'respondido') return ['✅', 'verde', 'Le respondieron'];
   if (faltan === null) return ['⏳', 'verde', 'Sin plazo'];
   if (vencido) return ['⚠️', 'ambar', esTutela(c) || c.estado === 'impugnada' ? 'El juez ya debía decidir' : 'Ya venció el plazo para responderle'];
@@ -69,7 +68,7 @@ export default function MisCasos() {
               <li key={c.id} className={`tarjeta clara caso ${color === 'verde' ? '' : color}`}>
                 <div className="caso-cabeza">
                   <span className="caso-icono" aria-hidden>{c.icono}</span>
-                  <div><b>{c.titulo}</b><small>{[c.entidad, c.municipio].filter(x => x && x !== '______').join(' · ')}</small></div>
+                  <div><b>{c.titulo}{c.ejemplo && <span className="marca-ejemplo">Ejemplo</span>}</b><small>{[c.entidad, c.municipio].filter(x => x && x !== '______').join(' · ')}</small></div>
                   <button className="btn-icono" onClick={() => setBorrar(c)} aria-label={`Borrar el caso ${c.titulo}`}><Trash2 size={22} /></button>
                 </div>
                 <span className={`estado ${color}`}><span aria-hidden>{icono}</span> {texto}</span>
