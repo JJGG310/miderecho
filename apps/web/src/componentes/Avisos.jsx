@@ -3,7 +3,7 @@
 // - ElegirAvisos: "¿Cómo quiere que le avisemos?" al guardar un caso y en Mis casos. Autorización expresa por canal.
 // - EstadoAvisos: en cada caso de Mis casos, qué avisos tiene y botón para cambiarlos.
 // - LlamadaAsistente: en Mis casos, "Que el asistente lo llame" ahora o a una hora escogida.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Bell, Phone } from 'lucide-react';
 import { deIso, RESPONSABLE as ORG, CONTACTO, conContactoHablado } from '@miderecho/nucleo';
 import { BotonVoz } from './comunes.jsx';
@@ -156,8 +156,19 @@ function franjas() {
   }).filter(f => f.horas.length);
 }
 
+// Tras "Llámenme ahora", el botón queda bloqueado 2 minutos, aunque la persona salga y vuelva a Mis casos.
+let llamandoHasta = 0;
+
 export function LlamadaAsistente({ casos }) {
   const [abierto, setAbierto] = useState(false);
+  const enCurso = useRef(false);   // varios toques seguidos llegan antes de que React vuelva a dibujar
+  const [, refrescar] = useState(0);
+  const llamando = llamandoHasta > Date.now();
+  useEffect(() => {
+    if (!llamando) return;
+    const t = setTimeout(() => refrescar(x => x + 1), llamandoHasta - Date.now());
+    return () => clearTimeout(t);
+  }, [llamando]);
   const [agendada, setAgendada] = useState(llamadaAgendada);
   const [fs] = useState(franjas);
   const [f, setF] = useState({ telefono: '', caso: '', dia: 0, hora: fs[0]?.horas[0], acepto: false });
@@ -168,6 +179,11 @@ export function LlamadaAsistente({ casos }) {
   const lectura = `Que el asistente lo llame. El asistente automático de MiDerecho lo llama a su celular para recordarle sus plazos o decirle qué documento le puede servir. No es un abogado. Escriba su celular, escoja el día y la hora, y autorice la llamada. ${datosLectura(true)}`;
 
   const pedir = async ahora => {
+    if (enCurso.current) return;
+    enCurso.current = true;
+    try { await pedirYa(ahora); } finally { enCurso.current = false; }
+  };
+  const pedirYa = async ahora => {
     setEstado('enviando');
     let c = abiertos.find(x => x.id === f.caso);
     if (c && !c.codigo) { c = { ...c, codigo: nuevoCodigo() }; almacen.guardarCaso(c); }   // el mismo código que dirán los avisos
@@ -175,6 +191,7 @@ export function LlamadaAsistente({ casos }) {
     const r = await pedirLlamada({ telefono: f.telefono, acepto: f.acepto, aviso: VERSION_LLAMADA, codigo: c?.codigo, vence: c?.venc,
       cuando: ahora ? undefined : `${franja.dia}T${String(f.hora).padStart(2, '0')}:00-05:00`, texto });
     if (!r.ok) return setEstado({ error: r.error });
+    if (ahora) llamandoHasta = Date.now() + 120_000;
     setF(x => ({ ...x, telefono: '', acepto: false }));   // el número no se guarda en el celular
     setAgendada(llamadaAgendada());
     const tecla = r.via === 'voz' ? ' Al contestar, oprima cualquier tecla para escuchar su recordatorio.' : '';
@@ -227,7 +244,7 @@ export function LlamadaAsistente({ casos }) {
           <small className="ayuda">Su número no se guarda en este celular; en el servidor queda cifrado solo hasta la llamada. No le vamos a pedir su cédula ni su nombre. Puede llamarlo un número desconocido, incluso de otro país. Si contesta el buzón de voz, se cuelga sin dejar mensaje.</small>
           <AvisoDatos asistente />
           <button className="btn-primario" type="submit" value="agendar" disabled={!listo}>{estado === 'enviando' ? 'Un momento…' : 'Agendar la llamada'}</button>
-          <button className="btn-secundario" type="submit" value="ahora" disabled={!listo || !enHorario()}>Llámenme ahora</button>
+          <button className="btn-secundario" type="submit" value="ahora" disabled={!listo || !enHorario() || llamando}>{llamando ? 'Lo estamos llamando…' : 'Llámenme ahora'}</button>
           {!enHorario() && <small className="ayuda">Ahora no podemos llamar: llamamos de 8 a. m. a 7 p. m.</small>}
           {estado?.error && <p className="aviso-error" role="alert">{estado.error}</p>}
         </form>

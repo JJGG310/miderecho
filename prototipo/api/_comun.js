@@ -199,7 +199,8 @@ async function twilio(recurso, datos) {
   throw falla(502, `Twilio no aceptó el envío (código ${code ?? r.status})`);
 }
 
-export const xml = t => t.replace(/[<>&"']/g, c => `&#${c.charCodeAt(0)};`);
+const ENTIDAD = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' };
+export const xml = t => t.replace(/[<>&"']/g, c => ENTIDAD[c]);   // entidades estándar: el TwiML pasa por más de un analizador
 
 // Llamada que pide su TwiML a una URL (api/llamar.js). La cuenta de prueba de Twilio acepta TwiML propio con <Say> y <Gather>.
 export async function llamarConUrl(tel, url) {

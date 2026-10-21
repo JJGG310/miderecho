@@ -45,6 +45,19 @@ Por eso, sin agente configurado, `/api/llamar` llama por Twilio con un **menú d
 
 **Costo:** 0 mientras duren los 75 minutos (una llamada de este menú dura 1 o 2 minutos).
 
+#### Conversación con IA dentro del menú (sin Twilio de pago)
+
+En el paso del caso, el menú ofrece "para hablar con la asistente, oprima 4 o diga asistente" (también sin caso). Solo si la llamada salió de este servidor: el POST sella un permiso de 15 minutos (`l`) en la URL.
+- **Aviso antes de conversar** (versión `ia-telefono-v1`): es un asistente automático con inteligencia artificial, no es persona ni abogado, no diga su nombre ni su cédula. Si hay Gemini, dice que Twilio transcribe y Google procesa; con el plan gratis, que Google puede usar lo dicho. Oprimir 1 para aceptar (queda la prueba mínima `aut:` con canal `ia`).
+- **Cada turno:** Twilio transcribe en es-CO (`<Gather input="speech">`).
+  - Antes de la IA: `limpiar` del núcleo quita números y cédulas, y `hayRiesgo` aplica la regla fija de riesgo.
+  - Gemini (`_ia-telefono.js`) responde con un prompt de teléfono: usted, de 1 a 3 frases, frases fijas de cada documento y `[RIESGO]` o `[FIN]`. Usa la misma clave, modelo y ajustes de seguridad del asistente de la app. Sin Gemini, o si falla o tarda más de 3 s, contesta el modo básico del asistente, pasado a usted.
+  - La voz es de ElevenLabs (`eleven_flash_v2_5`, mp3, voz "Alisson" `SmgKjOvC1aIujLWcMzqq`, la misma de los agentes web y de teléfono, ya en la biblioteca de Juan; `ELEVENLABS_VOZ` la cambia). Twilio la pide con `<Play>` a `GET /api/llamar?audio=…`. Si no está lista en 1,5 s, ese turno lo dice la voz de Twilio.
+- **Nada se guarda:** el estado (últimos 4 mensajes, turno, inicio) viaja **cifrado** (AES-GCM) en la URL de cada turno. El texto del audio va igual, sellado y válido 5 minutos: nadie puede usar la ruta como TTS gratis. El log solo dice cuántos turnos hubo.
+- **Límites:** 5 turnos o 4 minutos (la cuenta de prueba de Twilio corta la llamada a los 10 saltos de URL y el menú gasta hasta 4). Si hay silencio, se despide.
+- **Latencia aproximada por respuesta:** de 3 a 5 segundos desde que la persona deja de hablar. Se reparten así: Twilio detecta el silencio y transcribe en 1 a 2 s; Gemini responde en 1 a 2 s; ElevenLabs genera el audio en 0,5 a 1 s; Twilio lo descarga en unos 0,3 s. La primera respuesta tras un rato quieto puede tardar 1 s más por el arranque de la función. Twilio, en la cuenta de prueba, espera máximo 5 s el TwiML: por eso los topes de 3 s y 1,5 s.
+- **Créditos:** cada respuesta gasta unos 150 a 300 caracteres de ElevenLabs y los textos fijos se generan una vez por instancia.
+
 ### 2.1 Twilio (para el agente de ElevenLabs por teléfono: requiere pasar a pago)
 
 1. Crear la cuenta en <https://www.twilio.com/try-twilio> **con el celular colombiano de Juan José**: la prueba solo llama al país del número con que se registra, y ese número queda verificado solo.
