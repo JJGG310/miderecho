@@ -13,7 +13,7 @@ Estado al 21-oct-2026. Rama `claude/voz-v2-avisos-c14c86`. Complementa `docs/com
 | Herramientas del agente telefónico | `prototipo/api/_herramientas.js` (`herramienta(req, res)`), hoy vía `/api/elevenlabs-sesion?herramienta=…` | `orientar`, `documento`, `plazo`, `aviso` y `riesgo`, protegidas con secreto. Listas, sin registrar en ElevenLabs (`agente/telefono.md`, §5) |
 | Pruebas | `prototipo/api/_test-agente-avisos.mjs` | Avisos, herramientas de servidor y de cliente, en modo simulado y con Twilio falso |
 
-Preview probado: https://miderecho-324h9g4a9-jjgg310s-projects.vercel.app (sin claves: voz "no disponible", avisos simulados, herramientas cerradas con 503).
+Preview probado: https://miderecho-psga3rkwx-jjgg310s-projects.vercel.app (sin claves: voz "no disponible", sesión sin aviso aceptado 400, avisos simulados, herramientas cerradas con 503).
 
 ## 2. Reglas que cumple
 
