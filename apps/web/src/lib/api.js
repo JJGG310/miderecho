@@ -4,7 +4,7 @@ import { memoria } from './ruta.js';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 // Versión del aviso de la IA que la persona aceptó (pantallas/Consentimiento.jsx). Si cambia el texto, se sube.
-export const CONSENTIMIENTO = 2;
+export const CONSENTIMIENTO = 'ia-v2';   // el servidor exige el formato ia-vN (apps/api/src/app.js)
 
 export async function preguntarAsistente(mensajes) {
   const limpios = mensajes.map(m => ({ rol: m.rol, texto: limpiar(m.texto).texto }));
