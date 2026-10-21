@@ -170,7 +170,8 @@ export const hoyColombia = () => colombia().toISOString().slice(0, 10);
 export const horaColombia = () => colombia().getUTCHours();
 
 // ---------- Twilio (API REST, sin SDK) ----------
-const twilioListo = () => !!(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN);
+// Se autentica con el Auth Token o con una API Key de Twilio (SK… y su secreto); la URL siempre lleva el Account SID (AC…).
+const twilioListo = () => !!(env.TWILIO_ACCOUNT_SID && (env.TWILIO_AUTH_TOKEN || (env.TWILIO_API_KEY && env.TWILIO_API_SECRET)));
 const desde = canal => canal === 'whatsapp' ? env.TWILIO_WHATSAPP_FROM?.replace(/^whatsapp:/, '') : env.TWILIO_FROM;
 // 'agente': llamada del agente de voz de ElevenLabs (api/llamar.js); 'push': notificación web con VAPID.
 export const simulado = canal =>
@@ -182,7 +183,7 @@ async function twilio(recurso, datos) {
   const sid = env.TWILIO_ACCOUNT_SID;
   const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/${recurso}.json`, {
     method: 'POST',
-    headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${env.TWILIO_AUTH_TOKEN}`).toString('base64') },
+    headers: { Authorization: 'Basic ' + Buffer.from(env.TWILIO_API_KEY && env.TWILIO_API_SECRET ? `${env.TWILIO_API_KEY}:${env.TWILIO_API_SECRET}` : `${sid}:${env.TWILIO_AUTH_TOKEN}`).toString('base64') },
     body: new URLSearchParams(datos),
     signal: AbortSignal.timeout(8000),
   });
