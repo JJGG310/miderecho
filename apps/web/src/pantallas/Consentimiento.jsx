@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { Encabezado, Titulo, OpcionesRapidas } from '../componentes/comunes.jsx';
 import { CONSENTIMIENTO } from '../lib/api.js';
+import { RESPONSABLE, CONTACTO, conContactoHablado } from '@miderecho/nucleo/contenido';
 import { memoria } from '../lib/ruta.js';
 
 // Aviso y autorización antes de mandar algo a la inteligencia artificial (Ley 1581 art. 12; Decreto 1377 arts. 5 y 7:
@@ -14,9 +15,9 @@ const PUNTOS = [
   'Si usa el dictado por voz, el audio pasa por el servicio de voz de Google.',
   'Antes de enviarlo intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo: no escriba nombres, cédulas ni direcciones.',
   'Si cuenta algo de su salud, es un dato sensible. Contarlo es opcional. No guardamos la conversación.',
-  'Responsable: [Organización], [contacto]. Puede conocer, corregir o borrar sus datos y retirar esta autorización cuando quiera.',
+  `Responsable: ${RESPONSABLE} Puede conocer, corregir o borrar sus datos y retirar esta autorización cuando quiera, llamando o escribiendo al ${CONTACTO}.`,
 ];
-const LECTURA = `Antes de usar el asistente. ${PUNTOS.join(' ').replace('[Organización], [contacto]', 'la organización que acompaña a MiDerecho')} ¿Acepta?`;
+const LECTURA = conContactoHablado(`Antes de usar el asistente. ${PUNTOS.join(' ')} ¿Acepta?`);
 
 // La tarjeta del aviso, para la pantalla del asistente y para Inicio (antes del primer dictado).
 export function AvisoIA({ alAceptar, alRechazar }) {

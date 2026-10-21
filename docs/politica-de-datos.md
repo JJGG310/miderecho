@@ -2,9 +2,11 @@
 
 **Versión 1 (borrador)**, vigente desde el 21 de octubre de 2026 [validar: fecha real de publicación]. Ley 1581 de 2012 y Decreto 1377 de 2013 (compilado en el Decreto 1074 de 2015).
 
-> **Cómo se usa este archivo.** Es la versión para revisión. El mismo texto, sin las marcas `[validar]`, se ve en la app v2 (`apps/web/src/pantallas/Politica.jsx`): Perfil → «Ver la política de datos en historieta» (`#/politica`) → «Ver la política completa» (`#/politica/completa`). Las dos pantallas muestran el letrero "Borrador: falta validar con un abogado y completar los datos del responsable". Si cambia este archivo, cambie la app, y viceversa. El aviso corto de Perfil (`AVISO` en `packages/nucleo/src/contenido.js`) resume lo mismo.
+> **Cómo se usa este archivo.** Es la versión para revisión. El mismo texto, sin las marcas `[validar]`, se ve en la app v2 (`apps/web/src/pantallas/Politica.jsx`): Perfil → «Ver la política de datos en historieta» (`#/politica`) → «Ver la política completa» (`#/politica/completa`). Las dos pantallas muestran el letrero "Borrador: falta validar con un abogado y completar la dirección del responsable". Si cambia este archivo, cambie la app, y viceversa. El aviso corto de Perfil (`AVISO` en `packages/nucleo/src/contenido.js`) resume lo mismo.
 >
-> **Marcas.** `[Organización]`, `[dirección]`, `[contacto]` y `[área de protección de datos]` son datos que debe llenar el responsable; la lectura en voz alta los dice como "dato por completar". `[validar]` señala lo que debe revisar un abogado de protección de datos o lo que depende de una función que todavía no está en `main`. Lo que la v2 aún no tiene aparece en la app como "(todavía no disponible en esta versión)".
+> **Responsable y contacto:** MiDerecho S.A.S., celular 316 807 7161 (definidos en `packages/nucleo/src/contenido.js`: `RESPONSABLE` y `CONTACTO`; la lectura en voz alta dicta el celular dígito por dígito).
+>
+> **Marcas.** `[dirección]` es un dato que falta llenar; la lectura en voz alta lo dice como "dato por completar". `[validar]` señala lo que debe revisar un abogado de protección de datos o lo que depende de una función que todavía no está en `main`. Lo que la v2 aún no tiene aparece en la app como "(todavía no disponible en esta versión)".
 >
 > **Trato.** "Usted", como el resto de la app.
 
@@ -23,9 +25,9 @@ Contenido mínimo del art. 13 del Decreto 1377 de 2013 y dónde está:
 
 ## 1. Quién es el responsable de sus datos
 
-- **Responsable:** [Organización]. [validar: razón social y NIT]
+- **Responsable:** MiDerecho S.A.S. [validar: NIT]
 - **Domicilio y dirección:** [dirección].
-- **Correo y teléfono:** [contacto].
+- **Celular (llamadas y mensajes):** 316 807 7161.
 
 MiDerecho es un servicio gratuito de información y plantillas para que usted mismo entienda sus derechos y haga documentos como el derecho de petición, la tutela o el reclamo de servicios públicos.
 
@@ -141,7 +143,7 @@ Todo esto es gratis.
 
 [validar: cuando haya recordatorios en la v2, «Borrar todo» y borrar un caso deben cancelarlos en el servidor, como en el prototipo.]
 
-**Escribiéndonos a [contacto]:** cuéntenos qué quiere (conocer, corregir, borrar, retirar la autorización o reclamar). Si es sobre recordatorios, dé el código del caso y el número de celular. No necesita mandar su cédula. [validar: el art. 20 del Decreto 1377 pide acreditar la identidad; como no guardamos nombre ni cédula, proponemos que baste el código del caso y el número que recibe los recordatorios]
+**Llamando o escribiendo al 316 807 7161:** cuéntenos qué quiere (conocer, corregir, borrar, retirar la autorización o reclamar). Si es sobre recordatorios, dé el código del caso y el número de celular. No necesita mandar su cédula. [validar: el art. 20 del Decreto 1377 pide acreditar la identidad; como no guardamos nombre ni cédula, proponemos que baste el código del caso y el número que recibe los recordatorios]
 
 - **Consultas** (conocer sus datos): le respondemos en máximo 10 días hábiles. Si no alcanzamos, le avisamos y respondemos en máximo 5 días hábiles más (Ley 1581, art. 14).
 - **Reclamos** (corregir, borrar, retirar la autorización o quejarse de un incumplimiento): le respondemos en máximo 15 días hábiles. Si no alcanzamos, le avisamos y respondemos en máximo 8 días hábiles más. Si falta información, se la pedimos dentro de los 5 días siguientes; si pasan 2 meses sin que la envíe, entendemos que desistió (Ley 1581, art. 15). [validar: que los plazos y la regla de desistimiento estén citados al día]
@@ -151,7 +153,7 @@ Todo esto es gratis.
 
 ## 9. Quién atiende sus peticiones
 
-El [área de protección de datos] de [Organización], en [contacto]. Atiende consultas, reclamos y pedidos para conocer, corregir o borrar sus datos y para retirar la autorización (Decreto 1377, art. 23). [validar: nombrar a la persona o el área y su correo]
+El área de protección de datos de MiDerecho S.A.S., en el celular 316 807 7161. Atiende consultas, reclamos y pedidos para conocer, corregir o borrar sus datos y para retirar la autorización (Decreto 1377, art. 23). [validar: nombrar a la persona o el área y su correo]
 
 ## 10. Cómo cuidamos sus datos
 
@@ -194,7 +196,7 @@ Diez viñetas con el asistente (un globo de diálogo del mismo color que sus res
 
 | # | Viñeta | Lo que dice | Sección |
 |---|---|---|---|
-| 1 | ¿Quién cuida sus datos? | El asistente es una máquina; responde [Organización], escribir a [contacto] | 1 |
+| 1 | ¿Quién cuida sus datos? | El asistente es una máquina; responde MiDerecho S.A.S.; llamar o escribir al 316 807 7161 | 1 |
 | 2 | ¿Para qué usamos sus datos? | Entender lo que pasa, armar el documento, recordar el plazo; no se venden ni hay publicidad | 2 |
 | 3 | Lo que no guardamos | La conversación; nombre y cédula del documento no se guardan ni van a la IA, solo van en el papel: no escribirlos en el chat; el PDF es suyo | 3, 4 |
 | 4 | Lo que queda en su celular | Casos (entidad, municipio, vereda, fechas) y el tema de cada consulta, aunque sea de salud; póngale clave o bórrelo en Perfil | 3, 10 |
@@ -203,7 +205,7 @@ Diez viñetas con el asistente (un globo de diálogo del mismo color que sus res
 | — | Pregunta 2 | ¿Qué le quitamos a su relato? → Cédulas, teléfonos y correos, cuando el filtro los encuentra (no "todo, también los nombres") | 5, 10 |
 | 6 | Lo delicado es opcional | No tiene que contar si es víctima, su etnia, religión, ideas ni organización; en la tutela de salud, lo de salud va en el documento | 6 |
 | 7 | Sus derechos | Conocer, corregir, borrar, retirar el permiso, quejarse ante la SIC (explicada en una frase); gratis | 7 |
-| 8 | ¿Cómo los hace valer? | «Borrar todo de este celular» en Perfil, que no borra lo de otras empresas; escribir a [contacto]; 10 días hábiles o 15 si es reclamo (explica "días hábiles"); si no responden, la SIC | 8 |
+| 8 | ¿Cómo los hace valer? | «Borrar todo de este celular» en Perfil, que no borra lo de otras empresas; llamar o escribir al 316 807 7161; 10 días hábiles o 15 si es reclamo (explica "días hábiles"); si no responden, la SIC | 8 |
 | — | Pregunta 3 | Para borrar lo que quedó en este celular, ¿qué hace? → «Borrar todo» en Perfil | 8 |
 | 9 | Si hay peligro | La app deja de preguntar, no guarda y dice a dónde acudir; 123, Personería, Defensoría | 11 |
 | 10 | No somos abogados | Información y plantillas; Personería y consultorios jurídicos gratis | 12 |

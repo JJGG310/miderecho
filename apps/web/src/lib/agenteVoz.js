@@ -22,7 +22,7 @@ export const cargarSDK = () => sdk ||= new Promise((ok, mal) => {
 // del servidor. Sin ELEVENLABS_API_KEY responde 503 y el modo voz dice que no está disponible.
 // El servidor solo la entrega con la versión del aviso aceptado (si cambia el texto de ModoVoz.jsx, sube la versión).
 // Solo en desarrollo, VITE_AGENTE_PRUEBAS (agente de pruebas: sin firma, solo localhost) permite probar sin la clave.
-export const AVISO_VOZ = 'voz-v1';
+export const AVISO_VOZ = 'voz-v2';
 const PRUEBAS = import.meta.env?.DEV && import.meta.env.VITE_AGENTE_PRUEBAS;
 export async function pedirSesion() {
   if (PRUEBAS) return { agentId: PRUEBAS, connectionType: 'webrtc' };

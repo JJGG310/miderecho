@@ -7,7 +7,7 @@ export const CORREO_SERVICIO = 'respuestas@miderecho.example'; // buzón del ser
 
 export const AVISO = `<p><b>${NOMBRE}</b> es un servicio gratuito que le ayuda a armar documentos como el derecho de petición, la tutela o un reclamo. Es información general y plantillas: <b>no somos abogados</b> ni reemplazamos a uno.</p>
 <p>No le vamos a pedir nada sensible (si es víctima, su etnia, sus creencias o a qué organización pertenece). Lo que cuente sobre su salud solo va en el documento y no se guarda. Solo si usted quiere que enviemos el documento le pediremos nombre y cédula, y se borran apenas se envía.</p>
-<p>Puede borrar todo cuando quiera con el botón <b>Borrar todo</b>. Responsable: [Organización], [contacto].</p>`;
+<p>Puede borrar todo cuando quiera con el botón <b>Borrar todo</b>. Responsable: MiDerecho S.A.S., celular 316 807 7161.</p>`;
 
 export const AYUDA_RIESGO = `<p>Aquí no vamos a guardar nada de lo que nos contó.</p>
 <ul>

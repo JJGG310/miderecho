@@ -4,6 +4,7 @@ import { useConexion } from '../lib/conexion.jsx';
 import { hablar, callar } from '../lib/voz.js';
 import { almacen } from '../lib/almacen.js';
 import { cargarSDK, pedirSesion, crearAgente, contexto, AVISO_VOZ, AVISO_RIESGO } from '../lib/agenteVoz.js';
+import { RESPONSABLE, CONTACTO, conContactoHablado } from '@miderecho/nucleo/contenido';
 import './voz.css';
 
 // Aviso claro ANTES de tocar el micrófono (Ley 1581, art. 12; investigacion/11, §3.3). Si cambia, sube AVISO_VOZ.
@@ -17,10 +18,9 @@ const AVISO = [
   'Hablar de temas sensibles, como tu salud, si eres víctima o a qué grupo perteneces, es opcional: no tienes que responder.',
   'Tienes derecho a conocer, actualizar y corregir tus datos, a pedir que los borremos y a retirar esta autorización.',
   'Es opcional: puedes escribir en vez de hablar. Hablar gasta datos de internet.',
-  'Responsable: [Organización], [contacto].',
+  `Responsable: ${RESPONSABLE} Llame o escriba al ${CONTACTO}.`,
 ];
-// En voz alta, lo que falta por completar no se lee entre corchetes.
-const AVISO_HABLADO = AVISO.map(t => t.replace(/\[[^\]]*\]/g, 'dato por completar')).join(' ') + ' La política de datos completa está en el enlace de la pantalla.';
+const AVISO_HABLADO = conContactoHablado(AVISO.join(' ')) + ' La política de datos completa está en el enlace de la pantalla.';
 const ERRORES = {
   red: 'El asistente de voz necesita internet. Puedes seguir escribiendo.',
   microfono: 'No pudimos usar el micrófono. Revisa que el navegador tenga permiso. Puedes seguir escribiendo.',

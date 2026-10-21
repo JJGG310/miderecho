@@ -7,9 +7,11 @@ import { Encabezado, Titulo } from '../componentes/comunes.jsx';
 import { hablar, callar } from '../lib/voz.js';
 import { almacen } from '../lib/almacen.js';
 import { ir, atras } from '../lib/ruta.js';
+import { RESPONSABLE, CONTACTO, CONTACTO_TEL, conContactoHablado } from '@miderecho/nucleo/contenido';
 import './politica.css';
 
-const ORG = '[Organización]', CONTACTO = '[contacto]', VIGENCIA = '21 de octubre de 2026';
+const ORG = RESPONSABLE, VIGENCIA = '21 de octubre de 2026';
+const Tel = () => <a href={CONTACTO_TEL}>{CONTACTO}</a>;
 
 // ---------- dibujos (escena de 320 × 170) ----------
 const T = '#1f2a24', VERDE = '#264933', TIERRA = '#a8743a', ROJO = '#b23b3b';
@@ -73,8 +75,8 @@ const PASOS = [
   { titulo: '¿Quién cuida sus datos?', escena: campo + asis(26, 44, 1.4) + signo(160, 70) + rosa(204, 6, 'duda', 'cel'), dialogo: [
     ['r', '¿Y quién va a ver lo que yo escriba en esta aplicación?'],
     ['a', 'Soy el asistente de MiDerecho. Soy una máquina, no una persona.'],
-    ['a', `Quien responde por sus datos es ${ORG}.`],
-    ['a', `Puede escribirle a ${CONTACTO}.`]] },
+    ['a', `Quien responde por sus datos es ${ORG}`],
+    ['a', `Puede llamar o escribir al ${CONTACTO}.`]] },
   { titulo: '¿Para qué usamos sus datos?', escena: campo + asis(14, 50, 1.25) + papel(118, 16) + sobre(160, 52) + calendario(116, 92) + brillo(176, 22) + rosa(212, 6, 'sonrie', 'cel'), dialogo: [
     ['r', '¿Y para qué necesitan mis datos?'],
     ['a', 'Para entender lo que le pasa y armar su documento.'],
@@ -119,13 +121,13 @@ const PASOS = [
   { titulo: '¿Cómo los hace valer?', escena: asis(8, 52, 1.2) + celular(118, 18, `<rect x="9" y="44" width="40" height="22" rx="11" fill="${ROJO}"/><path d="M21 49h16M26 49v-2h6v2M23 52l1.5 10h9l1.5-10" stroke="#fff" stroke-width="2" fill="none"/>`)
       + flecha('M180 60q14-20 10-30', 192, 30, -80) + sobre(176, 4, .8) + rosa(214, 6, 'sonrie', 'senala'), dialogo: [
     ['a', 'En Perfil, toque «Borrar todo de este celular»: se borran sus casos y su historial.'],
-    ['a', `Eso no borra lo que tengan otras empresas. Para eso, escríbanos a ${CONTACTO}.`],
+    ['a', `Eso no borra lo que tengan otras empresas. Para eso, llámenos o escríbanos al ${CONTACTO}.`],
     ['a', 'Le respondemos en máximo 10 días hábiles, o 15 si es un reclamo.'],
     ['a', 'Días hábiles: no cuentan sábados, domingos ni festivos.'],
     ['r', '¿Y si no me responden?'],
     ['a', 'Puede quejarse ante la Superintendencia de Industria y Comercio.']] },
   { pregunta: 'Para borrar lo que quedó en este celular, ¿qué hace?', opciones: [['Toco «Borrar todo» en Perfil', true], ['Voy hasta la alcaldía', false]],
-    explica: `Eso borra lo de este celular. Para lo que tengan otras empresas, escriba a ${CONTACTO}.` },
+    explica: `Eso borra lo de este celular. Para lo que tengan otras empresas, llame o escriba al ${CONTACTO}.` },
   { titulo: 'Si hay peligro', fondo: 'alerta', estado: 'alerta', escena: asis(10, 50, 1.25) + escudo(122, 18, 1.2) + `<circle cx="168" cy="118" r="24" fill="${ROJO}"/>` + fono(150, 100) + rosa(214, 6, 'triste', 'menton'), dialogo: [
     ['r', '¿Y si alguien me amenaza por reclamar?'],
     ['a', 'Si nos cuenta eso, la app deja de preguntar, no guarda nada y le dice a dónde acudir.'],
@@ -144,14 +146,14 @@ const textoDe = p => p.pregunta
   : [p.titulo.replace(/[^.?!]$/, '$&.'), ...p.dialogo.map(([q, t]) => q === 'lista' ? t.map(x => x.join(' ')).join('. ') : `${NOMBRES[q]}: ${t}`)].join(' ');
 
 // Lectura en voz alta con estado (para que el asistente mueva la boca). turno: el aviso de una lectura cancelada no apaga la siguiente.
-// Los datos por llenar ([Organización], [contacto]…) no se leen con corchetes.
+// El celular de contacto se lee dígito por dígito; lo que falte por llenar ([dirección]) no se lee con corchetes.
 function useLeer() {
   const [leyendo, setLeyendo] = useState(false);
   const turno = useRef(0);
   useEffect(() => () => callar(), []);
   const leer = texto => {
     const yo = ++turno.current;
-    if (hablar(texto.replace(/\[[^\]]*\]/g, 'dato por completar'), () => yo === turno.current && setLeyendo(false))) setLeyendo(true);
+    if (hablar(conContactoHablado(texto).replace(/\[[^\]]*\]/g, 'dato por completar'), () => yo === turno.current && setLeyendo(false))) setLeyendo(true);
   };
   const parar = () => { turno.current++; callar(); setLeyendo(false); };
   return { leyendo, leer, parar };
@@ -165,7 +167,7 @@ function BotonEscuchar({ leyendo, onClick }) {
   );
 }
 const Salir = () => <button className="btn-secundario pc-boton" onClick={atras}><X size={20} aria-hidden /> Salir</button>;
-const Borrador = () => <p className="pc-borrador">Borrador: falta validar con un abogado y completar los datos del responsable.</p>;
+const Borrador = () => <p className="pc-borrador">Borrador: falta validar con un abogado y completar la dirección del responsable.</p>;
 
 function useEscape() {
   useEffect(() => {
@@ -276,7 +278,7 @@ function Historieta() {
 const PRONTO = <i>(todavía no disponible en esta versión)</i>;
 const SECCIONES = [
   ['1. Quién es el responsable de sus datos', <>
-    <ul><li><b>Responsable:</b> {ORG}.</li><li><b>Domicilio y dirección:</b> [dirección].</li><li><b>Correo y teléfono:</b> {CONTACTO}.</li></ul>
+    <ul><li><b>Responsable:</b> {ORG}</li><li><b>Domicilio y dirección:</b> [dirección].</li><li><b>Celular (llamadas y mensajes):</b> <Tel />.</li></ul>
     <p>MiDerecho es un servicio gratuito de información y plantillas para que usted mismo entienda sus derechos y haga documentos como el derecho de petición, la tutela o el reclamo de servicios públicos.</p></>],
   ['2. Para qué usamos sus datos', <>
     <p>Solo para esto:</p>
@@ -326,12 +328,12 @@ const SECCIONES = [
     <p><b>En su celular, de inmediato:</b></p>
     <ul><li>En <b>Perfil</b>, toque <b>«Borrar todo de este celular»</b>: se borran sus casos, su historial y sus preferencias. Eso borra lo que hay en este celular, no lo que tengan otras empresas.</li>
       <li>En <b>Historial</b> puede borrar sus consultas, y en <b>Mis casos</b>, cada caso.</li></ul>
-    <p><b>Escribiéndonos a {CONTACTO}:</b> cuéntenos qué quiere (conocer, corregir, borrar, retirar la autorización o reclamar). Si es sobre recordatorios, dé el código del caso y el número de celular. No necesita mandar su cédula.</p>
+    <p><b>Llamando o escribiendo al <Tel />:</b> cuéntenos qué quiere (conocer, corregir, borrar, retirar la autorización o reclamar). Si es sobre recordatorios, dé el código del caso y el número de celular. No necesita mandar su cédula.</p>
     <ul><li><b>Consultas</b> (conocer sus datos): le respondemos en máximo 10 días hábiles. Si no alcanzamos, le avisamos y respondemos en máximo 5 días hábiles más.</li>
       <li><b>Reclamos</b> (corregir, borrar, retirar la autorización o quejarse de un incumplimiento): le respondemos en máximo 15 días hábiles. Si no alcanzamos, le avisamos y respondemos en máximo 8 días hábiles más. Si falta información, se la pedimos dentro de los 5 días siguientes; si pasan 2 meses sin que la envíe, entendemos que desistió.</li>
       <li><b>Días hábiles</b> son los de lunes a viernes, sin contar festivos.</li></ul>
     <p><b>Ante la SIC:</b> si no le respondimos o no está de acuerdo, puede quejarse ante la Superintendencia de Industria y Comercio, en www.sic.gov.co. Primero debe hacer la consulta o el reclamo ante nosotros.</p></>],
-  ['9. Quién atiende sus peticiones', <p>El [área de protección de datos] de {ORG}, en {CONTACTO}. Atiende consultas, reclamos y pedidos para conocer, corregir o borrar sus datos y para retirar la autorización.</p>],
+  ['9. Quién atiende sus peticiones', <p>El área de protección de datos de {ORG}, en el celular <Tel />. Atiende consultas, reclamos y pedidos para conocer, corregir o borrar sus datos y para retirar la autorización.</p>],
   ['10. Cómo cuidamos sus datos', <ul>
     <li>Antes de que su relato llegue a la inteligencia artificial, intentamos quitar cédulas, teléfonos y correos en el celular y otra vez en el servidor. El filtro no atrapa todo y no quita nombres.</li>
     <li>El servidor no guarda conversaciones, nombres ni cédulas.</li><li>La conexión con el servidor va cifrada (HTTPS).</li>

@@ -337,9 +337,9 @@ Cumple el contenido mínimo del art. 15 del Decreto 1377 (responsable, finalidad
 
 **Versión WhatsApp (primer mensaje):**
 
-> Hola, soy [NombreDelBot], un servicio gratuito de [Organización] que te ayuda a armar un derecho de petición. Es información general y plantillas; no somos abogados ni reemplazamos a uno.
+> Hola, soy [NombreDelBot], un servicio gratuito de MiDerecho S.A.S. que te ayuda a armar un derecho de petición. Es información general y plantillas; no somos abogados ni reemplazamos a uno.
 > Usamos tu número de WhatsApp solo para atenderte. No guardamos lo que escribes ni tu cédula, y todo se borra a las 24 horas. No tienes que contarnos nada sensible (si eres víctima, tu etnia, tus creencias o a qué organización perteneces); es opcional y puedes seguir igual.
-> Puedes conocer, corregir o borrar tus datos cuando quieras: escribe BORRAR TODO. Responsable: [Organización], [correo/teléfono]. Política completa: escribe POLITICA.
+> Puedes conocer, corregir o borrar tus datos cuando quieras: escribe BORRAR TODO. Responsable: MiDerecho S.A.S., 316 807 7161. Política completa: escribe POLITICA.
 > ¿Aceptas? Responde 1 = Sí, acepto · 2 = No.
 
 **Versión SMS (aprox. 150-160 caracteres, sin contenido sensible):**

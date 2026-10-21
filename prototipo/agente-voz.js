@@ -64,7 +64,7 @@ const CONSENTIMIENTO = `<h2 id="av-titulo">Antes de hablar</h2><ul>
   <li>La app <b>no guarda</b> su voz ni lo que usted diga, y configuramos ese servicio para que no la grabe ni la guarde. La voz <b>no se usa para identificar</b> a nadie.</li>
   <li>No diga su cédula, su nombre ni su dirección. Esos datos se escriben a mano.</li>
   <li>Es <b>opcional</b>: puede usar la app tocando los botones, sin hablar. Hablar gasta datos de internet.</li>
-  <li>Responsable: [Organización], [contacto].</li></ul>
+  <li>Responsable: MiDerecho S.A.S., celular 316 807 7161.</li></ul>
   <form method="dialog"><button type="button" class="secundario" data-leer>🔊 Escuchar este aviso</button>
     <button class="principal" value="si">Sí, quiero hablar</button><button class="secundario" value="no">No, gracias</button></form>`;
 const mensaje = (titulo, texto) => `<h2 id="av-titulo">${titulo}</h2><p>${texto}</p><form method="dialog"><button class="principal" value="ok">Entendido</button></form>`;

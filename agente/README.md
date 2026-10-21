@@ -59,4 +59,4 @@ Abrir `http://localhost:5173`, contar algo, tocar **Hablar en vez de escribir** 
 - **Voz:** la elegida ("Gabriel", acento andino nariñense, pausado) está en la biblioteca y el conector no puede agregarla. Agregarla a "Mis voces" en elevenlabs.io y cambiar `voice_id` en los dos agentes. Hoy usa "Cristian Sanchez" (paisa).
 - **Audio real en la v2:** probado sin clave (aviso, "no disponible", volver a escribir) y las herramientas con pruebas en Node. Falta una conversación real con la clave o con `VITE_AGENTE_PRUEBAS`, hablando desde un celular, con ruido y acento rural.
 - **Privacidad:** borrar desde el panel de ElevenLabs los resúmenes de las conversaciones de prueba anteriores al modo de retención cero (datos inventados).
-- **Jurídico:** validar `conocimiento.md`, las frases fijas y el texto del protocolo de riesgo con un consultorio jurídico y con los aliados; completar "[Organización], [contacto]" en el consentimiento.
+- **Jurídico:** validar `conocimiento.md`, las frases fijas y el texto del protocolo de riesgo con un consultorio jurídico y con los aliados. Responsable en el consentimiento: MiDerecho S.A.S., 316 807 7161.

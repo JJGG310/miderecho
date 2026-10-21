@@ -5,7 +5,7 @@
 // - LlamadaAsistente: en Mis casos, "Que el asistente lo llame" ahora o a una hora escogida.
 import { useState } from 'react';
 import { AlertTriangle, Bell, Phone } from 'lucide-react';
-import { deIso } from '@miderecho/nucleo';
+import { deIso, RESPONSABLE as ORG, CONTACTO, conContactoHablado } from '@miderecho/nucleo';
 import { BotonVoz } from './comunes.jsx';
 import { almacen } from '../lib/almacen.js';   // solo para guardar el código del caso; los tokens van en lib/avisos.js
 import { ir } from '../lib/ruta.js';
@@ -18,20 +18,19 @@ const fechaSms = f => { const d = deIso(f); return `${d.getDate()}-${MES3[d.getM
 const celularValido = s => /^(\+?57)?3\d{9}$/.test(s.replace(/[\s().-]/g, ''));
 const TELEFONO = ['sms', 'whatsapp', 'llamada'];
 
-// Aviso de datos (Ley 1581, art. 12): responsable, terceros, para qué, derechos y la política. Los corchetes los completa el
-// aliado; la lectura en voz alta dice "la organización que acompaña a MiDerecho" en vez de leerlos.
-const RESPONSABLE = '[Organización], [contacto]';
+// Aviso de datos (Ley 1581, art. 12): responsable, terceros, para qué, derechos y la política.
+const RESPONSABLE = `${ORG} (celular ${CONTACTO})`;
 const terceros = asistente => asistente
   ? 'ElevenLabs (la voz del asistente y su modelo de lenguaje) y Twilio (la llamada)'
   : 'Twilio (SMS, WhatsApp y llamadas) y el servicio de notificaciones de su navegador';
 const datosTexto = (asistente, responsable = RESPONSABLE) => `Responsable: ${responsable}. Su número (o la suscripción de este celular) lo usan ${terceros(asistente)}, fuera de Colombia, solo para esto. Puede conocer, corregir o borrar sus datos y retirar la autorización cuando quiera: aquí mismo o con "Borrar todo".`;
-const datosLectura = asistente => datosTexto(asistente, 'la organización que acompaña a MiDerecho');
+const datosLectura = asistente => conContactoHablado(datosTexto(asistente));
 function AvisoDatos({ asistente }) {
   return <small className="ayuda">{datosTexto(asistente)} <a href="#/politica">Política de datos</a>.</small>;
 }
 
 // Versión del texto de autorización de los recordatorios: si cambia AUTORIZA o el aviso de datos, cambia la versión.
-const VERSION_AVISOS = 'avisos-v1';
+const VERSION_AVISOS = 'avisos-v2';
 const AUTORIZA = {
   push: 'Acepto notificaciones en este celular',
   sms: 'Acepto SMS a mi celular',
@@ -145,7 +144,7 @@ const hora = h => `${h > 12 ? h - 12 : h} ${h < 12 ? 'a. m.' : h === 12 ? 'm.' :
 const diaLargo = d => `${SEMANA[d.getUTCDay()]} ${d.getUTCDate()} de ${MESES[d.getUTCMonth()]}`;
 const punto = s => (s.endsWith('.') ? s : s + '.');   // "a las 9 a. m." ya termina en punto
 // Versión del texto de autorización de la llamada ("Acepto que MiDerecho me llame…" y el aviso de datos del asistente).
-const VERSION_LLAMADA = 'llamada-v1';
+const VERSION_LLAMADA = 'llamada-v2';
 
 // Franjas de una hora, de 8 a. m. a 6 p. m.; hoy, solo las que empiezan en más de 10 minutos. Hasta 6 días adelante.
 function franjas() {
