@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, CheckCircle2, ChevronRight, ShieldCheck } from 'lucide-react';
 import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, sumarHabiles, iso } from '@miderecho/nucleo';
 import { Encabezado, Titulo, BotonVoz } from '../componentes/comunes.jsx';
+import { ElegirAvisos } from '../componentes/Avisos.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir, memoria } from '../lib/ruta.js';
 
@@ -254,21 +255,21 @@ function Campo({ etiqueta, children }) {
 // Vista previa, lectura en voz alta, imprimir o guardar en PDF, y anotar en Mis casos.
 function Vista({ tipo, datos, volver, caso }) {
   const html = useMemo(() => generarDocumento(tipo, datos), [tipo, datos]);
-  const [guardado, setGuardado] = useState(false);
+  const [guardado, setGuardado] = useState(null);   // el caso guardado: ofrece los avisos del plazo
   const t = TIPOS[tipo];
   const texto = () => new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/_{3,}/g, ' espacio en blanco ');
 
   const entregar = () => {
-    const hoy = new Date();
-    almacen.guardarCaso({
+    const hoy = new Date(), nuevo = {
       id: crypto.randomUUID?.() || String(Date.now()),
       tipo, titulo: t.titulo, icono: t.icono,
       entidad: datos.entidad, municipio: datos.municipio, vereda: datos.vereda,
       rad: iso(hoy), venc: t.plazo ? iso(sumarHabiles(hoy, t.plazo)) : null, plazo: t.plazo || null,
       // Solo los textos de plantilla de lo que pidió: sirven para la tutela si no responden.
       peticiones: (datos.peticiones || []).map(p => p.texto), modo: 'mano', estado: 'esperando',
-    });
-    setGuardado(true);
+    };
+    almacen.guardarCaso(nuevo);
+    setGuardado(nuevo);
   };
 
   return (
@@ -285,6 +286,7 @@ function Vista({ tipo, datos, volver, caso }) {
         {!guardado && !caso && <button className="btn-primario" onClick={entregar}><CheckCircle2 size={18} aria-hidden /> Lo entregué hoy: avísame el plazo</button>}
         {guardado && <button className="btn-primario" onClick={() => ir('casos')}>Ver en Mis casos</button>}
       </div>
+      {guardado?.venc && <ElegirAvisos caso={guardado} />}
       <section className="tarjeta tierra">
         <h2>Cómo entregarlo</h2>
         <p className="suave">{tipo.startsWith('tutela')

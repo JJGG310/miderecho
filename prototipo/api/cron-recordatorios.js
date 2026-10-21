@@ -2,7 +2,7 @@
 // Envía los recordatorios de hoy y los que quedaron de ayer (SMS, WhatsApp, llamada o push), con texto fijo (código y fecha),
 // en tandas y con tiempo límite.
 // Nunca reescribe un registro: si lo cancelan mientras corre, no revive.
-import { atender, falla, descifrar, enviar, kv, contar, simulado, limiteDiario, hoyColombia } from './_comun.js';
+import { atender, falla, descifrar, enviar, kv, contar, simulado, limiteDiario, hoyColombia, textoLlamada } from './_comun.js';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const corta = f => `${+f.slice(8)}-${MESES[f.slice(5, 7) - 1]}`;
@@ -39,7 +39,8 @@ async function procesar(id, f, hoy, cuenta) {
   const r = JSON.parse(txt), plantilla = process.env.TWILIO_WHATSAPP_PLANTILLA, push = r.canal === 'push';
   if (!push && !simulado(r.canal) && await contar('total', 86400) > limiteDiario()) return void cuenta.omitidos++;   // push no cuesta
   try {
-    await enviar(r.canal, descifrar(r.c), push ? textoPush(r.codigo, f, r.vence) : textoRecordatorio(r.codigo, f),
+    const texto = push ? textoPush(r.codigo, f, r.vence) : r.canal === 'llamada' ? textoLlamada(r.codigo, r.vence, f) : textoRecordatorio(r.codigo, f);
+    await enviar(r.canal, descifrar(r.c), texto,
       { plantilla: r.canal === 'whatsapp' && plantilla && { sid: plantilla, variables: { 1: r.codigo, 2: corta(f) } } });
     cuenta.enviados++;
   } catch (e) {

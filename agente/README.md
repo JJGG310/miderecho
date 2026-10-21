@@ -4,6 +4,7 @@ Agente conversacional en ElevenLabs que habla con la persona y maneja la app a t
 
 - **Agente:** `agent_8101m5dg7s5se9trrst6fjpvz52d` ("MiDerecho"). Exige **sesión firmada**: solo se abre con el token que entrega `prototipo/api/elevenlabs-sesion.js`.
 - **Agente de pruebas:** `agent_3301m5e2amx2f9etc6k5hzwp7kct` ("MiDerecho (pruebas locales)"). Igual al principal, pero sin sesión firmada, solo `localhost`/`127.0.0.1`, con modo texto y 20 conversaciones al día. Si se cambia el principal, cambiar también este.
+- **Agente telefónico:** `agent_3901m5fd72hyedssc8h6r4gznevn` ("MiDerecho teléfono"). Copia del principal para llamadas salientes que pide la persona (`prototipo/api/llamar.js`): sin herramientas de pantalla, con las variables `codigo` y `vence`. Prompt en `prompt-telefono.md`, configuración en `configuracion-telefono.json`. Si se cambian las reglas del principal, cambiarlas también aquí.
 - **Módulo del navegador:** `prototipo/agente-voz.js`.
 
 | Archivo | Qué es |
@@ -11,7 +12,8 @@ Agente conversacional en ElevenLabs que habla con la persona y maneja la app a t
 | `prompt.md` | Prompt del sistema: protocolo de riesgo, frases fijas, botones que solo toca la persona, listas cerradas |
 | `conocimiento.md` | Base de conocimiento en lenguaje claro (borrador sin validar por un consultorio jurídico) |
 | `configuracion.json` | Todo lo demás para recrearlo: primer mensaje, voz, herramientas con ids, guardrails, privacidad, acceso, límites, SDK |
-| `telefono.md` | Cómo pasar este agente a una línea de Twilio (solo preparado) |
+| `telefono.md` | Cómo pasar este agente a una línea de Twilio |
+| `prompt-telefono.md`, `configuracion-telefono.json` | Agente telefónico: seguimiento de plazos y qué documento sirve, por llamada |
 | `prueba.html` | Página de prueba con un `window.miderecho` falso que imita `app.js`. **No se publica** |
 | `test-sesion.mjs` | Prueba de la función de sesión sin red: `node agente/test-sesion.mjs` |
 

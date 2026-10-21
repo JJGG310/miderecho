@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Trash2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { habilesEntre, deIso } from '@miderecho/nucleo';
 import { Encabezado, BarraNav, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
+import { EstadoAvisos, LlamadaAsistente } from '../componentes/Avisos.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir, memoria } from '../lib/ruta.js';
 
@@ -55,12 +56,14 @@ export default function MisCasos() {
                   </>
                 )}
                 {c.estado === 'respondido' && <p className="plazo ok"><CheckCircle2 size={16} aria-hidden /><span>Te respondieron. Si la respuesta no resuelve tu caso, cuéntanos en Inicio.</span></p>}
+                {c.estado === 'esperando' && <EstadoAvisos caso={c} alCambiar={recargar} />}
               </li>
             );
           })}
         </ul>
       )}
 
+      <LlamadaAsistente casos={casos} />
       <label className="demo"><input type="checkbox" checked={demo} onChange={e => { setDemo(e.target.checked); almacen.setPref('demo', e.target.checked); }} /> Modo demo: adelantar un mes</label>
       <OpcionesRapidas />
       <BarraNav actual="casos" />

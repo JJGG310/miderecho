@@ -1,6 +1,6 @@
-# Canal telefónico: el mismo agente por llamada (solo preparado)
+# Canal telefónico: el mismo agente por llamada
 
-Estado al 20-oct-2026: **no hay cuenta de Twilio ni número**. Nada de esto está activo. Precios de `investigacion/11-agente-de-voz.md` (§1.2, §2.2 y §5.2); reconfirmarlos el día de la compra.
+Estado al 21-oct-2026: **ya existe el agente telefónico** ("MiDerecho teléfono", `agent_3901m5fd72hyedssc8h6r4gznevn`, ver `prompt-telefono.md`) y la llamada **saliente** que pide la persona desde la app (`prototipo/api/llamar.js`: ahora o agendada). Falta la cuenta de Twilio y el número: pasos exactos en `docs/llamadas-y-notificaciones.md` §2. La parte de llamadas **entrantes** y el documento por teléfono (§2, herramienta `/api/voz/documento`) sigue solo preparada. Precios de `investigacion/11-agente-de-voz.md` (§1.2, §2.2 y §5.2); reconfirmarlos el día de la compra.
 
 ## 1. Conectar un número de Twilio al agente (integración nativa de ElevenLabs)
 

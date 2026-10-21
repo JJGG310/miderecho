@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Paperclip, Mic, ArrowUp, WifiOff } from 'lucide-react';
 import { Encabezado, BarraNav, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
+import { AvisoPlazos } from '../componentes/Avisos.jsx';
 import { useConexion } from '../lib/conexion.jsx';
 import { useDictado, hayDictado } from '../lib/voz.js';
 import { ir, memoria } from '../lib/ruta.js';
@@ -29,6 +30,7 @@ export default function Inicio() {
       <Encabezado />
       <h1 className="saludo">Hola! <span aria-hidden>👋🏼</span> <BotonVoz texto={SALUDO} /><br />Qué necesitas resolver hoy?</h1>
       <p className="texto">No necesitas conocer términos legales. Cuéntanos qué está pasando.</p>
+      <AvisoPlazos />
 
       <div className="caja-relato tarjeta">
         {enLinea ? (

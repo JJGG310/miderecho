@@ -1,0 +1,26 @@
+{
+  "_nota": "Agente para llamadas salientes (21-oct-2026). Copia de 'MiDerecho' (configuracion.json) con estos cambios. Prompt en prompt-telefono.md. Sin claves.",
+  "agent_id": "agent_3901m5fd72hyedssc8h6r4gznevn",
+  "nombre": "MiDerecho teléfono",
+  "copia_de": "agent_8101m5dg7s5se9trrst6fjpvz52d",
+  "primer_mensaje": "Hola. Le habla el asistente automático de MiDerecho, porque desde la app pidieron que lo llamáramos a este número. Soy una máquina, no soy abogado, y esta llamada no se graba. ¿Es un buen momento para hablar?",
+  "variables_dinamicas": {
+    "codigo": "código del caso letra por letra ('K, 7, P, 2'); 'ninguno' si la llamada es solo para orientarse",
+    "vence": "fecha en palabras ('martes, 3 de noviembre'); 'ninguna' si no hay",
+    "las_manda": "prototipo/api/llamar.js en conversation_initiation_client_data.dynamic_variables (nada sensible)"
+  },
+  "herramientas_cliente": [],
+  "herramientas_sistema": ["end_call"],
+  "zona_horaria": "America/Bogota",
+  "mensaje_al_terminar_el_tiempo": "Se acabó el tiempo de esta llamada. Si necesita algo más, abra MiDerecho o pídale ayuda a su líder. Hasta luego.",
+  "privacidad": { "grabar_voz": false, "modo_retencion_cero": true },
+  "limites": { "concurrencia_max": 2, "llamadas_por_dia": 30, "rafagas": false, "duracion_maxima_s": 600 },
+  "anulaciones_desde_el_cliente": "todas apagadas (como el agente web): la llamada solo cambia las variables dinámicas",
+  "igual_que_el_web": "LLM, voz, transcripción, base de conocimiento, guardrails (incluido el personalizado) y turnos",
+  "telefonia_por_llamada": {
+    "grabacion_twilio": false,
+    "deteccion_de_buzon": "Twilio AMD: si contesta una máquina o un fax, cuelga sin hablar",
+    "timbre_s": 40
+  },
+  "numero": "Pendiente: importar el número de Twilio en ElevenLabs y poner su id (phnum_…) en ELEVENLABS_PHONE_NUMBER_ID (docs/llamadas-y-notificaciones.md §2)"
+}

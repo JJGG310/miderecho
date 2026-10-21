@@ -15,7 +15,7 @@ Date.now = () => ahora;
 const ir = iso => { ahora = Date.parse(iso); };
 ir('2026-10-21T15:00:00Z');   // 10 a. m. en Colombia
 
-const { cifrarPush, memoria, POR_NUMERO_DIA } = await import('./_comun.js');
+const { cifrarPush, memoria, textoLlamada, POR_NUMERO_DIA } = await import('./_comun.js');
 const { textoPush } = await import('./cron-recordatorios.js');
 
 async function api(ruta, method, body, { ip = '10.0.0.1', headers = {} } = {}) {
@@ -104,6 +104,11 @@ assert.equal((await programarPush({ vence: '2026-11-31' })).status, 400);
 assert.equal((await programarPush({ suscripcion: { ...sub, endpoint: 'https://malo.example/x' } })).status, 400);
 assert.equal((await api('recordatorios', 'DELETE', { codigo: 'ABCD', token: r.token })).status, 200);
 
+// texto de la llamada con voz leída (recordatorio y respaldo del agente): plantilla fija
+assert.equal(textoLlamada('K7P2', '2026-11-03', '2026-10-30'), 'Hola. Le habla MiDerecho, un servicio automático. Le recordamos su caso K, 7, P, 2. El plazo vence el martes, 3 de noviembre. Si la entidad no le ha respondido, abra la app MiDerecho o pida ayuda a su líder o a la Personería.');
+assert.match(textoLlamada('K7P2', '2026-11-03', '2026-11-04'), /El plazo venció el martes, 3 de noviembre\./);
+assert.equal(textoLlamada(null, null, '2026-11-04'), 'Hola. Le habla MiDerecho, un servicio automático. Si la entidad no le ha respondido, abra la app MiDerecho o pida ayuda a su líder o a la Personería.');
+
 // textos de los avisos: solo código y cuándo vence
 assert.equal(textoPush('ABCD', '2026-11-02', '2026-11-03'), 'Su caso ABCD vence mañana.');
 assert.equal(textoPush('ABCD', '2026-11-03', '2026-11-03'), 'Su caso ABCD vence hoy.');
@@ -118,8 +123,12 @@ assert.equal(cifrarPush('When I grow up, I want to be a watermelon',
 
 // ---------- parte 2: ElevenLabs, QStash, Upstash y servicio de push falsos ----------
 let mapa = new Map(), redis = memoria(mapa), fallaEleven = false, fallaQstash = false, estadoPush = 201;
-const llamadas = [], publicados = [], avisos = [];
+const llamadas = [], publicados = [], avisos = [], twilio = [];
 globalThis.fetch = async (url, { body, headers }) => {
+  if (url.startsWith('https://api.twilio.com/')) {
+    twilio.push(Object.fromEntries(body));
+    return new Response('{"sid":"CA1"}', { status: 201 });
+  }
   if (url === 'https://api.elevenlabs.io/v1/convai/twilio/outbound-call') {
     llamadas.push({ headers, datos: JSON.parse(body) });
     return fallaEleven ? new Response(JSON.stringify({ detail: `no se pudo llamar a ${JSON.parse(body).to_number}` }), { status: 422 })
@@ -257,6 +266,30 @@ env.LIMITE_DIARIO = '2';
 assert.match((await llamar({ telefono: '3100000000' }, { ip: '10.2.0.1' })).error, /límite de envíos de hoy/);
 delete env.LIMITE_DIARIO;
 
+// respaldo: con Twilio, si ElevenLabs falla o no está configurado, llama con voz leída (texto fijo, sin texto libre)
+Object.assign(env, { TWILIO_ACCOUNT_SID: 'ACprueba', TWILIO_AUTH_TOKEN: 'token', TWILIO_FROM: '+15005550006' });
+ir('2026-10-26T15:00:00Z');
+fallaEleven = true;
+assert.deepEqual([(r = await llamar()).status, r.simulado], [200, false]);
+assert.equal(twilio.at(-1).To, '+573001112233');
+assert.ok(twilio.at(-1).Twiml.includes('Le recordamos su caso A, B, C, D. El plazo vence el martes, 3 de noviembre.'));
+fallaEleven = false;
+delete env.ELEVENLABS_API_KEY;
+const n0 = llamadas.length;
+await llamar({ codigo: '', vence: '' });
+assert.equal(llamadas.length, n0);   // sin agente, ni lo intenta
+assert.ok(!twilio.at(-1).Twiml.includes('caso'));
+env.ELEVENLABS_API_KEY = 'xi-prueba';
+
+// recordatorio por llamada: el cron usa la voz leída con la fecha de vencimiento
+ir('2026-10-30T15:00:00Z');
+mapa.clear();
+assert.equal((await api('recordatorios', 'POST', { codigo: 'K7P2', canal: 'llamada', telefono: TEL, fechas: ['2026-11-03'], vence: '2026-11-03' })).status, 200);
+ir('2026-11-03T13:00:00Z');
+assert.equal((await api('cron-recordatorios', 'GET', null, { headers: { authorization: 'Bearer secreto-de-prueba' } })).enviados, 1);
+assert.ok(twilio.at(-1).Twiml.includes('Le recordamos su caso K, 7, P, 2. El plazo vence el martes, 3 de noviembre.'));
+for (const k of Object.keys(env)) if (k.startsWith('TWILIO_')) delete env[k];
+
 // ---------- push real ----------
 const abrir = cuerpo => {   // lo que hace el navegador al recibir el aviso (RFC 8291)
   const b = Buffer.from(cuerpo), sal = b.subarray(0, 16), as = b.subarray(21, 86), datos = b.subarray(86);
@@ -313,4 +346,4 @@ assert.equal(avisos.length, n + 1);
 
 // los logs no llevan números, suscripciones, códigos ni textos
 assert.ok(!logs.some(l => /\d{7}|fcm\.googleapis|abc123|ABCD|EFGH|vence|noviembre|Listo/i.test(l)), logs.join('\n'));
-mostrar(`✓ _test-llamadas: todo bien (${llamadas.length} llamadas a ElevenLabs falso, ${publicados.length} a QStash, ${avisos.length} avisos push, ${logs.length} líneas de log revisadas)`);
+mostrar(`✓ _test-llamadas: todo bien (${llamadas.length} llamadas a ElevenLabs falso, ${twilio.length} a Twilio, ${publicados.length} a QStash, ${avisos.length} avisos push, ${logs.length} líneas de log revisadas)`);

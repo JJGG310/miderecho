@@ -4,10 +4,11 @@
 //   la agenda: el número queda cifrado en Redis y Upstash QStash vuelve a esta ruta a esa hora (PUT), porque el cron de
 //   Vercel Hobby corre una vez al día. El agendado de ElevenLabs (batch calling) no admite el modo de retención cero.
 //   Solo de 8 a. m. a 7 p. m., hora de Colombia. De la autorización se guarda solo el HMAC del número, la fecha y la versión.
+//   Respaldo: si el agente no está configurado o ElevenLabs falla, y hay Twilio, llama con voz leída (texto fijo: código y fecha).
 // DELETE /api/llamar { token }: cancela la llamada agendada. Siempre responde igual, exista o no.
 // PUT /api/llamar { id }: solo para QStash, con su firma (Upstash-Signature).
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { atender, falla, celular, proteger, cifrar, descifrar, hmac, kv, redisListo, simulado, oculto } from './_comun.js';
+import { atender, falla, celular, proteger, cifrar, descifrar, enviar, hmac, kv, redisListo, simulado, oculto, fechaVoz, textoLlamada, hoyColombia } from './_comun.js';
 
 const AGENTE = 'agent_3901m5fd72hyedssc8h6r4gznevn';   // "MiDerecho teléfono": agente/prompt-telefono.md y agente/telefono.md
 export const AVISO = 'llamada-v1';   // versión del texto de autorización de agendar.js: si cambia el texto, cambia esto
@@ -22,10 +23,10 @@ export default async function handler(req, res) {
     async POST(b) {
       const tel = celular(b.telefono), datos = { codigo: codigoDe(b.codigo), vence: venceDe(b.vence) };
       if (b.acepto !== true) throw falla(400, 'Falta la autorización para llamar a este número');
-      const cuando = b.cuando == null || b.cuando === '' ? null : cuandoDe(b.cuando), real = !simulado('agente');
+      const cuando = b.cuando == null || b.cuando === '' ? null : cuandoDe(b.cuando), real = !simulado('agente') || !simulado('llamada');
       if (!cuando && !enHorario(ahora())) throw falla(400, FUERA);
       if (cuando && real && !(env.QSTASH_TOKEN && redisListo())) throw falla(503, 'Para agendar llamadas faltan QSTASH_TOKEN y Redis en el servidor');
-      await proteger(req, tel, 'agente');
+      await proteger(req, tel, simulado('agente') ? 'llamada' : 'agente');
       // Prueba mínima de la autorización (Ley 1581): seudónimo del número, fecha, versión del aviso y respuesta. Nada más.
       if (real) await kv(['SET', `aut:${hmac('num:' + tel)}:${Date.now()}`, JSON.stringify({ aviso: AVISO, fecha: new Date().toISOString(), respuesta: 'acepto' }), 'EXAT', ahora() + 370 * 86400]);
       if (!cuando) return llamarConAgente(tel, datos);
@@ -50,7 +51,7 @@ export default async function handler(req, res) {
       const token = String(b.token ?? '');
       if (!/^[\w-]{22}$/.test(token)) throw falla(400, 'Token inválido');
       await kv(['DEL', 'llam:' + hmac('llam:' + token)]);
-      return { ok: true, simulado: simulado('agente') };
+      return { ok: true, simulado: simulado('agente') && simulado('llamada') };
     },
     async PUT(b) {
       firmaQstash(req, b);
@@ -67,10 +68,8 @@ export default async function handler(req, res) {
 }
 
 async function llamarConAgente(tel, { codigo, vence }) {
-  if (simulado('agente')) {
-    console.log(`[llamar] simulado a ${oculto(tel)}`);
-    return { ok: true, simulado: true };
-  }
+  const respaldo = () => enviar('llamada', tel, textoLlamada(codigo, vence, hoyColombia()));   // Twilio, o simulado si tampoco hay
+  if (simulado('agente')) return respaldo();
   const r = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
     method: 'POST',
     headers: { 'xi-api-key': env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json' },
@@ -79,7 +78,7 @@ async function llamarConAgente(tel, { codigo, vence }) {
       // Solo datos no sensibles: el código letra por letra (así lo lee la voz) y la fecha en palabras.
       conversation_initiation_client_data: { dynamic_variables: {
         codigo: codigo ? [...codigo].join(', ') : 'ninguno',
-        vence: vence ? new Date(vence + 'T12:00Z').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }) : 'ninguna',
+        vence: vence ? fechaVoz(vence) : 'ninguna',
       } },
       // Sin grabación; si contesta un buzón de voz, cuelga sin hablar (el celular puede ser compartido).
       telephony_call_config: { ringing_timeout_secs: 40, twilio_call_recording_enabled: false,
@@ -89,6 +88,7 @@ async function llamarConAgente(tel, { codigo, vence }) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.success) {   // el mensaje de ElevenLabs puede traer el número: solo el estado
     console.error(`[llamar] ElevenLabs no hizo la llamada: ${r.status}`);
+    if (!simulado('llamada')) return respaldo();
     throw falla(502, `No se pudo hacer la llamada (código ${r.status})`);
   }
   console.log(`[llamar] llamando a ${oculto(tel)}`);

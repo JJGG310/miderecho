@@ -1,5 +1,5 @@
 // POST /api/recordatorios { codigo, telefono, canal, fechas } → { ok, simulado, token }
-//   Canal 'push': { codigo, canal: 'push', suscripcion, fechas, vence } en vez de teléfono (avisos web, api/push.js).
+//   `vence` (AAAA-MM-DD) es opcional y lo usan los textos de push y de llamada; push lleva `suscripcion` en vez de teléfono.
 // DELETE /api/recordatorios { codigo, token }
 // Guarda el código, el canal, las fechas y el teléfono (o la suscripción) cifrado; el texto lo arma el cron con una plantilla fija.
 // El registro se llama HMAC(código + token): el código va impreso en el documento, el token (128 bits) solo lo tiene la app.
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     async POST(b) {
       const codigo = codigoDe(b.codigo), canal = b.canal, push = canal === 'push';
       if (!['sms', 'whatsapp', 'llamada', 'push'].includes(canal)) throw falla(400, 'Canal inválido: sms, whatsapp, llamada o push');
-      const tel = push ? suscripcion(b.suscripcion) : celular(b.telefono), fechas = fechasDe(b.fechas), vence = push ? venceDe(b.vence) : undefined;
+      const tel = push ? suscripcion(b.suscripcion) : celular(b.telefono), fechas = fechasDe(b.fechas), vence = push || b.vence ? venceDe(b.vence) : undefined;
       const real = !simulado(canal);
       if (real && canal === 'whatsapp' && !process.env.TWILIO_WHATSAPP_PLANTILLA)
         throw falla(400, 'Los recordatorios por WhatsApp necesitan una plantilla aprobada (TWILIO_WHATSAPP_PLANTILLA)');

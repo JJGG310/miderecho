@@ -184,6 +184,13 @@ export function twiml(t) {
   return `<Response><Pause length="1"/>${decir(xml(t))}<Pause length="1"/>${decir('Repito.')}${decir(xml(t))}</Response>`;
 }
 
+// Lo que dice una llamada con voz leída (recordatorio, o respaldo si el agente de ElevenLabs no está): plantilla fija,
+// solo el código letra por letra y la fecha. `hoy` decide si el plazo vence o ya venció.
+export const fechaVoz = f => new Date(f + 'T12:00Z').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+export const textoLlamada = (codigo, vence, hoy) => 'Hola. Le habla MiDerecho, un servicio automático. ' +
+  (codigo ? `Le recordamos su caso ${[...codigo].join(', ')}. ${vence ? `El plazo ${hoy > vence ? 'venció' : 'vence'} el ${fechaVoz(vence)}. ` : ''}` : '') +
+  'Si la entidad no le ha respondido, abra la app MiDerecho o pida ayuda a su líder o a la Personería.';
+
 // plantilla: { sid, variables } de una plantilla aprobada de WhatsApp (obligatoria fuera de la ventana de 24 h).
 export async function enviar(canal, tel, t, { pdfUrl, plantilla } = {}) {
   if (simulado(canal)) {
