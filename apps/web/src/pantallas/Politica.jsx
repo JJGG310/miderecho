@@ -2,7 +2,7 @@
 // en #/politica/completa. Los dibujos son SVG hechos a mano, sin imágenes, para no gastar datos.
 // La política completa es la de docs/politica-de-datos.md sin las marcas [validar]: si cambia una, cambie la otra.
 import { useEffect, useRef, useState } from 'react';
-import { ShieldCheck, Volume2, VolumeX, ArrowLeft, ArrowRight, FileText, Check } from 'lucide-react';
+import { ShieldCheck, Volume2, VolumeX, ArrowLeft, ArrowRight, FileText, Check, X } from 'lucide-react';
 import { Encabezado, Titulo } from '../componentes/comunes.jsx';
 import { hablar, callar } from '../lib/voz.js';
 import { almacen } from '../lib/almacen.js';
@@ -67,62 +67,73 @@ const mundo = `<circle cx="160" cy="76" r="30" fill="#9fd3e6"/><path d="M140 60q
   <path d="M130 76h60" stroke-width="1.5" fill="none"/><ellipse cx="160" cy="76" rx="13" ry="30" fill="none" stroke-width="1.5"/>`;
 const filas = `<g fill="#fff">${[22, 42, 62].map(y => `<rect x="10" y="${y}" width="38" height="14" rx="3"/>`).join('')}</g><path d="M15 29h20M15 49h26M15 69h16" stroke-width="2"/>`;
 
-// ---------- viñetas: a = asistente, r = doña Rosa, lista = puntos dentro de la viñeta ----------
+// ---------- viñetas: a = asistente, r = doña Rosa, lista = puntos dentro de la viñeta. Globos de 90 caracteres o menos ----------
 const NOMBRES = { a: 'Asistente', r: 'Doña Rosa' };
 const PASOS = [
-  { titulo: '¿Quién cuida tus datos?', escena: campo + asis(26, 44, 1.4) + signo(160, 70) + rosa(204, 6, 'duda', 'cel'), dialogo: [
+  { titulo: '¿Quién cuida sus datos?', escena: campo + asis(26, 44, 1.4) + signo(160, 70) + rosa(204, 6, 'duda', 'cel'), dialogo: [
     ['r', '¿Y quién va a ver lo que yo escriba en esta aplicación?'],
     ['a', 'Soy el asistente de MiDerecho. Soy una máquina, no una persona.'],
-    ['a', `Quien responde por tus datos es ${ORG}. Puedes escribirle a ${CONTACTO}.`]] },
-  { titulo: '¿Para qué usamos tus datos?', escena: campo + asis(14, 50, 1.25) + papel(118, 16) + sobre(160, 52) + calendario(116, 92) + brillo(176, 22) + rosa(212, 6, 'sonrie', 'cel'), dialogo: [
+    ['a', `Quien responde por sus datos es ${ORG}.`],
+    ['a', `Puede escribirle a ${CONTACTO}.`]] },
+  { titulo: '¿Para qué usamos sus datos?', escena: campo + asis(14, 50, 1.25) + papel(118, 16) + sobre(160, 52) + calendario(116, 92) + brillo(176, 22) + rosa(212, 6, 'sonrie', 'cel'), dialogo: [
     ['r', '¿Y para qué necesitan mis datos?'],
-    ['a', 'Para entender lo que te pasa, armar tu documento y recordarte cuándo te deben responder.'],
+    ['a', 'Para entender lo que le pasa y armar su documento.'],
+    ['a', 'También para recordarle cuándo le deben responder.'],
     ['a', 'Nada más. No los vendemos ni los usamos para publicidad.']] },
-  { titulo: 'Lo que no guardamos', escena: asis(10, 52, 1.25) + relato(106, 14) + tache(104, 12, 44, 34) + cedula(160, 56) + tache(158, 54, 50, 34) + corazon(108, 104) + tache(106, 102, 38, 34) + rosa(214, 6, 'o'), dialogo: [
-    ['a', 'No guardamos tu relato, tu nombre, tu cédula ni lo que cuentes de tu salud.'],
-    ['a', 'Tu nombre y tu cédula solo van en el papel del documento. No van a la inteligencia artificial.'],
+  { titulo: 'Lo que no guardamos', escena: asis(10, 52, 1.25) + relato(106, 14) + tache(104, 12, 44, 34) + cedula(160, 56) + tache(158, 54, 50, 34) + papel(112, 100) + rosa(214, 6, 'o'), dialogo: [
+    ['a', 'No guardamos la conversación con el asistente.'],
+    ['a', 'El nombre y la cédula del documento no se guardan ni van a la inteligencia artificial.'],
+    ['a', 'Solo van en el papel. No los escriba en el chat.'],
     ['r', '¿Y si guardo el documento en PDF?'],
-    ['a', 'Ese archivo es tuyo y queda donde lo guardes. Cuídalo.']] },
-  { pregunta: '¿MiDerecho guarda tu cédula?', opciones: [['Sí', false], ['No', true]],
-    explica: 'Tu cédula solo va en el papel del documento, y la app no la guarda.' },
-  { titulo: 'Lo que sí queda en tu celular', escena: asis(10, 50, 1.25) + celular(124, 22, filas) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
-    ['a', 'Tus casos: la entidad, el municipio y la vereda, lo que pediste y las fechas del plazo. También el tema de cada consulta.'],
-    ['a', 'Por ahora no tiene clave: si compartes el celular, otra persona lo puede ver.'],
-    ['r', '¿Y cómo lo borro?'],
-    ['a', 'En Perfil, con el botón «Borrar todo de este celular».']] },
+    ['a', 'Ese archivo es suyo y queda donde lo guarde. Cuídelo.']] },
+  { titulo: 'Lo que queda en su celular', escena: asis(10, 50, 1.25) + celular(124, 22, filas) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
+    ['a', 'En este celular quedan sus casos: la entidad, el municipio, la vereda y las fechas.'],
+    ['a', 'También el tema de cada consulta, aunque sea de salud.'],
+    ['r', '¿Y si otra persona usa mi celular?'],
+    ['a', 'Póngale clave, o bórrelo todo en Perfil con «Borrar todo de este celular».']] },
+  { pregunta: 'Si otra persona usa su celular, ¿puede ver sus casos?', opciones: [['Sí, si no tiene clave', true], ['No, nunca', false]],
+    explica: 'Sus casos quedan en este celular. Póngale clave o bórrelos en Perfil.' },
   { titulo: 'El asistente y otras empresas', fondo: 'cielo', escena: asis(8, 52, 1.2) + mundo + micro(112, 14) + relato(184, 10, .7) + sobre(110, 124, .8) + campana(190, 120)
       + flecha('M236 128q-20-30-42-44', 194, 84, 220) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
-    ['a', 'Lo que me cuentas lo entiende Claude, una inteligencia artificial de la empresa Anthropic, en Estados Unidos.'],
-    ['a', 'Antes de enviarlo le quitamos cédulas, teléfonos y correos. Los nombres no: no escribas nombres de otras personas.'],
+    ['a', 'Lo que me cuenta lo lee Claude, una inteligencia artificial.'],
+    ['a', 'Claude es de la empresa Anthropic, en Estados Unidos.'],
+    ['a', 'Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo.'],
+    ['a', 'No escriba nombres, cédulas ni direcciones en el chat.'],
     ['r', '¿Y la voz, los mensajes y el correo?'],
-    ['a', 'Pasan por otras empresas, algunas de otros países, y solo cuando tú lo pides.']] },
-  { pregunta: 'Antes de enviar tu relato al asistente, ¿qué le quitamos?', opciones: [['Cédulas, teléfonos y correos', true], ['Nada', false]],
-    explica: 'Los nombres no se quitan: mejor no escribas nombres de otras personas.' },
+    ['a', 'Cuando existan, pasarán por otras empresas, y solo si usted lo pide.']] },
+  { pregunta: 'Antes de enviar su relato al asistente, ¿qué le quitamos?', opciones: [['Cédulas, teléfonos y correos, cuando el filtro los encuentra', true], ['Todo, también los nombres', false]],
+    explica: 'Los nombres no se quitan y el filtro no atrapa todo. No escriba nombres, cédulas ni direcciones en el chat.' },
   { titulo: 'Lo delicado es opcional', escena: campo + asis(10, 46, 1.25) + `<rect x="114" y="14" width="66" height="96" rx="4" fill="#fff"/><g fill="#fff">${[34, 56, 78].map(y => `<rect x="122" y="${y - 7}" width="12" height="12" rx="2"/>`).join('')}</g><path d="M140 34h30M140 56h30M140 78h24" stroke-width="2"/>`
       + `<g stroke-width="4">${flecha('M120 120q36 26 70-4', 190, 116, -50, VERDE)}</g>` + rosa(212, 6, 'sonrie', 'arriba'), dialogo: [
-    ['a', 'No tienes que contarnos si eres víctima, tu etnia, tu religión, tus ideas políticas ni a qué organización perteneces.'],
+    ['a', 'No tiene que contarnos si es víctima, su etnia, su religión o sus ideas políticas.'],
+    ['a', 'Tampoco a qué organización pertenece.'],
     ['r', '¿Y si no lo digo?'],
-    ['a', 'La app funciona igual. En la tutela de salud sí hay que contar el problema de salud, pero eso solo va en el documento.']] },
-  { titulo: 'Tus derechos', estado: 'exito', escena: campo + asis(12, 46, 1.25) + escudo(132, 24, 1.4) + brillo(124, 30) + brillo(210, 70) + brillo(140, 112) + rosa(214, 6, 'sonrie', 'arriba'), dialogo: [
-    ['a', 'Sobre tus datos, tienes derecho a:'],
-    ['lista', [['Conocer', 'qué datos tuyos tenemos.'], ['Corregirlos.', ''], ['Borrarlos.', ''], ['Retirar tu permiso', 'cuando quieras.'], ['Quejarte', 'ante la Superintendencia de Industria y Comercio.']]],
+    ['a', 'La app funciona igual.'],
+    ['a', 'En la tutela de salud sí hay que contar el problema de salud: va en el documento.']] },
+  { titulo: 'Sus derechos', estado: 'exito', escena: campo + asis(12, 46, 1.25) + escudo(132, 24, 1.4) + brillo(124, 30) + brillo(210, 70) + brillo(140, 112) + rosa(214, 6, 'sonrie', 'arriba'), dialogo: [
+    ['a', 'Sobre sus datos, usted tiene derecho a:'],
+    ['lista', [['Conocer', 'qué datos suyos tenemos.'], ['Corregirlos.', ''], ['Borrarlos.', ''], ['Retirar su permiso', 'cuando quiera.'],
+      ['Quejarse', 'ante la Superintendencia de Industria y Comercio: la entidad del Estado que vigila que se cuiden los datos personales.']]],
     ['r', '¿Y eso me cuesta?'],
     ['a', 'No. Es gratis.']] },
-  { titulo: '¿Cómo los haces valer?', escena: asis(8, 52, 1.2) + celular(118, 18, `<rect x="9" y="44" width="40" height="22" rx="11" fill="${ROJO}"/><path d="M21 49h16M26 49v-2h6v2M23 52l1.5 10h9l1.5-10" stroke="#fff" stroke-width="2" fill="none"/>`)
+  { titulo: '¿Cómo los hace valer?', escena: asis(8, 52, 1.2) + celular(118, 18, `<rect x="9" y="44" width="40" height="22" rx="11" fill="${ROJO}"/><path d="M21 49h16M26 49v-2h6v2M23 52l1.5 10h9l1.5-10" stroke="#fff" stroke-width="2" fill="none"/>`)
       + flecha('M180 60q14-20 10-30', 192, 30, -80) + sobre(176, 4, .8) + rosa(214, 6, 'sonrie', 'senala'), dialogo: [
-    ['a', 'En Perfil, toca «Borrar todo de este celular». Se borran tus casos, tu historial y tus preferencias.'],
-    ['a', `Para lo demás, escribe a ${CONTACTO}. Te respondemos en máximo 10 días hábiles, o 15 si es un reclamo.`],
+    ['a', 'En Perfil, toque «Borrar todo de este celular»: se borran sus casos y su historial.'],
+    ['a', `Eso no borra lo que tengan otras empresas. Para eso, escríbanos a ${CONTACTO}.`],
+    ['a', 'Le respondemos en máximo 10 días hábiles, o 15 si es un reclamo.'],
+    ['a', 'Días hábiles: no cuentan sábados, domingos ni festivos.'],
     ['r', '¿Y si no me responden?'],
-    ['a', 'Puedes quejarte ante la Superintendencia de Industria y Comercio.']] },
-  { pregunta: 'Si quieres que borremos todo, ¿qué haces?', opciones: [['Toco «Borrar todo» en Perfil', true], ['Voy hasta la alcaldía', false]],
-    explica: `Se borra de inmediato. Para algo más, escribe a ${CONTACTO}.` },
+    ['a', 'Puede quejarse ante la Superintendencia de Industria y Comercio.']] },
+  { pregunta: 'Para borrar lo que quedó en este celular, ¿qué hace?', opciones: [['Toco «Borrar todo» en Perfil', true], ['Voy hasta la alcaldía', false]],
+    explica: `Eso borra lo de este celular. Para lo que tengan otras empresas, escriba a ${CONTACTO}.` },
   { titulo: 'Si hay peligro', fondo: 'alerta', estado: 'alerta', escena: asis(10, 50, 1.25) + escudo(122, 18, 1.2) + `<circle cx="168" cy="118" r="24" fill="${ROJO}"/>` + fono(150, 100) + rosa(214, 6, 'triste', 'menton'), dialogo: [
     ['r', '¿Y si alguien me amenaza por reclamar?'],
-    ['a', 'Si nos cuentas eso, la app deja de preguntar, no guarda nada y te muestra a dónde acudir.'],
-    ['a', 'Si hay peligro ahora, llama al 123. La Personería y la Defensoría del Pueblo pueden ayudarte a protegerte.']] },
+    ['a', 'Si nos cuenta eso, la app deja de preguntar, no guarda nada y le dice a dónde acudir.'],
+    ['a', 'Si hay peligro ahora, llame al 123.'],
+    ['a', 'La Personería y la Defensoría del Pueblo pueden ayudarle a protegerse.']] },
   { titulo: 'No somos abogados', estado: 'exito', escena: campo + edificio(118, 52) + asis(10, 46, 1.25) + rosa(214, 6, 'sonrie', 'papel'), dialogo: [
-    ['a', 'MiDerecho te da información y plantillas. No somos abogados ni reemplazamos a uno.'],
-    ['a', 'Para un consejo sobre tu caso, la Personería y los consultorios jurídicos atienden gratis.'],
+    ['a', 'MiDerecho le da información y plantillas. No somos abogados.'],
+    ['a', 'La Personería y los consultorios jurídicos atienden gratis y le pueden aconsejar.'],
     ['r', '¡Entendido! Gracias.']] },
 ];
 const PREGUNTA_ESCENA = campo + asis(26, 44, 1.4) + signo(150, 66) + rosa(204, 6, 'duda', 'menton');
@@ -130,25 +141,31 @@ const PREGUNTAS = PASOS.filter(p => p.pregunta);
 
 const textoDe = p => p.pregunta
   ? `Pregunta. ${p.pregunta} Opciones: ${p.opciones.map(o => o[0]).join('. ')}.`
-  : [p.titulo + '.', ...p.dialogo.map(([q, t]) => q === 'lista' ? t.map(x => x.join(' ')).join('. ') : `${NOMBRES[q]}: ${t}`)].join(' ');
+  : [p.titulo.replace(/[^.?!]$/, '$&.'), ...p.dialogo.map(([q, t]) => q === 'lista' ? t.map(x => x.join(' ')).join('. ') : `${NOMBRES[q]}: ${t}`)].join(' ');
 
 // Lectura en voz alta con estado (para que el asistente mueva la boca). turno: el aviso de una lectura cancelada no apaga la siguiente.
+// Los datos por llenar ([Organización], [contacto]…) no se leen con corchetes.
 function useLeer() {
   const [leyendo, setLeyendo] = useState(false);
   const turno = useRef(0);
   useEffect(() => () => callar(), []);
-  const leer = texto => { const yo = ++turno.current; if (hablar(texto, () => yo === turno.current && setLeyendo(false))) setLeyendo(true); };
+  const leer = texto => {
+    const yo = ++turno.current;
+    if (hablar(texto.replace(/\[[^\]]*\]/g, 'dato por completar'), () => yo === turno.current && setLeyendo(false))) setLeyendo(true);
+  };
   const parar = () => { turno.current++; callar(); setLeyendo(false); };
   return { leyendo, leer, parar };
 }
 
 function BotonEscuchar({ leyendo, onClick }) {
   return (
-    <button className="btn-secundario pc-escuchar" aria-pressed={leyendo} onClick={onClick}>
+    <button className="btn-secundario pc-boton" aria-pressed={leyendo} onClick={onClick}>
       {leyendo ? <VolumeX size={20} aria-hidden /> : <Volume2 size={20} aria-hidden />} {leyendo ? 'Parar' : 'Escuchar'}
     </button>
   );
 }
+const Salir = () => <button className="btn-secundario pc-boton" onClick={atras}><X size={20} aria-hidden /> Salir</button>;
+const Borrador = () => <p className="pc-borrador">Borrador: falta validar con un abogado y completar los datos del responsable.</p>;
 
 function useEscape() {
   useEffect(() => {
@@ -168,7 +185,7 @@ function Historieta() {
   const [dir, setDir] = useState(0);
   const [elegida, setElegida] = useState(null);
   const { leyendo, leer, parar } = useLeer();
-  const cabeza = useRef(null), x0 = useRef(null);
+  const cabeza = useRef(null), x0 = useRef(null), respuesta = useRef(null);
   const p = PASOS[i], ultimo = i === PASOS.length - 1;
 
   const mover = n => { if (n < 0 || n >= PASOS.length) return; parar(); setElegida(null); setDir(n > i ? 1 : -1); setI(n); };
@@ -184,7 +201,6 @@ function Historieta() {
     return () => window.removeEventListener('keydown', f);
   });
 
-  const respuesta = useRef(null);
   const responder = n => {
     setElegida(n);
     requestAnimationFrame(() => respuesta.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
@@ -203,13 +219,17 @@ function Historieta() {
   return (
     <main className="pantalla pc">
       <Encabezado />
-      <Titulo icono={ShieldCheck}>Tus datos</Titulo>
+      <Titulo icono={ShieldCheck}>Sus datos</Titulo>
+      <Borrador />
       <div className="pc-arriba">
-        <div className="pc-barra" role="progressbar" aria-label="Avance" aria-valuemin={1} aria-valuemax={PASOS.length} aria-valuenow={i + 1} aria-valuetext={`${i + 1} de ${PASOS.length}`}>
-          <span style={{ width: `${(i + 1) / PASOS.length * 100}%` }} />
+        <div className="pc-avance">
+          <div className="pc-barra" role="progressbar" aria-label="Avance" aria-valuemin={1} aria-valuemax={PASOS.length} aria-valuenow={i + 1} aria-valuetext={`${i + 1} de ${PASOS.length}`}>
+            <span style={{ width: `${(i + 1) / PASOS.length * 100}%` }} />
+          </div>
+          <span className="suave" aria-hidden>{i + 1} de {PASOS.length}</span>
         </div>
-        <span className="suave" aria-hidden>{i + 1} de {PASOS.length}</span>
         <BotonEscuchar leyendo={leyendo} onClick={() => (leyendo ? parar() : leer(textoDe(p)))} />
+        <Salir />
       </div>
 
       <article key={i} className={`pc-vineta${dir ? ' pc-entra' : ''}`} style={{ '--pc-dx': `${dir * 30}px` }}
@@ -253,75 +273,79 @@ function Historieta() {
 }
 
 // ---------- política completa ----------
+const PRONTO = <i>(todavía no disponible en esta versión)</i>;
 const SECCIONES = [
-  ['1. Quién es el responsable de tus datos', <>
+  ['1. Quién es el responsable de sus datos', <>
     <ul><li><b>Responsable:</b> {ORG}.</li><li><b>Domicilio y dirección:</b> [dirección].</li><li><b>Correo y teléfono:</b> {CONTACTO}.</li></ul>
-    <p>MiDerecho es un servicio gratuito de información y plantillas para que tú mismo entiendas tus derechos y hagas documentos como el derecho de petición, la tutela o el reclamo de servicios públicos.</p></>],
-  ['2. Para qué usamos tus datos', <>
+    <p>MiDerecho es un servicio gratuito de información y plantillas para que usted mismo entienda sus derechos y haga documentos como el derecho de petición, la tutela o el reclamo de servicios públicos.</p></>],
+  ['2. Para qué usamos sus datos', <>
     <p>Solo para esto:</p>
-    <ol><li>Entender lo que te pasa y orientarte, con el asistente.</li><li>Armar el documento que pides.</li>
-      <li>Llevar la cuenta del plazo en Mis casos y guardar tus consultas en Historial.</li>
-      <li>Si tú lo pides: enviar el documento por correo, recordarte el plazo por SMS, WhatsApp, llamada o aviso en el celular, o hablar con el asistente por voz.</li></ol>
-    <p>No vendemos ni prestamos tus datos, no los usamos para publicidad y no armamos perfiles de nadie.</p>
-    <p>Cuando le cuentas tu caso al asistente o creas un documento, aceptas que usemos tus datos para esto. Para el correo, los recordatorios y la voz te pedimos un permiso aparte.</p></>],
+    <ol><li>Entender lo que le pasa y orientarle, con el asistente.</li><li>Armar el documento que usted pide.</li>
+      <li>Llevar la cuenta del plazo en Mis casos y guardar sus consultas en Historial.</li>
+      <li>Si usted lo pide {PRONTO}: enviar el documento por correo, recordarle el plazo por SMS, WhatsApp, llamada o aviso en el celular, o hablar con el asistente por voz. Cada una de estas funciones le pedirá un permiso aparte.</li></ol>
+    <p>No vendemos ni prestamos sus datos, no los usamos para publicidad y no armamos perfiles de nadie.</p></>],
   ['3. Qué datos usamos, dónde quedan y cuánto tiempo', <ul>
-    <li><b>Lo que le cuentas al asistente</b> (escrito o dictado): sale de tu celular hacia nuestro servidor y hacia Claude, la inteligencia artificial de Anthropic, sin cédulas, teléfonos ni correos. Nuestro servidor no lo guarda. La conversación se borra al cerrar la app.</li>
-    <li><b>Tu nombre, tu cédula, dónde recibir la respuesta y tu celular</b> (paso «Tus datos para el documento»): solo están en la memoria del celular mientras armas el documento, y van impresos en el papel. No van a la inteligencia artificial ni al servidor, y no se guardan. También puedes dejarlos en blanco y llenarlos a mano.</li>
-    <li><b>Lo que escribes en el formulario del documento</b>, como lo que pasó o lo de tu salud: solo va en el documento y no se guarda.</li>
-    <li><b>En tu celular, por ahora sin clave:</b> Mis casos (el tipo de documento, la entidad, el municipio y la vereda, lo que pediste, las fechas del plazo y en qué va), Historial (el título corto de cada consulta, el derecho, el documento sugerido, los pasos y a dónde acudir; las últimas 30) y tus preferencias (leer en voz alta, modo sin conexión). Se quedan hasta que los borres.</li>
-    <li><b>Si pides recordatorios:</b> tu número de celular se guarda cifrado en nuestro servidor, con el código del caso, el canal y las fechas, y se borra solo 3 días después del último recordatorio.</li>
-    <li><b>Si pides que enviemos el documento por correo:</b> el documento, con tu nombre y tu cédula, pasa por nuestro servidor y por el servicio de correo hasta la entidad. No guardamos copia.</li>
-    <li><b>Registros técnicos:</b> si algo falla, el servidor anota el tipo de error, sin lo que escribiste. El servicio que aloja la app ve la dirección de internet (IP) de tu celular, como cualquier página web.</li></ul>],
+    <li><b>Lo que le cuenta al asistente</b> (escrito o dictado): sale de su celular hacia nuestro servidor y hacia Claude, la inteligencia artificial de Anthropic, en Estados Unidos. Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo y no quita nombres: no los escriba en el chat. Nuestro servidor no lo guarda, y la conversación se borra del celular al cerrar la app. Anthropic puede conservarlo por un tiempo limitado, según sus condiciones.</li>
+    <li><b>Su nombre, su cédula, dónde recibir la respuesta y su celular</b>, que se piden al crear el documento: solo están en la memoria del celular mientras arma el documento, y van impresos en el papel. No van a la inteligencia artificial ni al servidor, y no se guardan. También puede dejarlos en blanco y llenarlos a mano.</li>
+    <li><b>Lo que escribe en el formulario del documento</b>, como lo que pasó o lo de su salud: va en el documento. La app no guarda ese texto.</li>
+    <li><b>En este celular:</b> Mis casos (el tipo de documento, la entidad, el municipio y la vereda, lo que pidió, las fechas del plazo y en qué va), Historial (el tema de cada consulta, aunque sea de salud, el derecho, el documento sugerido, los pasos y a dónde acudir; las últimas 30) y sus preferencias (leer en voz alta, modo sin conexión). Se quedan hasta que usted los borre. Si otras personas usan su celular, póngale clave o bórrelos en Perfil.</li>
+    <li><b>Si pide recordatorios</b> {PRONTO}: su número de celular se guarda cifrado en nuestro servidor (Upstash), con el código del caso, el canal y las fechas, y se borra 3 días después del último recordatorio. Para frenar abusos, una huella cifrada del número (no el número) dura hasta 370 días.</li>
+    <li><b>Si pide que enviemos el documento por correo</b> {PRONTO}: el documento, con su nombre y su cédula, pasa por nuestro servidor y por Resend, en Estados Unidos, hasta la entidad. No guardamos copia.</li>
+    <li><b>Registros técnicos:</b> si algo falla, el servidor anota el tipo de error, sin lo que usted escribió. El servicio que aloja la app ve la dirección de internet (IP) de su celular, como cualquier página web.</li></ul>],
   ['4. Lo que no guardamos', <>
-    <ul><li>Tu relato ni la conversación con el asistente.</li><li>Tu nombre, tu cédula, tu celular ni tu dirección.</li><li>Lo que cuentes de tu salud.</li><li>Tu voz.</li>
-      <li>Listas de usuarios o de contactos.</li></ul>
-    <p>Si guardas o imprimes el documento en PDF, ese archivo es tuyo y queda donde lo guardes: cuídalo.</p></>],
+    <ul><li>La conversación con el asistente.</li><li>Su nombre, su cédula, su celular ni su dirección.</li><li>Su voz.</li><li>Listas de usuarios o de contactos.</li></ul>
+    <p>Ojo: Mis casos y el Historial sí pueden mostrar el tema de su caso, incluso si es de salud (punto 3).</p>
+    <p>Si guarda o imprime el documento en PDF, ese archivo es suyo y queda donde lo guarde: cuídelo.</p></>],
   ['5. Otras empresas y otros países', <>
-    <p>Para algunas funciones usamos empresas que tratan datos por encargo nuestro. Varias están en otros países, como Estados Unidos:</p>
-    <ul><li><b>Asistente:</b> Claude, de Anthropic (Estados Unidos). Recibe lo que le cuentas, sin cédulas, teléfonos ni correos. El filtro no quita nombres: no escribas nombres de otras personas.</li>
-      <li><b>Dictar con el micrófono:</b> el servicio de dictado de tu navegador (en Android, Google).</li>
-      <li><b>Alojamiento de la app y del servidor:</b> Vercel (Estados Unidos).</li></ul>
-    <p>Y solo cuando tú lo pides:</p>
-    <ul><li><b>Asistente de voz:</b> ElevenLabs (Estados Unidos) y el modelo Gemini, de Google.</li>
-      <li><b>SMS, WhatsApp y llamadas:</b> Twilio (Estados Unidos); WhatsApp es de Meta. Solo llevan el código del caso, la fecha y un texto fijo.</li>
-      <li><b>Envío del documento por correo:</b> el servicio de correo Resend.</li>
-      <li><b>Avisos en el celular:</b> el servicio de avisos de tu navegador (Google, Apple o Mozilla), si das permiso.</li></ul>
-    <p>Estas empresas solo deben usar tus datos para prestar ese servicio.</p></>],
+    <p>Para algunas funciones usamos empresas que tratan datos por encargo nuestro. Varias están en Estados Unidos:</p>
+    <ul><li><b>Asistente:</b> Claude, de Anthropic (Estados Unidos). Recibe lo que usted le cuenta, después del filtro.</li>
+      <li><b>Dictar con el micrófono:</b> el servicio de dictado de su navegador (en Android, Google). Recibe su voz mientras dicta.</li>
+      <li><b>Alojamiento de la app y del servidor:</b> Vercel (Estados Unidos). Recibe la dirección IP y lo que pasa por el servidor.</li></ul>
+    <p>Solo cuando usted lo pida {PRONTO}:</p>
+    <ul><li><b>Asistente de voz:</b> ElevenLabs (Estados Unidos) y el modelo Gemini, de Google. Reciben su voz y lo que diga.</li>
+      <li><b>SMS, WhatsApp y llamadas:</b> Twilio (Estados Unidos); WhatsApp es de Meta. Reciben su número, el código del caso, la fecha y un texto fijo.</li>
+      <li><b>Envío del documento por correo:</b> Resend (Estados Unidos). Recibe el documento completo, con su nombre y su cédula, y el correo de la entidad.</li>
+      <li><b>Avisos en el celular:</b> el servicio de avisos de su navegador (Google, Apple o Mozilla), si usted da permiso. Recibe el código del caso, la fecha y un texto fijo.</li>
+      <li><b>Recordatorios guardados:</b> Upstash. Recibe su número cifrado, el código del caso, el canal y las fechas.</li></ul>
+    <p>Estas empresas solo deben usar sus datos para prestar ese servicio.</p></>],
   ['6. Datos delicados (sensibles) y datos de niños', <>
-    <p>La ley llama <b>datos sensibles</b> a los de salud, origen étnico, religión, ideas políticas, pertenencia a sindicatos u organizaciones sociales o de derechos humanos, vida sexual y los biométricos (como la huella o la cara). También tratamos con ese cuidado si eres víctima.</p>
-    <ul><li>Contarnos esos temas es <b>opcional</b>: no tienes que hacerlo y la app funciona igual.</li>
-      <li>En la tutela de salud sí hay que contar el problema de salud. Eso solo va en el documento y no se guarda.</li>
-      <li>Si le cuentas al asistente algo de tu salud, le llega a Claude sin cédulas, teléfonos ni correos, y no lo guardamos.</li>
-      <li>No usamos tu voz para reconocerte ni para identificar a nadie.</li>
+    <p>La ley llama <b>datos sensibles</b> a los de salud, origen étnico, religión, ideas políticas, pertenencia a sindicatos u organizaciones sociales o de derechos humanos, vida sexual y los biométricos (como la huella o la cara). También tratamos con ese cuidado si usted es víctima.</p>
+    <ul><li>Contarnos esos temas es <b>opcional</b>: no tiene que hacerlo y la app funciona igual.</li>
+      <li>En la tutela de salud sí hay que contar el problema de salud: va en el documento. En Mis casos queda que es una tutela de salud y a qué EPS va.</li>
+      <li>Si le cuenta al asistente algo de su salud, le llega a Claude después del filtro. No guardamos la conversación, pero el tema de la consulta puede quedar en el Historial.</li>
+      <li>No usamos su voz para reconocerle ni para identificar a nadie.</li>
       <li>Si el caso es de un niño, niña o adolescente, la persona adulta escribe sus datos solo en el documento, y la app no los guarda.</li></ul></>],
-  ['7. Tus derechos', <>
-    <p>Sobre tus datos, tienes derecho a:</p>
-    <ul><li><b>Conocer</b> qué datos tuyos tenemos y cómo los usamos.</li><li><b>Corregir</b> o actualizar tus datos.</li>
-      <li><b>Borrar</b> tus datos, cuando no haya un deber legal de conservarlos.</li><li><b>Retirar tu autorización</b> (revocarla) en cualquier momento.</li>
-      <li><b>Pedir prueba</b> de la autorización que nos diste.</li><li><b>Quejarte ante la Superintendencia de Industria y Comercio (SIC)</b> si no respetamos tus derechos.</li></ul>
+  ['7. Sus derechos', <>
+    <p>Sobre sus datos, usted tiene derecho a:</p>
+    <ul><li><b>Conocer</b> qué datos suyos tenemos y cómo los usamos.</li><li><b>Corregir</b> o actualizar sus datos.</li>
+      <li><b>Borrar</b> sus datos, cuando no haya un deber legal de conservarlos.</li><li><b>Retirar su autorización</b> (revocarla) en cualquier momento.</li>
+      <li><b>Pedir prueba</b> de la autorización que nos dio.</li>
+      <li><b>Quejarse ante la Superintendencia de Industria y Comercio (SIC)</b>, la entidad del Estado que vigila que se cuiden los datos personales, si no respetamos sus derechos.</li></ul>
     <p>Todo esto es gratis.</p></>],
-  ['8. Cómo ejercer tus derechos', <>
-    <p><b>En tu celular, de inmediato:</b></p>
-    <ul><li>En <b>Perfil</b>, toca <b>«Borrar todo de este celular»</b>: se borran tus casos, tu historial y tus preferencias.</li>
-      <li>En <b>Historial</b> puedes borrar tus consultas, y en <b>Mis casos</b>, cada caso.</li></ul>
-    <p><b>Escribiéndonos a {CONTACTO}:</b> cuéntanos qué quieres (conocer, corregir, borrar, retirar la autorización o reclamar). Si es sobre recordatorios, da el código del caso y el número de celular. No necesitas mandar tu cédula.</p>
-    <ul><li><b>Consultas</b> (conocer tus datos): te respondemos en máximo 10 días hábiles. Si no alcanzamos, te avisamos y respondemos en máximo 5 días hábiles más.</li>
-      <li><b>Reclamos</b> (corregir, borrar, retirar la autorización o quejarte de un incumplimiento): te respondemos en máximo 15 días hábiles. Si no alcanzamos, te avisamos y respondemos en máximo 8 días hábiles más. Si falta información, te la pedimos dentro de los 5 días siguientes; si pasan 2 meses sin que la envíes, entendemos que desististe.</li></ul>
-    <p><b>Ante la SIC:</b> si no te respondimos o no estás de acuerdo, puedes quejarte ante la Superintendencia de Industria y Comercio, en www.sic.gov.co. Primero debes hacer la consulta o el reclamo ante nosotros.</p></>],
-  ['9. Quién atiende tus peticiones', <p>El [área de protección de datos] de {ORG}, en {CONTACTO}. Atiende consultas, reclamos y pedidos para conocer, corregir o borrar tus datos y para retirar la autorización.</p>],
-  ['10. Cómo cuidamos tus datos', <ul>
-    <li>Quitamos cédulas, teléfonos y correos de tu relato en el celular, y otra vez en el servidor, antes de que llegue a la inteligencia artificial.</li>
+  ['8. Cómo ejercer sus derechos', <>
+    <p><b>En su celular, de inmediato:</b></p>
+    <ul><li>En <b>Perfil</b>, toque <b>«Borrar todo de este celular»</b>: se borran sus casos, su historial y sus preferencias. Eso borra lo que hay en este celular, no lo que tengan otras empresas.</li>
+      <li>En <b>Historial</b> puede borrar sus consultas, y en <b>Mis casos</b>, cada caso.</li></ul>
+    <p><b>Escribiéndonos a {CONTACTO}:</b> cuéntenos qué quiere (conocer, corregir, borrar, retirar la autorización o reclamar). Si es sobre recordatorios, dé el código del caso y el número de celular. No necesita mandar su cédula.</p>
+    <ul><li><b>Consultas</b> (conocer sus datos): le respondemos en máximo 10 días hábiles. Si no alcanzamos, le avisamos y respondemos en máximo 5 días hábiles más.</li>
+      <li><b>Reclamos</b> (corregir, borrar, retirar la autorización o quejarse de un incumplimiento): le respondemos en máximo 15 días hábiles. Si no alcanzamos, le avisamos y respondemos en máximo 8 días hábiles más. Si falta información, se la pedimos dentro de los 5 días siguientes; si pasan 2 meses sin que la envíe, entendemos que desistió.</li>
+      <li><b>Días hábiles</b> son los de lunes a viernes, sin contar festivos.</li></ul>
+    <p><b>Ante la SIC:</b> si no le respondimos o no está de acuerdo, puede quejarse ante la Superintendencia de Industria y Comercio, en www.sic.gov.co. Primero debe hacer la consulta o el reclamo ante nosotros.</p></>],
+  ['9. Quién atiende sus peticiones', <p>El [área de protección de datos] de {ORG}, en {CONTACTO}. Atiende consultas, reclamos y pedidos para conocer, corregir o borrar sus datos y para retirar la autorización.</p>],
+  ['10. Cómo cuidamos sus datos', <ul>
+    <li>Antes de que su relato llegue a la inteligencia artificial, intentamos quitar cédulas, teléfonos y correos en el celular y otra vez en el servidor. El filtro no atrapa todo y no quita nombres.</li>
     <li>El servidor no guarda conversaciones, nombres ni cédulas.</li><li>La conexión con el servidor va cifrada (HTTPS).</li>
-    <li>Lo que queda en el celular por ahora no tiene clave. Por eso no guardamos nada sensible, y si compartes el celular puedes borrarlo en Perfil.</li>
-    <li>Los SMS no van cifrados: por eso solo llevan el código del caso y la fecha.</li>
-    <li>No podemos borrar los mensajes que ya te llegaron ni evitar capturas de pantalla. Bórralos tú si compartes el celular.</li>
-    <li><b>Nunca te pediremos tu cédula</b> por WhatsApp, SMS o llamada. Si alguien te la pide a nombre de MiDerecho, no la des.</li></ul>],
+    <li>Lo que queda en este celular se puede proteger: póngale clave o bórrelo en Perfil.</li>
+    <li>Para leer en voz alta usamos, si las hay, las voces del propio celular, que no mandan el texto a internet.</li>
+    <li>Los SMS no van cifrados: por eso solo llevarán el código del caso y la fecha.</li>
+    <li>No podemos borrar los mensajes que ya le llegaron ni evitar capturas de pantalla. Bórrelos usted si comparte el celular.</li>
+    <li><b>Nunca le pediremos su cédula</b> por WhatsApp, SMS o llamada. Si alguien se la pide a nombre de MiDerecho, no la dé.</li></ul>],
   ['11. Si hay peligro', <>
-    <p>Si cuentas que alguien está en peligro o que te han amenazado, la app deja de preguntar, no guarda nada y te muestra a dónde acudir. Cuando reconoce palabras de amenaza, ese mensaje no se envía a la inteligencia artificial.</p>
-    <ul><li>Si hay peligro ahora, llama al <b>123</b>.</li><li>La <b>Personería</b> de tu municipio o la <b>Defensoría del Pueblo</b> pueden activar rutas de protección.</li>
+    <p>Si usted cuenta que alguien está en peligro o que le han amenazado, la app deja de preguntar, no guarda nada y le muestra a dónde acudir. Cuando reconoce palabras de amenaza, ese mensaje no se envía a la inteligencia artificial.</p>
+    <ul><li>Si hay peligro ahora, llame al <b>123</b>.</li><li>La <b>Personería</b> de su municipio o la <b>Defensoría del Pueblo</b> pueden activar rutas de protección.</li>
       <li><b>Programa Somos Defensores</b>: proteccion@somosdefensores.org.</li></ul></>],
-  ['12. No somos abogados', <p>MiDerecho da información general y plantillas. No somos abogados ni reemplazamos a uno, y no prometemos resultados. Para un consejo sobre tu caso, la Personería y los consultorios jurídicos de las universidades atienden gratis.</p>],
-  ['13. Vigencia y cambios', <p>Versión 1, vigente desde el {VIGENCIA}, mientras MiDerecho funcione. Tus datos se guardan solo el tiempo que dice el punto 3. Si cambiamos esta política, te lo avisaremos en la app antes de que el cambio empiece a regir.</p>],
+  ['12. No somos abogados', <p>MiDerecho da información general y plantillas. No somos abogados ni reemplazamos a uno, y no prometemos resultados. Para un consejo sobre su caso, la Personería y los consultorios jurídicos de las universidades atienden gratis.</p>],
+  ['13. Vigencia y cambios', <p>Versión 1, vigente desde el {VIGENCIA}, mientras MiDerecho funcione. Sus datos se guardan solo el tiempo que dice el punto 3. Si cambiamos esta política, le avisaremos en la app antes de que el cambio empiece a regir.</p>],
 ];
 
 function Completa() {
@@ -330,15 +354,16 @@ function Completa() {
   const textoAbierto = () => {
     const abiertos = [...caja.current.querySelectorAll('details[open]')];
     return abiertos.length ? abiertos.map(d => d.innerText).join('. ')
-      : 'Política de datos. Toca un título para abrirlo. Los títulos son: ' + SECCIONES.map(s => s[0]).join('. ');
+      : 'Política de datos. Toque un título para abrirlo. Los títulos son: ' + SECCIONES.map(s => s[0]).join('. ');
   };
   return (
     <main className="pantalla pc">
       <Encabezado />
       <Titulo icono={ShieldCheck}>Política de datos</Titulo>
-      <p className="texto"><b>Versión 1 (borrador)</b>, vigente desde el {VIGENCIA}. Ley 1581 de 2012 y Decreto 1377 de 2013.</p>
-      <p className="suave">Toca cada título para abrirlo. Con «Escuchar» la app te lee lo que tengas abierto.</p>
-      <BotonEscuchar leyendo={leyendo} onClick={() => (leyendo ? parar() : leer(textoAbierto()))} />
+      <Borrador />
+      <p className="texto"><b>Versión 1</b>, vigente desde el {VIGENCIA}. Ley 1581 de 2012 y Decreto 1377 de 2013.</p>
+      <p className="suave">Toque cada título para abrirlo. Con «Escuchar» la app le lee lo que tenga abierto.</p>
+      <div className="pc-arriba"><BotonEscuchar leyendo={leyendo} onClick={() => (leyendo ? parar() : leer(textoAbierto()))} /><Salir /></div>
       <div ref={caja} className="pc-politica">
         {SECCIONES.map(([t, c]) => <details key={t} className="tarjeta clara"><summary>{t}</summary><div className="texto">{c}</div></details>)}
       </div>

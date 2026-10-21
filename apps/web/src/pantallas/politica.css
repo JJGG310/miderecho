@@ -1,10 +1,13 @@
 /* Política de datos en historieta. Mismo estilo de las historietas del Figma: viñetas con barra verde numerada. */
 .pc { padding-bottom: 0; overflow-x: clip; }
 .pc-arriba { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pc-avance { display: flex; align-items: center; gap: 10px; flex: 1 1 100%; }
+.pc-arriba .pc-boton { flex: 1; }
+.pc-borrador { margin: 0; padding: 8px 12px; font-size: 14px; line-height: 18px; font-weight: 700; color: #6b4410; background: #f3e3c8; border: 1px dashed #a8743a; border-radius: 10px; }
 .pc-barra { flex: 1 1 120px; height: 10px; overflow: hidden; background: var(--papel); border: 1.5px solid var(--verde); border-radius: 99px; }
 .pc-barra span { display: block; height: 100%; background: var(--verde); transition: width .25s ease; }
-.pc-escuchar { min-height: 48px; }
-.pc-escuchar[aria-pressed="true"] { background: var(--verde); color: #fff; }
+.pc-boton { min-height: 48px; }
+.pc-boton[aria-pressed="true"] { background: var(--verde); color: #fff; }
 
 .pc-vineta { background: var(--papel); border: 1.5px solid var(--verde); border-radius: var(--radio); overflow: hidden; touch-action: pan-y; }
 .pc-vineta h2 { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px; background: var(--verde); color: #fff; font-size: 18px; line-height: 22px; outline: none; }
