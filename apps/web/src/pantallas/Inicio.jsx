@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Mic, ArrowUp, WifiOff } from 'lucide-react';
-import { Encabezado, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
+import { Mic, ArrowUp, WifiOff, FolderOpen } from 'lucide-react';
+import { Encabezado, BotonVoz, OpcionesRapidas, Aviso } from '../componentes/comunes.jsx';
 import Buho, { NOMBRE_BUHO } from '../componentes/Buho.jsx';
 import { AvisoPlazos } from '../componentes/Avisos.jsx';
 import { AvisoIA, consintio } from './Consentimiento.jsx';
 import { useConexion } from '../lib/conexion.jsx';
 import { useDictado, hayDictado } from '../lib/voz.js';
+import { useAbierta } from '../lib/almacen.js';
+import { cargarEjemplos, hayEjemplos, quitarEjemplos } from '../lib/ejemplos.js';
 import { ir, memoria } from '../lib/ruta.js';
 import { limpiar } from '@miderecho/nucleo/privacidad';
 
@@ -23,6 +25,10 @@ export default function Inicio() {
   const [aviso, setAviso] = useState(false);
   const dictar = () => (consintio() || dictado.escuchando ? dictado.alternar() : setAviso(true));
   const conTexto = !!texto.trim();
+  // Casos de ejemplo (inventados) para conocer Mis casos: uno por vencer y uno vencido que ofrece la tutela.
+  const abierta = useAbierta();
+  const [quitados, setQuitados] = useState(false);
+  const verEjemplo = () => { cargarEjemplos(); ir('casos'); };
 
   const enviar = () => {
     if (!conTexto) return;
@@ -75,6 +81,9 @@ export default function Inicio() {
 
       <h2 className="subtitulo">¿Prefiere elegir una opción?</h2>
       <OpcionesRapidas />
+      <button className="btn-secundario" onClick={verEjemplo}><FolderOpen size={22} aria-hidden /> Ver un caso de ejemplo</button>
+      {abierta && hayEjemplos() && <button className="btn-enlace" onClick={() => { quitarEjemplos(); setQuitados(true); }}>Quitar los casos de ejemplo</button>}
+      {quitados && <Aviso alCerrar={() => setQuitados(false)}>Listo. Se quitaron los casos de ejemplo.</Aviso>}
     </main>
   );
 }

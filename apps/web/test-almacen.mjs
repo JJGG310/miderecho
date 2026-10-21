@@ -45,6 +45,20 @@ await almacen.abrir('1234');
 assert.equal(almacen.casos().length, 4, 'lo unido quedó cifrado');
 assert.ok(almacen.plazoCerca(), 'bloqueada igual avisa que hay un plazo cerca');
 
+// Casos de ejemplo: uno por vencer (2 días hábiles) y uno vencido; cargarlos dos veces no los duplica; se quitan de una vez.
+const { casosEjemplo, cargarEjemplos, hayEjemplos, quitarEjemplos } = await import('./src/lib/ejemplos.js');
+const { habilesEntre, deIso, iso } = await import('@miderecho/nucleo');
+for (const hoy of [new Date(2026, 9, 21), new Date(2026, 9, 24), new Date(2026, 11, 24)]) {   // martes, sábado y antes de festivo
+  const [porVencer, vencido] = casosEjemplo(hoy);
+  assert.equal(habilesEntre(deIso(iso(hoy)), deIso(porVencer.venc)), 2, `por vencer: 2 días hábiles (${iso(hoy)})`);
+  assert.ok(vencido.venc < iso(hoy), 'el otro ya venció');
+  assert.ok(porVencer.ejemplo && vencido.ejemplo);
+}
+cargarEjemplos(); cargarEjemplos();
+assert.equal(almacen.casos().filter(c => c.ejemplo).length, 2, 'no se duplican');
+quitarEjemplos();
+assert.ok(!hayEjemplos() && almacen.casos().length === 4, 'quitar ejemplos no toca los demás casos');
+
 almacen.borrarTodo();
 await almacen.esperar();
 assert.equal(ls.size, 0, 'Borrar todo no deja nada');

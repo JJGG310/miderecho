@@ -262,6 +262,7 @@ h1, h2, h3 { margin: 0; }
 .caso-cabeza b { font-size: 1.056rem; }
 .caso-cabeza small { color: var(--suave); font-size: .889rem; }
 .caso-icono { font-size: 1.6rem; }
+.marca-ejemplo { display: inline-block; margin-left: 8px; padding: 0 8px; border: 1.5px dashed var(--suave); border-radius: 999px; font-size: .833rem; font-weight: 700; color: var(--suave); vertical-align: middle; }
 .estado { align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; border-radius: 999px; padding: 4px 12px; font-weight: 800; font-size: .944rem; }
 .estado.verde { background: var(--verde-fondo); color: var(--verde); }
 .estado.ambar { background: var(--ambar-fondo); color: var(--ambar); }
