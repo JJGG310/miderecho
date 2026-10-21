@@ -1,10 +1,15 @@
-// POST /api/elevenlabs-sesion: entrega al navegador el token de UNA conversación con el agente de voz (agente-voz.js).
-// La clave vive solo en la variable de entorno ELEVENLABS_API_KEY de Vercel; sin ella responde 503 y la app sigue sin voz.
+// POST /api/elevenlabs-sesion: entrega al navegador el token de UNA conversación con el agente de voz
+// (apps/web/src/lib/agenteVoz.js). La clave vive solo en la variable de entorno ELEVENLABS_API_KEY de Vercel; sin ella
+// responde 503 y la app sigue sin voz.
+// POST /api/elevenlabs-sesion?herramienta=<nombre>: herramientas de servidor del agente telefónico (_herramientas.js),
+// con su propio secreto. Van en esta misma función para no sumar otra al límite de funciones del plan de Vercel.
+import { herramienta } from './_herramientas.js';
+import { contar, incr, hoyColombia } from './_comun.js';
+
 const AGENTE = 'agent_8101m5dg7s5se9trrst6fjpvz52d';   // exige sesión firmada (enable_auth): sin este token no se puede abrir
-const POR_IP_HORA = 10;
-const pedidos = new Map();   // ip -> horas de sus últimos pedidos
-// ponytail: el límite vive en la memoria de cada instancia de Vercel; el tope que no se salta es el del agente
-// en ElevenLabs (60 conversaciones al día, 3 a la vez). Si hace falta más, usar Redis como api/_comun.js.
+// Con Redis (Upstash) los topes valen para todas las instancias; sin Redis, cada instancia lleva su cuenta.
+// El total diario es el mismo tope del agente en ElevenLabs (60 conversaciones al día, 3 a la vez).
+const POR_IP_HORA = 10, POR_DIA = 60;
 
 // Solo el propio sitio (o localhost con `vercel dev`): pedido JSON, que obliga al navegador a preguntar antes si viene
 // de otro dominio, y Origin igual al host. Un programa fuera del navegador puede falsificarlo: por eso el límite.
@@ -14,19 +19,23 @@ export function mismoSitio(h) {
   try { return new URL(h.origin).host === h.host; } catch { return false; }
 }
 
-export function dentroDelLimite(ip, ahora = Date.now()) {
-  const recientes = (pedidos.get(ip) || []).filter(t => ahora - t < 3600e3);
-  if (recientes.length >= POR_IP_HORA) return false;
-  pedidos.set(ip, [...recientes, ahora]);
-  return true;
-}
-
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  if (req.query?.herramienta) return herramienta(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
   if (!mismoSitio(req.headers)) return res.status(403).json({ error: 'Solo desde MiDerecho' });
+  // Solo con el aviso de voz aceptado (ModoVoz.jsx manda su versión). Se cuenta por versión y día: es la prueba
+  // mínima de la aceptación, sin IP ni datos de la persona (el celular guarda su propia fecha y versión).
+  const aviso = req.body?.aviso;
+  if (typeof aviso !== 'string' || !/^voz-v\d{1,3}$/.test(aviso)) return res.status(400).json({ error: 'Falta aceptar el aviso del asistente de voz' });
   const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'sin-ip';
-  if (!dentroDelLimite(ip)) return res.status(429).json({ error: 'Demasiados intentos. Espere un rato.' });
+  try {
+    if (await contar('voz-ip:' + ip, 3600) > POR_IP_HORA || await contar('voz-total', 86400) > POR_DIA)
+      return res.status(429).json({ error: 'Demasiados intentos. Espere un rato.' });
+  } catch (e) {
+    console.error('[elevenlabs-sesion] límites:', e.message);
+    return res.status(503).json({ error: 'El asistente no está disponible' });
+  }
   const clave = process.env.ELEVENLABS_API_KEY;
   if (!clave) return res.status(503).json({ error: 'Falta ELEVENLABS_API_KEY en el servidor' });
   try {
@@ -34,6 +43,7 @@ export default async function handler(req, res) {
     if (!r.ok) throw new Error('ElevenLabs respondió ' + r.status);
     const { token } = await r.json();
     if (typeof token !== 'string') throw new Error('ElevenLabs no mandó token');
+    await incr(`aviso:${aviso}:${hoyColombia()}`, Math.floor(Date.now() / 1000) + 400 * 86400).catch(() => {});
     return res.status(200).json({ token });
   } catch (e) {
     console.error('[elevenlabs-sesion]', e.message);   // sin datos de la persona

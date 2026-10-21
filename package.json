@@ -8,6 +8,6 @@
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
     "build": "npm run build -w apps/web",
-    "test": "npm test -w packages/nucleo && npm test -w apps/api && npm test -w apps/web"
+    "test": "npm test -w packages/nucleo && npm test -w apps/api && node prototipo/api/_test-correo.mjs && node prototipo/api/_test-api.mjs && node prototipo/api/_test-agente-avisos.mjs && node prototipo/api/_test-llamadas.mjs && npm test -w apps/web"
   }
 }

@@ -1,13 +1,14 @@
 {
-  "_nota": "Copia de la configuración del agente en ElevenLabs (20-oct-2026, corregida tras la auditoría). El prompt está en prompt.md y la base de conocimiento en conocimiento.md. Sin claves.",
+  "_nota": "Copia de la configuración del agente en ElevenLabs (21-oct-2026, adaptado a la v2). El prompt está en prompt.md y la base de conocimiento en conocimiento.md. Sin claves. La versión del 20-oct (herramientas iniciar_caso, pantalla_actual y elegir_opcion para prototipo/agente-voz.js) queda en el historial de git.",
   "agent_id": "agent_8101m5dg7s5se9trrst6fjpvz52d",
   "nombre": "MiDerecho",
   "idioma": "es",
-  "primer_mensaje": "Hola. Soy el asistente de voz de MiDerecho, un servicio gratuito. Soy una máquina, no soy abogado, y la app no guarda lo que me cuente. No me diga su cédula, su nombre ni su dirección. Cuénteme en pocas palabras de qué se trata, sin nombres ni números.",
+  "primer_mensaje": "Hola. Soy el asistente de voz de MiDerecho, un servicio gratuito. Soy una máquina, no soy abogado, y la app no guarda lo que me cuente. No me diga su cédula, su nombre ni su dirección. ¿En qué le puedo ayudar?",
   "llm": {
     "modelo": "gemini-3.5-flash",
     "temperatura": 0,
-    "respaldo": "el que elija ElevenLabs"
+    "respaldo": "gemini-2.5-flash (fijo; el aviso de voz lo dice)",
+    "herramientas_en_paralelo": false
   },
   "voz": {
     "voice_id": "o2vbTbO3g4GrKUg7rehy",
@@ -64,91 +65,23 @@
   },
   "herramientas_cliente": [
     {
-      "id": "tool_0401m5dg87gyehjv2qtzs5spj5ka",
-      "nombre": "iniciar_caso",
-      "mapea_a": "window.miderecho.iniciarCaso(datos)",
+      "id": "tool_1701m5ffc1bre6cr04p5x3wbjece",
+      "nombre": "contar_al_asistente",
+      "mapea_a": "responder(texto) del Asistente de la v2 (apps/web/src/pantallas/Asistente.jsx), que llama POST /api/asistente",
       "espera_respuesta": true,
+      "tiempo_max_s": 60,
       "parametros": {
-        "tipo": [
-          "peticion",
-          "tutela_salud",
-          "tutela",
-          "servicios_publicos"
-        ],
-        "tema": {
-          "peticion": [
-            "agua",
-            "vias",
-            "salud",
-            "ayudas",
-            "tierras",
-            "educacion",
-            "otro"
-          ],
-          "servicios_publicos": [
-            "acueducto",
-            "energia",
-            "gas",
-            "aseo"
-          ],
-          "tutela": [
-            "salud",
-            "minimo_vital",
-            "educacion",
-            "debido_proceso",
-            "peticion",
-            "otro_derecho"
-          ],
-          "tutela_salud": [
-            "cita",
-            "medicamento",
-            "cirugia",
-            "examen",
-            "transporte",
-            "otra_cosa"
-          ]
-        },
-        "municipio": "texto (nombre exacto de la lista de contenido.js si está en ella)",
-        "entidad": [
-          "alcaldia",
-          "eps",
-          "ant"
-        ],
-        "desde": [
-          "hace una semana",
-          "hace un mes",
-          "hace tres meses",
-          "hace seis meses",
-          "hace más de un año"
-        ]
+        "texto": "lo que dijo la persona en una o dos frases, sin datos personales"
       },
-      "requeridos": [
-        "tipo"
-      ],
-      "devuelve": "pantalla actual { id, titulo, texto, opciones } con números de 6 o más cifras tapados"
-    },
-    {
-      "id": "tool_7901m5dg8a2gfcvap8az4zayzs7a",
-      "nombre": "pantalla_actual",
-      "mapea_a": "window.miderecho.pantallaActual()",
-      "espera_respuesta": true
-    },
-    {
-      "id": "tool_4901m5dg8cc1f3htrvdbh95kbckd",
-      "nombre": "elegir_opcion",
-      "mapea_a": "window.miderecho.elegir(texto)",
-      "espera_respuesta": true,
-      "parametros": {
-        "texto": "texto exacto de la opción"
-      },
-      "regla": "agente-voz.js solo acepta el texto EXACTO de una opción visible y rechaza: cualquier opción en la pantalla del aviso (la que tiene 'Sí, acepto'); botones que coincidan con /borr|enviar|env[ií]en|acepto|cerrar|olvid/i; el 'No' de la pregunta de peligro (ahí solo 'Sí' y 'No sé'); y todo salvo 'Salir' con el protocolo de riesgo activo."
+      "devuelve": "{ accion, mensaje, opciones, orientacion?: { tema, documento, documento_titulo, frase (fija, FRASES de agenteVoz.js), ley (texto fijo de o.ley.texto), aviso } } con el filtro de privacidad aplicado; o { ok: false, motivo }. No lleva los pasos ni a dónde acudir que redacta el modelo: esos se leen en pantalla",
+      "regla": "apps/web/src/lib/agenteVoz.js pasa el texto por limpiar() del núcleo antes del asistente y otra vez lo que vuelve antes del agente. Bloqueada con el protocolo de riesgo activo."
     },
     {
       "id": "tool_7501m5e22321fj5szt7rgd7yshqb",
       "nombre": "activar_protocolo_riesgo",
-      "mapea_a": "window.miderecho.riesgo() si existe (descarta el borrador y muestra la ayuda)",
+      "mapea_a": "marcarRiesgo() del Asistente: muestra AYUDA_RIESGO del núcleo y 'Salir sin guardar'",
       "espera_respuesta": true,
-      "regla": "Después agente-voz.js bloquea las demás herramientas hasta colgar, salvo elegir 'Salir'. También se activa solo al ver la pantalla 'Esto es serio…'."
+      "regla": "Después agenteVoz.js bloquea contar_al_asistente hasta colgar. También se bloquea si /api/asistente responde accion=riesgo."
     }
   ],
   "herramientas_sistema": [
@@ -180,7 +113,7 @@
     "rafagas": false,
     "anulaciones_desde_el_cliente": "todas apagadas, incluido el modo solo texto",
     "comodines": "No funcionan: con '*.vercel.app' un preview fue rechazado ('Host ... is not allowed'). Cada preview que deba usar el agente se agrega con su alias fijo (miderecho-git-<rama>-jjgg310s-projects.vercel.app).",
-    "como": "El navegador pide POST /api/elevenlabs-sesion (prototipo/api/elevenlabs-sesion.js). La función, con ELEVENLABS_API_KEY de Vercel, pide a ElevenLabs GET /v1/convai/conversation/token?agent_id=… y devuelve { token }. agente-voz.js abre la sesión con conversationToken (WebRTC). Solo atiende pedidos JSON del mismo sitio (Origin igual al host, Sec-Fetch-Site same-origin) y 10 por IP por hora."
+    "como": "El navegador pide POST /api/elevenlabs-sesion con { aviso: 'voz-v1' } (prototipo/api/elevenlabs-sesion.js). La función, con ELEVENLABS_API_KEY de Vercel, pide a ElevenLabs GET /v1/convai/conversation/token?agent_id=… y devuelve { token }. apps/web/src/lib/agenteVoz.js abre la sesión con conversationToken (WebRTC). Solo atiende pedidos JSON del mismo sitio (Origin igual al host, Sec-Fetch-Site same-origin), 10 por IP por hora y 60 al día en total, con contar() de _comun.js (Redis si está; si no, en memoria)."
   },
   "sdk_navegador": {
     "paquete": "@elevenlabs/client@1.26.0",
@@ -188,11 +121,16 @@
     "sri": "sha384-GAgUf1yx/dGreo/QTqLRVycB5sMQdsPKOmbMWlKec+fjMXzz+OXy4c6EfjB7Anb7",
     "conexion": "webrtc con conversationToken del servidor (Opus gasta muchos menos datos que el PCM del websocket)"
   },
-  "microfono": "agente-voz.js lo silencia (setMicMuted) mientras la pantalla tenga campos de texto (vereda, relato, nombre, cédula, clave) y lo reabre con 'Ya terminé' o al cambiar de pantalla; entonces avisa al agente con sendContextualUpdate.",
+  "microfono": "En la v2 el modo voz reemplaza la caja de texto del Asistente: mientras dura la llamada no hay campos para escribir en esa pantalla. La llamada termina al salir de la pantalla (por ejemplo, a 'Crear el documento', donde se piden nombre y cédula), al cerrar la app o al dejarla en segundo plano (visibilitychange).",
   "agente_de_pruebas": {
     "agent_id": "agent_3301m5e2amx2f9etc6k5hzwp7kct",
     "nombre": "MiDerecho (pruebas locales)",
-    "uso": "solo agente/prueba.html",
-    "diferencias": "sin sesión firmada, solo localhost y 127.0.0.1, permite modo texto, 20 conversaciones al día y 1 a la vez. Mismo prompt, herramientas, guardrails y privacidad: si se cambia el principal, cambiar también este."
-  }
+    "uso": "Desarrollo local de la v2 sin ELEVENLABS_API_KEY: VITE_AGENTE_PRUEBAS=agent_3301m5e2amx2f9etc6k5hzwp7kct npm run dev:web (solo localhost; en el build de producción esa rama no existe). Reemplaza a agente/prueba.html, que probaba el módulo del prototipo.",
+    "diferencias": "sin sesión firmada, solo localhost y 127.0.0.1, permite modo texto, 20 conversaciones al día y 1 a la vez. Mismo prompt, primer mensaje, herramientas, guardrails y privacidad: si se cambia el principal, cambiar también este."
+  },
+  "acciones_que_el_agente_no_tiene": "Aceptar avisos o autorizaciones, borrar, enviar SMS o WhatsApp, crear el documento, navegar o cerrar: no existe herramienta para eso (se filtra por acción, no por el texto de un botón). Las herramientas son un objeto congelado con solo las dos de arriba.",
+  "herramientas_viejas": "iniciar_caso (tool_0401m5dg87gyehjv2qtzs5spj5ka), pantalla_actual (tool_7901m5dg8a2gfcvap8az4zayzs7a) y elegir_opcion (tool_4901m5dg8cc1f3htrvdbh95kbckd) siguen en el espacio de trabajo pero ya no están en ningún agente web.",
+  "contexto_inicial": "Al conectar, ModoVoz.jsx manda sendContextualUpdate con la última respuesta del asistente de la app y sus opciones (filtradas). No manda el relato de la persona.",
+  "riesgo_por_transcripcion": "El SDK 1.26.0 entrega lo que dice la persona en onMessage({ source: 'user', role: 'user', message }) gracias a 'user_transcript' en client_events. agenteVoz.js aplica hayRiesgo() del núcleo a cada uno: si hay peligro, muestra la ayuda fija, bloquea contar_al_asistente y avisa al agente con sendContextualUpdate. La transcripción no se guarda ni se registra. Confirmado en vivo el 21-oct-2026 con el agente de pruebas y retención cero: el evento user_transcript llega al cliente (la retención cero solo afecta lo que ElevenLabs guarda).",
+  "aviso_de_voz": "ModoVoz.jsx, versión AVISO_VOZ = 'voz-v1'. /api/elevenlabs-sesion solo entrega la sesión con { aviso: 'voz-vN' } y cuenta aceptaciones por versión y día (sin IP ni datos); el celular guarda { version, fecha } en sus preferencias. Si cambia el texto, subir la versión."
 }

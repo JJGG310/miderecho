@@ -1,16 +1,24 @@
 // Guardado en el celular. Solo lo mínimo: casos (sin nombre, cédula ni relato) e historial de orientaciones,
 // cifrados con la clave de 4 números (PBKDF2 + AES-GCM, como el prototipo). El celular puede ser compartido (investigacion/03).
-// Las preferencias (leer en voz alta) no son sensibles y van aparte, sin cifrar. "Borrar todo" lo elimina todo.
+// Las preferencias (leer en voz alta) no son sensibles y van aparte, sin cifrar. También sin cifrar, solo las fechas límite
+// de los casos abiertos (sin entidad ni tema), para avisar en Inicio "Tiene un plazo cerca" con la app bloqueada.
+// "Borrar todo" lo elimina todo.
 import { useSyncExternalStore } from 'react';
 import { derechoInfo } from '@miderecho/nucleo/derechos';
+import { iso } from '@miderecho/nucleo/plazos';
 
-const CIFRADO = 'miderecho-v2-cifrado', PREF = 'miderecho-v2-pref', VIEJO = 'miderecho-v2';
+const CIFRADO = 'miderecho-v2-cifrado', PREF = 'miderecho-v2-pref', PLAZOS = 'miderecho-v2-plazos', VIEJO = 'miderecho-v2';
 const cod = new TextEncoder(), decod = new TextDecoder();
 const b64 = u8 => btoa(String.fromCharCode(...u8));
 const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const leer = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const escribirLS = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin almacenamiento: la app sigue en memoria */ } };
 const vacio = () => ({ casos: [], historial: [] });
+// Del historial solo se guarda lo fijo: la categoría ("Salud", no el título que escribe la IA, que puede revelar un dato
+// sensible), el derecho, el documento y la ley (contenido fijo del núcleo). Nada del texto libre de la IA.
+const categoria = o => (o.documento === 'servicios_publicos' ? 'Servicios públicos' : derechoInfo(o.derecho)?.menu || 'Consulta');
+const soloFijo = o => ({ id: o.id, fecha: o.fecha, tema: categoria(o), derecho: o.derecho, documento: o.documento, documento_titulo: o.documento_titulo, ley: o.ley });
+const ABIERTOS = ['esperando', 'negada', 'impugnada'];
 
 // Versión anterior, sin cifrar: las preferencias pasan aparte y los casos se cifran al crear la clave.
 const viejo = leer(VIEJO);
@@ -19,7 +27,7 @@ if (viejo?.pref && !leer(PREF)) escribirLS(PREF, viejo.pref);
 // ponytail: 4 números se pueden adivinar con el celular en la mano; en producción, la llave segura del sistema (Android Keystore).
 let clave = null, sal = null, vuelta = 0;
 // En memoria. Con la app bloqueada solo tiene lo que se guardó en esta sesión: se cifra al abrir con la clave.
-let datos = { casos: viejo?.casos || [], historial: viejo?.historial || [] };
+let datos = { casos: viejo?.casos || [], historial: (viejo?.historial || []).map(soloFijo) };
 let cola = Promise.resolve();
 
 const oyentes = new Set();
@@ -35,6 +43,7 @@ async function derivar(pin, s) {
 function escribir(d) {
   datos = d;
   if (!clave) return;
+  escribirLS(PLAZOS, [...new Set(d.casos.filter(c => c.venc && ABIERTOS.includes(c.estado)).map(c => c.venc))].sort());
   const k = clave, s = sal, v = vuelta, texto = JSON.stringify(d);
   cola = cola.then(async () => {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -65,11 +74,17 @@ export const almacen = {
     const leidos = JSON.parse(decod.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(g.iv) }, k, deB64(g.ct))));
     sal = s; clave = k;
     const pendiente = datos.casos.length || datos.historial.length;
-    datos = unir(datos, leidos);
+    datos = unir(datos, { ...leidos, historial: (leidos.historial || []).map(soloFijo) });
     if (pendiente) escribir(datos);
     avisar();
   },
-  bloquear() { clave = null; sal = null; datos = vacio(); avisar(); },
+  // Si no estaba abierta no se toca nada: lo guardado en esta sesión espera la clave (no se pierde en silencio).
+  bloquear() { if (!clave) return; clave = null; sal = null; datos = vacio(); avisar(); },
+  // ¿Hay un plazo que vence hoy o mañana? Funciona aunque la app esté bloqueada (solo fechas).
+  plazoCerca(hoy = new Date()) {
+    const h = iso(hoy), m = iso(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1));
+    return (leer(PLAZOS) || []).some(f => f === h || f === m);
+  },
   esperar: () => cola,   // para las pruebas
 
   casos: () => datos.casos,
@@ -77,10 +92,7 @@ export const almacen = {
   borrarCaso(id) { escribir({ ...datos, casos: datos.casos.filter(c => c.id !== id) }); },
   historial: () => datos.historial,
   guardarOrientacion(o) {
-    // No se guarda el resumen ni los datos del caso: solo la ruta. Y como tema, una categoría general ("Salud"),
-    // no el título que escribe la IA, que puede revelar un dato sensible ("La EPS niega la quimioterapia").
-    const tema = o.documento === 'servicios_publicos' ? 'Servicios públicos' : derechoInfo(o.derecho)?.menu || 'Consulta';
-    const item = { id: crypto.randomUUID?.() || String(Date.now()), fecha: new Date().toISOString(), tema, derecho: o.derecho, documento: o.documento, documento_titulo: o.documento_titulo, pasos: o.pasos, donde_acudir: o.donde_acudir, buscar_abogado_si: o.buscar_abogado_si, ley: o.ley };
+    const item = soloFijo({ ...o, id: crypto.randomUUID?.() || String(Date.now()), fecha: new Date().toISOString() });
     escribir({ ...datos, historial: [item, ...datos.historial].slice(0, 30) });
   },
   borrarHistorial() { escribir({ ...datos, historial: [] }); },
@@ -88,7 +100,7 @@ export const almacen = {
   setPref(k, v) { escribirLS(PREF, { ...leer(PREF), [k]: v }); },
   borrarTodo() {
     vuelta++;
-    [CIFRADO, PREF, VIEJO].forEach(k => escribirLS(k, null));
+    [CIFRADO, PREF, PLAZOS, VIEJO].forEach(k => escribirLS(k, null));
     clave = null; sal = null; datos = vacio();
     avisar();
   },

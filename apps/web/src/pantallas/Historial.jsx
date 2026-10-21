@@ -1,11 +1,20 @@
 import { useState } from 'react';
 import { ChevronRight, Trash2 } from 'lucide-react';
 import { Encabezado, Titulo, BotonVoz, Confirmar, Aviso, ICONOS_DERECHO } from '../componentes/comunes.jsx';
+import { derechoInfo } from '@miderecho/nucleo/derechos';
 import Orientacion from '../componentes/Orientacion.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir } from '../lib/ruta.js';
 
-// Búsquedas guardadas (cifradas con la clave): se pueden consultar sin internet. Solo el tema y la ruta, nunca el relato.
+// Del historial solo se guarda lo fijo (categoría, derecho, documento y ley); los pasos se arman con contenido fijo,
+// nunca con el texto libre de la IA.
+const PASOS_DOC = t => [`Haga el documento con la app: ${t}.`, 'Entréguelo y pida la copia con sello o el número de recibido.', 'Anote ese día en Mis casos: le decimos hasta cuándo deben responder y qué sigue.'];
+const conFijo = i => {
+  const d = derechoInfo(i.derecho);
+  return { ...i, dicho_de_otra_forma: d?.dichoDeOtraForma, pasos: i.documento && i.documento !== 'ninguno' ? PASOS_DOC(i.documento_titulo) : d?.cuadros.at(-1).pasos };
+};
+
+// Búsquedas guardadas (cifradas con la clave): se pueden consultar sin internet. Nunca el relato.
 // Cada una tiene su dirección (#/historial/<id>), así el Atrás del celular vuelve a la lista.
 export default function Historial({ id }) {
   const [items, setItems] = useState(almacen.historial);
@@ -18,7 +27,7 @@ export default function Historial({ id }) {
       <main className="pantalla">
         <Encabezado />
         <Titulo>Búsqueda guardada</Titulo>
-        {item ? <Orientacion o={item} guardada /> : <p className="texto">Esta búsqueda ya no está guardada.</p>}
+        {item ? <Orientacion o={conFijo(item)} guardada /> : <p className="texto">Esta búsqueda ya no está guardada.</p>}
       </main>
     );
   }

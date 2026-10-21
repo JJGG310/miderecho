@@ -5,10 +5,9 @@ export const NOMBRE = 'MiDerecho';
 export const VERIFICADO = 'Plantilla en borrador, pendiente de validación jurídica';
 export const CORREO_SERVICIO = 'respuestas@miderecho.example'; // buzón del servicio (simulado)
 
-export const AVISO = `<p><b>${NOMBRE}</b> es un servicio gratuito que le ayuda a armar documentos como el derecho de petición, la tutela o un reclamo. Es información general y plantillas: <b>no somos abogados</b> ni reemplazamos a uno.</p>
-<p>No le vamos a pedir nada sensible (si es víctima, su etnia, sus creencias o a qué organización pertenece). Lo que le cuenta al asistente sale del celular sin cédulas, teléfonos ni correos, y no lo guardamos.</p>
-<p>Su nombre, su cédula y su celular solo se piden al crear un documento: van impresos en el papel, no se envían a la inteligencia artificial y no se guardan en el celular. Si prefiere, los escribe a mano.</p>
-<p>En este celular solo quedan sus casos (sin datos personales) y los temas de sus búsquedas, protegidos con su clave de 4 números. Puede borrarlo todo cuando quiera con el botón <b>Borrar todo</b>.</p>`;
+export const AVISO = `<p><b>${NOMBRE}</b> es un servicio gratuito de información y plantillas para armar documentos como el derecho de petición, la tutela o un reclamo. <b>No somos abogados</b> ni reemplazamos a uno.</p>
+<p>Lo que usted le cuenta al asistente lo lee una inteligencia artificial: Claude (de la empresa Anthropic) o Gemini (de Google), según la que esté activa, en Estados Unidos. Si usa el dictado por voz, el audio pasa por el servicio de voz de Google. Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo: no escriba nombres, cédulas ni direcciones en el chat. No guardamos la conversación.</p>
+<p>Su nombre y su cédula se piden al crear el documento y solo van en el papel: no van a la inteligencia artificial ni se guardan. En este celular quedan sus casos y su historial, cifrados con su clave de 4 números; pueden mostrar el tema de su caso, aunque sea de salud. Puede borrarlos con <b>Borrar todo</b>. Contarnos datos delicados (salud, etnia, si es víctima o a qué organización pertenece) es opcional. Responsable: [Organización], [contacto].</p>`;
 
 export const AYUDA_RIESGO = `<p>Aquí no vamos a guardar nada de lo que nos contó.</p>
 <ul>
@@ -172,7 +171,7 @@ export const RAZONES_RECURSO = [
 
 // Explicaciones de lo que sigue después de cada documento. {entidad} se llena en la app. [validar] todo el bloque.
 export const EXPLICA = {
-  juramento: 'La ley no deja presentar dos tutelas por los mismos hechos (Decreto 2591 de 1991, artículos 37 y 38).',
+  juramento: 'La ley no deja presentar dos tutelas respecto de los mismos hechos y derechos (Decreto 2591 de 1991, artículos 37 y 38).',
   yaPresento: `<p>Presentar otra tutela por lo mismo puede traerle una sanción. Lo que sigue depende del fallo:</p>
     <ul><li>Si el juez se la <b>negó</b>, puede <b>impugnar</b> dentro de los 3 días hábiles siguientes a la notificación.</li>
     <li>Si el juez le <b>dio la razón</b> y no le cumplen, puede pedir el <b>desacato</b>.</li></ul><p>Anote su tutela en Mis casos y le decimos qué hacer.</p>`,

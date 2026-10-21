@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 const sintesis = typeof window !== 'undefined' ? window.speechSynthesis : null;
 let vozEs = null;
 function escogerVoz() {
-  const voces = sintesis?.getVoices() || [];
-  vozEs = voces.find(v => v.lang === 'es-CO') || voces.find(v => v.lang === 'es-US') || voces.find(v => v.lang?.startsWith('es')) || null;
+  // Primero las voces del propio celular (localService): no mandan el texto a internet. Luego es-CO, es-US y cualquier español.
+  const puntos = v => (v.localService ? 0 : 3) + (v.lang === 'es-CO' ? 0 : v.lang === 'es-US' ? 1 : 2);
+  vozEs = (sintesis?.getVoices() || []).filter(v => v.lang?.startsWith('es')).sort((a, b) => puntos(a) - puntos(b))[0] || null;
 }
 sintesis?.addEventListener?.('voiceschanged', escogerVoz);
 

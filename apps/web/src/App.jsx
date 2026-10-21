@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { ProveedorConexion } from './lib/conexion.jsx';
 import { useRuta, memoria } from './lib/ruta.js';
-import { useAbierta } from './lib/almacen.js';
+import { almacen, useAbierta } from './lib/almacen.js';
 import { BarraNav } from './componentes/comunes.jsx';
 import Inicio from './pantallas/Inicio.jsx';
 import Derechos from './pantallas/Derechos.jsx';
@@ -14,6 +14,8 @@ import Perfil from './pantallas/Perfil.jsx';
 import Clave from './pantallas/Clave.jsx';
 import Peligro, { PreguntaPeligro } from './pantallas/Peligro.jsx';
 import Consentimiento, { consintio } from './pantallas/Consentimiento.jsx';
+// La política de datos se descarga solo cuando se abre (el service worker igual la guarda para usarla sin internet).
+const Politica = lazy(() => import('./pantallas/Politica.jsx'));
 
 // Documentos nuevos: antes de empezar se pregunta si hay alguien en peligro.
 const NUEVOS = ['peticion', 'servicios_publicos', 'tutela_salud', 'tutela'];
@@ -23,7 +25,7 @@ function Pantallas({ p, a }) {
   const [, seguir] = useState(0);
   const preguntar = !memoria.sinPeligro && (p === 'asistente' || (p === 'documento' && NUEVOS.includes(a)));
   if (preguntar) return <PreguntaPeligro alSeguir={() => seguir(n => n + 1)} />;
-  // Antes de mandar algo a la inteligencia artificial, el aviso y la autorización (una vez por versión del aviso).
+  // Antes de mandar algo a la inteligencia artificial, el aviso y la autorización (una vez por conversación).
   if (p === 'asistente' && !consintio()) return <Consentimiento alAceptar={() => seguir(n => n + 1)} />;
   switch (p) {
     case 'derechos': return a ? <Derecho id={a} /> : <Derechos />;
@@ -33,17 +35,25 @@ function Pantallas({ p, a }) {
     case 'historial': return abierta ? <Historial id={a} key={a || 'lista'} /> : <Clave />;
     case 'perfil': return <Perfil />;
     case 'peligro': return <Peligro />;
+    case 'politica': return <Suspense fallback={null}><Politica completa={a === 'completa'} key={a || 'historieta'} /></Suspense>;
     default: return <Inicio />;
   }
 }
 
 export default function App() {
   const [p, a] = useRuta();
+  // Celular compartido: al salir de la app (otra app, pantalla apagada) se bloquean los casos y el historial.
+  useEffect(() => {
+    const salir = () => { if (document.hidden) almacen.bloquear(); };
+    document.addEventListener('visibilitychange', salir);
+    return () => document.removeEventListener('visibilitychange', salir);
+  }, []);
   return (
     <ProveedorConexion>
       <div className="marco">
         <Pantallas p={p} a={a} />
-        <BarraNav actual={p} />
+        {/* La historieta de la política trae su propia barra (Anterior / Siguiente). */}
+        {p !== 'politica' && <BarraNav actual={p} />}
       </div>
     </ProveedorConexion>
   );

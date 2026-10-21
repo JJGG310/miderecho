@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Trash2, Clock, CheckCircle2 } from 'lucide-react';
 import { habilesEntre, deIso, iso, sumarHabiles, llenar, esc, TIPOS, EXPLICA } from '@miderecho/nucleo';
 import { Encabezado, BotonVoz, OpcionesRapidas, Confirmar, Aviso, ElegirFecha, fechaLarga } from '../componentes/comunes.jsx';
+import { EstadoAvisos, LlamadaAsistente } from '../componentes/Avisos.jsx';
+import { Constancia } from '../componentes/EnvioCorreo.jsx';
+import { cancelarAvisos } from '../lib/avisos.js';
 import { almacen } from '../lib/almacen.js';
 import { DEMO } from '../lib/conexion.jsx';
 import { ir, memoria } from '../lib/ruta.js';
@@ -9,16 +12,22 @@ import { ir, memoria } from '../lib/ruta.js';
 const fecha = s => deIso(s).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 const esTutela = c => c.tipo.startsWith('tutela');
 const html = (plantilla, c) => ({ __html: llenar(plantilla, { entidad: esc(c.entidad) }) });
+// Por fechas, no por horas: el día del vencimiento todavía no está vencido ("Hoy es el último día").
+const faltanDe = (c, hoy) => (c.venc ? habilesEntre(deIso(iso(hoy)), deIso(c.venc)) : null);
+const vencidoDe = (c, hoy) => !!c.venc && iso(hoy) > c.venc;
 
 // Etiqueta del estado: [ícono, color, texto]. Verde: hay tiempo. Ámbar: vence pronto o hay que contestar algo. Rojo: plazo corto de la persona.
 function etiqueta(c, hoy) {
-  const faltan = c.venc ? habilesEntre(hoy, deIso(c.venc)) : null, vencido = faltan !== null && faltan <= 0;
-  if (c.estado === 'negada') return vencido ? ['⛔', 'rojo', 'Se venció el plazo para impugnar'] : ['⛔', 'rojo', `Impugne a más tardar el ${fecha(c.venc)}`];
+  const faltan = faltanDe(c, hoy), vencido = vencidoDe(c, hoy), ultimo = c.venc === iso(hoy);
+  if (c.estado === 'negada') return vencido ? ['⛔', 'rojo', 'Se venció el plazo para impugnar'] : ['⛔', 'rojo', ultimo ? 'Hoy es el último día para impugnar' : `Impugne a más tardar el ${fecha(c.venc)}`];
+  if (c.estado === 'tutela') return ['✅', 'verde', 'Ya hizo la tutela por esta petición'];
   if (c.estado === 'ganada') return ['✅', 'verde', 'El juez le dio la razón'];
   if (c.estado === 'desacato') return ['⏳', 'verde', `Pidió el desacato el ${fecha(c.rad)}`];
+  if (c.estado === 'tutela') return <p className="plazo ok"><CheckCircle2 size={20} aria-hidden /><span>La tutela por esta petición está en Mis casos.</span></p>;
   if (c.estado === 'respondido') return ['✅', 'verde', 'Le respondieron'];
   if (faltan === null) return ['⏳', 'verde', 'Sin plazo'];
   if (vencido) return ['⚠️', 'ambar', esTutela(c) || c.estado === 'impugnada' ? 'El juez ya debía decidir' : 'Ya venció el plazo para responderle'];
+  if (ultimo) return ['⚠️', 'ambar', 'Hoy es el último día'];
   return [faltan <= 3 ? '⚠️' : '⏳', faltan <= 3 ? 'ambar' : 'verde', `Faltan ${faltan} ${faltan === 1 ? 'día hábil' : 'días hábiles'}`];
 }
 
@@ -60,20 +69,23 @@ export default function MisCasos() {
                   <button className="btn-icono" onClick={() => setBorrar(c)} aria-label={`Borrar el caso ${c.titulo}`}><Trash2 size={22} /></button>
                 </div>
                 <span className={`estado ${color}`}><span aria-hidden>{icono}</span> {texto}</span>
+                {c.envios?.length > 0 && <Constancia k={c.envios.at(-1)} />}
                 <Siguiente c={c} hoy={hoy} recargar={recargar} cerrar={() => setBorrar({ ...c, cerrar: true })} />
+                {c.estado === 'esperando' && <EstadoAvisos caso={c} alCambiar={recargar} />}
               </li>
             );
           })}
         </ul>
       )}
 
+      <LlamadaAsistente casos={casos} />
       {DEMO && <label className="demo"><input type="checkbox" checked={demo} onChange={e => { setDemo(e.target.checked); almacen.setPref('demo', e.target.checked); }} /> Modo demo: adelantar un mes</label>}
       <OpcionesRapidas />
 
       {borrar && (
         <Confirmar titulo={borrar.cerrar ? '¿Cerrar y borrar este caso?' : '¿Borrar este caso?'} alNo={() => setBorrar(null)}
-          alSi={() => { almacen.borrarCaso(borrar.id); recargar(); setBorrar(null); setAviso('Listo. Se borró el caso.'); }}>
-          {borrar.titulo} a {borrar.entidad}. Se borra de este celular y ya no le recordamos el plazo.
+          alSi={() => { almacen.borrarCaso(borrar.id); cancelarAvisos(borrar.codigo); recargar(); setBorrar(null); setAviso('Listo. Se borró el caso y se cancelaron sus recordatorios.'); }}>
+          {borrar.titulo} a {borrar.entidad}. Se borra de este celular y se cancelan sus recordatorios.
         </Confirmar>
       )}
       {aviso && <Aviso alCerrar={() => setAviso(null)}>{aviso}</Aviso>}
@@ -84,9 +96,10 @@ export default function MisCasos() {
 // Qué sigue en cada caso, según el estado y el plazo (como el prototipo: fallo, impugnación y desacato).
 function Siguiente({ c, hoy, recargar, cerrar }) {
   const [pregunta, setPregunta] = useState(null);   // 'favor' | 'contra' | 'aviso' | 'no'
-  const guardar = cambios => { almacen.guardarCaso({ ...c, ...cambios }); setPregunta(null); recargar(); };
+  // Al cambiar de estado, los recordatorios del plazo anterior ya no sirven: se cancelan.
+  const guardar = cambios => { cancelarAvisos(c.codigo); almacen.guardarCaso({ ...c, ...cambios }); setPregunta(null); recargar(); };
   const preparar = tipo => { memoria.caso = c; ir('documento', tipo); };
-  const vencido = c.venc && habilesEntre(hoy, deIso(c.venc)) <= 0;
+  const vencido = vencidoDe(c, hoy);
   const quien = esTutela(c) || c.estado === 'impugnada' ? 'El juez debe decidir' : c.tipo === 'servicios_publicos' ? 'La empresa debe responderle' : 'La entidad debe responderle';
   const entregado = <p className="suave">Entregado el {fecha(c.rad)}</p>;
 
@@ -125,6 +138,7 @@ function Siguiente({ c, hoy, recargar, cerrar }) {
     </div>
   );
 
+  if (c.estado === 'tutela') return <p className="plazo ok"><CheckCircle2 size={20} aria-hidden /><span>La tutela por esta petición está en Mis casos.</span></p>;
   if (c.estado === 'respondido') return <p className="plazo ok"><CheckCircle2 size={20} aria-hidden /><span>Si la respuesta no resuelve su caso, cuéntenos en Inicio.</span></p>;
 
   // Esperando (o impugnada): todavía hay plazo.

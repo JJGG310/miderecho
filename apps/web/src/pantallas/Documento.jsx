@@ -2,8 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, CheckCircle2, ChevronRight, ShieldCheck, CalendarCheck } from 'lucide-react';
 import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, RAZONES_IMPUGNACION, VERIFICADO, sumarHabiles, iso } from '@miderecho/nucleo';
 import { Encabezado, Titulo, BotonVoz, ElegirFecha, fechaLarga } from '../componentes/comunes.jsx';
+import EnvioCorreo from '../componentes/EnvioCorreo.jsx';
+import { ElegirAvisos } from '../componentes/Avisos.jsx';
+import { FormClave } from './Clave.jsx';
+import { cancelarAvisos } from '../lib/avisos.js';
 import { almacen, useAbierta } from '../lib/almacen.js';
-import { ir, atras, memoria } from '../lib/ruta.js';
+import { ir, memoria } from '../lib/ruta.js';
 
 const DESDE = ['hace una semana', 'hace un mes', 'hace tres meses', 'hace seis meses', 'hace más de un año'];
 // Título en lenguaje común; el nombre legal, en pequeño.
@@ -111,6 +115,7 @@ function Campo({ k, etiqueta, relato, falta, children }) {
 
 // Pasos: 1 el caso → 2 dónde y desde cuándo → 3 sus datos (solo aquí se piden) → 4 el documento.
 function Formulario({ tipo }) {
+  const abierta = useAbierta();
   const [ini] = useState(() => inicial(tipo));
   const [c, setC] = useState(ini.c);
   const [paso, setPaso] = useState('caso');
@@ -187,7 +192,10 @@ function Formulario({ tipo }) {
     ir('casos');
   };
   const entregar = (f, extra = {}) => {
+    // Se mezcla con el caso ya guardado (anotado y luego enviado por correo) para no perder su código ni sus avisos.
+    const previo = almacen.casos().find(x => x.id === id) || {};
     const caso = {
+      ...previo,
       id, tipo, titulo: t.titulo, icono: t.icono,
       entidad: datos.entidad, municipio: datos.municipio, vereda: datos.vereda, derecho: c.derecho,
       rad: iso(f), venc: plazo ? iso(sumarHabiles(f, plazo)) : null, plazo: plazo || null,
@@ -255,12 +263,14 @@ function Formulario({ tipo }) {
             <Opciones k="urgente" etiqueta={tipo === 'tutela_salud' ? '¿Es urgente? ¿La salud o la vida corren riesgo si espera?' : '¿Es urgente? ¿Esperar le causaría un daño grave?'}
               valor={c.urgente} elegir={v => set('urgente', v)} relato={relato('urgente')} falta={falta('urgente')}
               opciones={[{ id: 'si', titulo: 'Sí, es urgente' }, { id: 'no', titulo: 'No' }]} />
-            <Opciones k="jurado" etiqueta="¿Ya presentó otra tutela por estos mismos hechos?" valor={c.jurado} elegir={v => set('jurado', v)} falta={falta('jurado')}
+            <Opciones k="jurado" etiqueta="¿Ya presentó otra tutela por estos mismos hechos y derechos?" valor={c.jurado} elegir={v => set('jurado', v)} falta={falta('jurado')}
               opciones={[{ id: 'no', titulo: 'No, es la primera' }, { id: 'si', titulo: 'Sí, ya presenté una' }]}>
               <small className="ayuda">{EXPLICA.juramento} En el documento usted jura que no ha presentado otra.</small>
               {c.jurado === 'si' && <>
                 <div className="ayuda" dangerouslySetInnerHTML={{ __html: EXPLICA.yaPresento }} />
-                <ElegirFecha etiqueta="¿Qué día presentó esa tutela?" boton="Anotar mi tutela en Mis casos" alGuardar={anotarTutela} />
+                {abierta
+                  ? <ElegirFecha etiqueta="¿Qué día presentó esa tutela?" boton="Anotar mi tutela en Mis casos" alGuardar={anotarTutela} />
+                  : <FormClave enTarjeta motivo="Para anotar su tutela en Mis casos, escriba su clave." />}
               </>}
             </Opciones>
             {pruebasOpc.length > 0 && <Casillas k="pruebas" etiqueta="¿Qué papeles tiene? (opcional)" opciones={pruebasOpc} sel={c.pruebas} alternar={p => alternar('pruebas', p)} />}
@@ -283,7 +293,8 @@ function Formulario({ tipo }) {
           <Opciones k="desde" etiqueta="¿Desde cuándo pasa?" valor={c.desde} elegir={v => set('desde', v)} relato={relato('desde')} falta={falta('desde')}
             opciones={DESDE.map(x => ({ id: x, titulo: x[0].toUpperCase() + x.slice(1) }))} />
           <Campo k="palabras" etiqueta={sinHecho ? 'Cuente qué pasó, con sus palabras' : '¿Quiere agregar algo con sus palabras? (opcional)'} falta={falta('palabras')}>
-            <textarea rows={3} value={c.palabras} onChange={e => set('palabras', e.target.value)} placeholder="Solo lo necesario. No escriba nombres de otras personas." />
+            <textarea rows={3} maxLength={1000} value={c.palabras} onChange={e => set('palabras', e.target.value)} placeholder="Solo lo necesario. No escriba nombres de otras personas." />
+            <small className="ayuda">{c.palabras.length} de 1.000 letras</small>
           </Campo>
         </>}
 
@@ -328,7 +339,7 @@ function DatosPersonales({ tipo, valores: p, cambiar, volver, listo, paso }) {
       <Titulo alVolver={volver} lectura={lectura}>Sus datos para el documento</Titulo>
       <section className="tarjeta oliva">
         <h2><ShieldCheck size={22} aria-hidden /> Por qué se los pedimos ahora</h2>
-        <p className="texto">Para que el documento sea válido, {quien} debe saber quién lo presenta y dónde responderle. Estos datos solo van en el papel: <b>no se envían a la inteligencia artificial ni a ningún servidor, y no se guardan en este celular.</b></p>
+        <p className="texto">Para que el documento sea válido, {quien} debe saber quién lo presenta y dónde responderle. Estos datos solo van en el papel: <b>no se envían a la inteligencia artificial ni a ningún servidor (salvo que pida que enviemos el documento por correo), y no se guardan en este celular.</b></p>
       </section>
 
       <form className="formulario" onSubmit={enviar} noValidate>
@@ -374,11 +385,15 @@ function pasosEntrega(tipo, datos) {
     'Pida una copia con sello o el número de recibido. Después anote aquí el día que lo entregó: desde ese día cuenta el plazo.'];
 }
 
-// Vista: qué hacer → guardar o imprimir (principal) → anotar el día de entrega → el documento (plegado).
-function Vista({ tipo, datos, volver, alEntregar, paso }) {
+// Vista: qué hacer → guardar o imprimir (principal) → anotar el día de entrega o enviarlo por correo → el documento (plegado).
+// Guardar el caso, enviarlo por correo y programar avisos piden la clave en este mismo paso: nada se guarda a medias.
+function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
+  // Al abrir el envío por correo, el documento pasa a como se envía (sin firma a mano ni anexos, con la entidad del directorio).
+  const [porCorreo, setPorCorreo] = useState(null);
+  const datos = useMemo(() => (porCorreo ? { ...base, ...porCorreo } : base), [base, porCorreo]);
   const html = useMemo(() => generarDocumento(tipo, datos), [tipo, datos]);
   const [anotar, setAnotar] = useState(false);
-  const [guardado, setGuardado] = useState(null);   // el caso guardado
+  const [guardado, setGuardado] = useState(null);   // el caso guardado: ofrece los avisos del plazo
   const abierta = useAbierta();
   const papel = useRef(null);
   const pasos = pasosEntrega(tipo, datos);
@@ -391,6 +406,7 @@ function Vista({ tipo, datos, volver, alEntregar, paso }) {
   }, []);
   const imprimir = () => { papel.current.open = true; window.print(); };
   const texto = () => new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/_{3,}/g, ' espacio en blanco ');
+  const entregar = (f, extra) => setGuardado(alEntregar(f, extra));
 
   return (
     <main className="pantalla">
@@ -404,16 +420,19 @@ function Vista({ tipo, datos, volver, alEntregar, paso }) {
       </section>
       <button className="btn-primario" onClick={imprimir}><Printer size={22} aria-hidden /> Guardar o imprimir PDF</button>
 
-      {guardado ? (
+      {!abierta ? (
+        <FormClave enTarjeta motivo="Para anotarlo en Mis casos, enviarlo por correo o recibir avisos del plazo, escriba su clave. Si no la escribe, no se guarda nada." />
+      ) : guardado ? (
         <section className="tarjeta oliva" role="status">
           <h2><CheckCircle2 size={22} aria-hidden /> Quedó guardado</h2>
           {guardado.venc && <p className="texto">{quien} a más tardar el <b>{fechaLarga(guardado.venc)}</b>.</p>}
-          {!abierta && <p className="texto">Para que quede en este celular, abra Mis casos y escriba su clave.</p>}
+          {guardado.venc && <ElegirAvisos caso={guardado} tarjeta={false} />}
           <button className="btn-secundario" onClick={() => ir('casos')}>Ver en Mis casos</button>
         </section>
       ) : anotar
-        ? <ElegirFecha etiqueta="¿Qué día lo entregó?" boton="Guardar en Mis casos" alGuardar={f => setGuardado(alEntregar(f))} />
+        ? <ElegirFecha etiqueta="¿Qué día lo entregó?" boton="Guardar en Mis casos" alGuardar={f => entregar(f)} />
         : <button className="btn-secundario" onClick={() => setAnotar(true)}><CalendarCheck size={22} aria-hidden /> Ya lo entregué (elegir fecha)</button>}
+      {abierta && <EnvioCorreo tipo={tipo} datos={datos} alAbrir={setPorCorreo} alEnviar={k => entregar(new Date(), { modo: 'envio', envios: [k] })} />}
 
       <details className="desplegable" ref={papel}>
         <summary><FileText size={22} aria-hidden /> Ver el documento</summary>
@@ -429,44 +448,65 @@ function Vista({ tipo, datos, volver, alEntregar, paso }) {
 //   tutela_peticion: la petición no tuvo respuesta. impugnacion: el juez negó la tutela. desacato: ganó pero no cumplen.
 function DeCaso({ tipo }) {
   const caso = memoria.caso;
-  const [paso, setPaso] = useState(tipo === 'tutela_peticion' ? 'datos' : 'caso');
-  const [extra, setExtra] = useState({ razones: [], palabras: '', orden: '' });
+  const [paso, setPaso] = useState('caso');
+  const [extra, setExtra] = useState({ razones: [], palabras: '', orden: '', jurado: '' });
+  const [faltaJurado, setFaltaJurado] = useState(false);
   const [persona, setPersona] = useState(PERSONA_VACIA);
+  // La tutela de una petición es un caso nuevo (la petición queda marcada); la impugnación y el desacato siguen el mismo caso.
+  const [id] = useState(() => (tipo === 'tutela_peticion' ? crypto.randomUUID?.() || String(Date.now()) : caso?.id));
   useEffect(() => { window.scrollTo(0, 0); }, [paso]);
   if (!caso) { ir('casos'); return null; }
   const t = TIPOS[tipo];
-  const total = tipo === 'tutela_peticion' ? 2 : 3;
-  const n = { caso: 1, datos: total - 1, vista: total }[paso];
-  const entregar = f => {
-    const cambios = tipo === 'tutela_peticion' ? { tipo, titulo: t.titulo, icono: t.icono, estado: 'esperando', plazo: t.plazo }
+  const n = { caso: 1, datos: 2, vista: 3 }[paso];
+  const entregar = (f, otro = {}) => {
+    const cambios = tipo === 'tutela_peticion' ? { tipo, titulo: t.titulo, icono: t.icono, estado: 'esperando', plazo: t.plazo, envios: undefined, codigo: undefined }
       : tipo === 'impugnacion' ? { estado: 'impugnada', plazo: t.plazo } : { estado: 'desacato', plazo: null };
-    const nuevo = { ...caso, ...cambios, rad: iso(f), venc: cambios.plazo ? iso(sumarHabiles(f, cambios.plazo)) : null };
+    // Se mezcla con lo ya guardado (por ejemplo, si primero lo anotó y después lo envió por correo): no se pierde su código.
+    const previo = almacen.casos().find(c => c.id === id) || caso;
+    const nuevo = { ...previo, ...cambios, id, rad: iso(f), venc: cambios.plazo ? iso(sumarHabiles(f, cambios.plazo)) : null, ...otro };
+    // Los recordatorios del plazo anterior ya no sirven.
+    if (previo.codigo && previo.id === caso.id) cancelarAvisos(previo.codigo);
+    if (tipo === 'tutela_peticion') { cancelarAvisos(caso.codigo); almacen.guardarCaso({ ...caso, estado: 'tutela' }); }
     almacen.guardarCaso(nuevo);
     return nuevo;
   };
 
-  if (paso === 'datos') return <DatosPersonales tipo={tipo} valores={persona} cambiar={setPersona} volver={tipo === 'tutela_peticion' ? atras : () => setPaso('caso')} listo={() => setPaso('vista')} paso={[n, total]} />;
-  if (paso === 'vista') return <Vista tipo={tipo} datos={{ ...caso, ...extra, ...personaParaDocumento(persona) }} volver={() => setPaso('datos')} alEntregar={entregar} paso={[n, total]} />;
+  if (paso === 'datos') return <DatosPersonales tipo={tipo} valores={persona} cambiar={setPersona} volver={() => setPaso('caso')} listo={() => setPaso('vista')} paso={[n, 3]} />;
+  if (paso === 'vista') return <Vista tipo={tipo} datos={{ ...caso, ...extra, ...personaParaDocumento(persona) }} volver={() => setPaso('datos')} alEntregar={entregar} paso={[n, 3]} />;
 
-  const impugnacion = tipo === 'impugnacion';
+  const peticion = tipo === 'tutela_peticion', impugnacion = tipo === 'impugnacion';
+  const siguiente = e => {
+    e.preventDefault();
+    if (peticion && extra.jurado !== 'no') { setFaltaJurado(true); enfocar('jurado'); return; }
+    setPaso('datos');
+  };
   return (
     <main className="pantalla">
       <Encabezado />
-      <p className="paso">Paso 1 de {total}: {impugnacion ? 'por qué no está de acuerdo' : 'qué ordenó el juez'}</p>
-      <Titulo lectura={impugnacion ? '¿Por qué no está de acuerdo con la decisión del juez? Marque las que apliquen. Si no sabe, igual puede impugnar.' : '¿Qué le ordenó el juez? ' + EXPLICA.desacato}>{t.titulo}</Titulo>
-      <form className="formulario" onSubmit={e => { e.preventDefault(); setPaso('datos'); }}>
-        {impugnacion ? <>
+      <p className="paso">Paso 1 de 3: {peticion ? 'antes de empezar' : impugnacion ? 'por qué no está de acuerdo' : 'qué ordenó el juez'}</p>
+      <Titulo lectura={peticion ? '¿Ya presentó otra tutela por estos mismos hechos y derechos?' : impugnacion ? '¿Por qué no está de acuerdo con la decisión del juez? Marque las que apliquen. Si no sabe, igual puede impugnar.' : '¿Qué le ordenó el juez? ' + EXPLICA.desacato}>{t.titulo}</Titulo>
+      <form className="formulario" onSubmit={siguiente} noValidate>
+        {peticion && (
+          <Opciones k="jurado" etiqueta="¿Ya presentó otra tutela por estos mismos hechos y derechos?" valor={extra.jurado} elegir={v => { setExtra(x => ({ ...x, jurado: v })); setFaltaJurado(false); }}
+            falta={faltaJurado && !extra.jurado} opciones={[{ id: 'no', titulo: 'No, es la primera' }, { id: 'si', titulo: 'Sí, ya presenté una' }]}>
+            <small className="ayuda">{EXPLICA.juramento} En el documento usted jura que no ha presentado otra.</small>
+            {extra.jurado === 'si' && <div className="ayuda" dangerouslySetInnerHTML={{ __html: EXPLICA.yaPresento }} />}
+          </Opciones>
+        )}
+        {impugnacion && <>
           <Casillas k="razones" etiqueta="¿Por qué no está de acuerdo con la decisión del juez?" opciones={RAZONES_IMPUGNACION} sel={extra.razones}
             alternar={r => setExtra(x => ({ ...x, razones: x.razones.includes(r) ? x.razones.filter(y => y !== r) : [...x.razones, r] }))}>
             <small className="ayuda">Marque las que apliquen. Si no sabe, igual puede impugnar.</small>
           </Casillas>
-          <Campo etiqueta="Otra razón, con sus palabras (opcional)"><textarea rows={3} value={extra.palabras} onChange={e => setExtra(x => ({ ...x, palabras: e.target.value }))} /></Campo>
-        </> : (
+          <Campo etiqueta="Otra razón, con sus palabras (opcional)"><textarea rows={3} maxLength={1000} value={extra.palabras} onChange={e => setExtra(x => ({ ...x, palabras: e.target.value }))} /></Campo>
+        </>}
+        {tipo === 'desacato' && (
           <Campo etiqueta="Lo que ordenó el juez (opcional)">
-            <textarea rows={3} value={extra.orden} onChange={e => setExtra(x => ({ ...x, orden: e.target.value }))} placeholder="Ej.: entregar el medicamento en 48 horas" />
+            <textarea rows={3} maxLength={1000} value={extra.orden} onChange={e => setExtra(x => ({ ...x, orden: e.target.value }))} placeholder="Ej.: entregar el medicamento en 48 horas" />
             <small className="ayuda">{EXPLICA.desacato}</small>
           </Campo>
         )}
+        {faltaJurado && extra.jurado === 'si' && <p className="falta" role="alert">No puede presentar otra tutela por lo mismo: mire arriba qué puede hacer.</p>}
         <button className="btn-primario" type="submit">Siguiente: sus datos</button>
       </form>
     </main>

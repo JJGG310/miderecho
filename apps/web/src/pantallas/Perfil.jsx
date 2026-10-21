@@ -3,7 +3,8 @@ import { Trash2, ShieldCheck, Phone } from 'lucide-react';
 import { AVISO, AYUDA_RIESGO } from '@miderecho/nucleo';
 import { Encabezado, Confirmar, Aviso } from '../componentes/comunes.jsx';
 import { almacen } from '../lib/almacen.js';
-import { olvidar } from '../lib/ruta.js';
+import { ir, olvidar } from '../lib/ruta.js';
+import { cancelarTodo } from '../lib/avisos.js';   // cancela también los recordatorios del servidor y la suscripción push
 
 export default function Perfil() {
   const [modoVoz, setModoVoz] = useState(() => almacen.pref('modoVoz', false));
@@ -22,6 +23,7 @@ export default function Perfil() {
       <section className="tarjeta oliva">
         <h2><ShieldCheck size={22} aria-hidden /> Su privacidad</h2>
         <div className="texto aviso" dangerouslySetInnerHTML={{ __html: AVISO }} />
+        <button className="btn-secundario" onClick={() => ir('politica')}>Ver la política de datos en historieta</button>
       </section>
 
       <section className="tarjeta riesgo ayuda-riesgo">
@@ -33,11 +35,11 @@ export default function Perfil() {
       <button className="btn-peligro" onClick={() => setConfirmar(true)}><Trash2 size={20} aria-hidden /> Borrar todo de este celular</button>
       {confirmar && (
         <Confirmar titulo="¿Borrar todo de este celular?" si="Sí, borrar todo" alNo={() => setConfirmar(false)}
-          alSi={() => { almacen.borrarTodo(); olvidar(); setConfirmar(false); setModoVoz(false); setBorrado(true); }}>
-          Se borran sus casos, su historial, su clave y sus preferencias. No se puede deshacer.
+          alSi={() => { cancelarTodo(); almacen.borrarTodo(); olvidar(); setConfirmar(false); setModoVoz(false); setBorrado(true); }}>
+          Se borran sus casos, su historial, su clave y sus preferencias, y se cancelan sus recordatorios. No se puede deshacer.
         </Confirmar>
       )}
-      {borrado && <Aviso alCerrar={() => setBorrado(false)}>Listo. Borramos sus casos, su historial, su clave y sus preferencias.</Aviso>}
+      {borrado && <Aviso alCerrar={() => setBorrado(false)}>Listo. Borramos sus casos, su historial, su clave y sus preferencias, y cancelamos sus recordatorios.</Aviso>}
     </main>
   );
 }

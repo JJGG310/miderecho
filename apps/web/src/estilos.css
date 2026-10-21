@@ -135,6 +135,7 @@ h1, h2, h3 { margin: 0; }
 .confirmar { width: min(400px, calc(100vw - 32px)); border: 0; border-radius: 18px; padding: 20px; background: var(--papel); color: var(--texto); }
 .confirmar[open] { display: flex; flex-direction: column; gap: 12px; }
 .confirmar::backdrop { background: rgba(0, 0, 0, .5); }
+.confirmar.sin-modal { position: fixed; inset: 0; margin: auto; height: fit-content; z-index: 30; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .5); }
 .confirmar h2 { font-size: 1.222rem; line-height: 1.25; }
 
 /* Listas de opciones grandes (temas, documentos, historial) */
@@ -152,7 +153,7 @@ h1, h2, h3 { margin: 0; }
 .historieta > li { background: var(--papel); border: 1px solid var(--borde); border-radius: var(--radio); overflow: hidden; }
 .historieta img { display: block; width: 100%; height: auto; background: #eee5d3; }
 .cuadro-texto { padding: 6px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
-.cuadro-texto h3 { font-size: 1.056rem; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.cuadro-texto h2 { font-size: 1.056rem; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .numero { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--verde); color: #fff; font-size: .889rem; flex: none; }
 .dialogo { margin: 0; padding-left: 12px; border-left: 4px solid var(--oliva-btn); }
 .dialogo b { display: block; font-size: .889rem; color: var(--suave); }
@@ -185,6 +186,7 @@ h1, h2, h3 { margin: 0; }
 .caja-respuesta { display: flex; align-items: flex-end; gap: 8px; padding: 8px; }
 .caja-respuesta textarea { flex: 1; min-width: 0; border: 0; background: transparent; resize: none; font-size: 1rem; line-height: 1.4; padding: 6px; }
 .caja-respuesta textarea:focus { outline: none; }
+.caja-respuesta:focus-within { border-color: var(--verde); box-shadow: 0 0 0 2px var(--verde); }
 .aviso-error { background: var(--rojo-fondo); color: var(--rojo); border-radius: 10px; padding: 10px 12px; font-size: 1rem; }
 .aviso-error button { text-decoration: underline; font-weight: 800; min-height: 44px; color: inherit; }
 .nota-modo { font-size: .889rem; color: var(--suave); text-align: center; margin: 0; }

@@ -2,11 +2,14 @@ import { FilePen, BookOpen, MapPin, TriangleAlert } from 'lucide-react';
 import { derechoInfo } from '@miderecho/nucleo/derechos';
 import { DichoDeOtraForma, LeyDesplegable, BotonVoz } from './comunes.jsx';
 import { ir, memoria } from '../lib/ruta.js';
+import { useAbierta } from '../lib/almacen.js';
+import { FormClave } from '../pantallas/Clave.jsx';
 
 // Resultado del asistente. Orden: lo que entendimos → dicho de otra forma → pasos y documento → a dónde acudir → la ley (plegada).
 // "Qué dice la ley" y las normas vienen de contenido fijo (o.ley), no de la IA.
 export default function Orientacion({ o, guardada = false }) {
   const d = derechoInfo(o.derecho);
+  const abierta = useAbierta();
   const lectura = [o.tema, o.resumen, 'Pasos a seguir:', ...(o.pasos || [])].filter(Boolean).join('. ');
   const hayDocumento = o.documento && o.documento !== 'ninguno';
   // Desde el historial no hay datos del relato: el formulario empieza vacío.
@@ -54,6 +57,8 @@ export default function Orientacion({ o, guardada = false }) {
           <span><b>Aprenda más: {d.menu}</b><small>Con historieta. Funciona sin internet</small></span>
         </button>
       )}
+      {/* La búsqueda se guarda en Historial solo con la clave: si la app está bloqueada, se pide aquí mismo. */}
+      {!guardada && !abierta && <FormClave enTarjeta motivo="Para guardar esta búsqueda en Historial, escriba su clave. Si no la escribe, no se guarda." />}
       <p className="nota-modo">{o.aviso || 'Esto es información general, no consejo de abogado.'}</p>
     </div>
   );

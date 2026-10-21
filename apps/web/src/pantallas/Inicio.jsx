@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Mic, ArrowUp, WifiOff } from 'lucide-react';
 import { Encabezado, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
+import { AvisoPlazos } from '../componentes/Avisos.jsx';
+import { AvisoIA, consintio } from './Consentimiento.jsx';
 import { useConexion } from '../lib/conexion.jsx';
 import { useDictado, hayDictado } from '../lib/voz.js';
 import { ir, memoria } from '../lib/ruta.js';
@@ -13,7 +15,11 @@ export default function Inicio() {
   const [texto, setTexto] = useState(memoria.borrador || '');
   const cambiar = v => { setTexto(v); memoria.borrador = v; };
   const dictado = useDictado(t => setTexto(x => (memoria.borrador = (x ? x + ' ' : '') + t)));
-  useEffect(() => { memoria.sinPeligro = false; }, []);   // cada caso nuevo vuelve a preguntar si hay alguien en peligro
+  // Cada conversación nueva vuelve a preguntar si hay alguien en peligro y vuelve a pedir la autorización de la IA.
+  useEffect(() => { memoria.sinPeligro = false; memoria.consentimiento = null; }, []);
+  // El dictado manda el audio a Google: antes del primer dictado se muestra el aviso.
+  const [aviso, setAviso] = useState(false);
+  const dictar = () => (consintio() || dictado.escuchando ? dictado.alternar() : setAviso(true));
   const conTexto = !!texto.trim();
 
   const enviar = () => {
@@ -24,10 +30,18 @@ export default function Inicio() {
     ir('asistente');
   };
 
+  if (aviso) return (
+    <main className="pantalla">
+      <Encabezado />
+      <AvisoIA alAceptar={() => { setAviso(false); dictado.alternar(); }} alRechazar={() => setAviso(false)} />
+    </main>
+  );
+
   return (
     <main className="pantalla inicio">
       <Encabezado />
       <h1 className="saludo"><span>¡Hola! ¿Qué necesita resolver hoy?</span><BotonVoz texto={SALUDO} /></h1>
+      <AvisoPlazos />
       <div className="caja-relato tarjeta">
         {enLinea ? (<>
           <textarea
@@ -39,7 +53,7 @@ export default function Inicio() {
             onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) enviar(); }}
           />
           {conTexto && hayDictado && !dictado.escuchando && (
-            <button className="btn-mini mic" onClick={dictado.alternar} aria-label="Seguir contando con la voz"><Mic size={24} aria-hidden /></button>
+            <button className="btn-mini mic" onClick={dictar} aria-label="Seguir contando con la voz"><Mic size={24} aria-hidden /></button>
           )}
         </>) : (
           <div className="sin-conexion" role="status">
@@ -54,7 +68,7 @@ export default function Inicio() {
         ? <button className="btn-primario escuchando" onClick={dictado.alternar}><Mic size={24} aria-hidden /> Escuchando… toque para terminar</button>
         : conTexto || !hayDictado
           ? <button className="btn-primario" disabled={!conTexto} onClick={enviar}><ArrowUp size={24} aria-hidden /> Enviar</button>
-          : <button className="btn-primario" onClick={dictado.alternar}><Mic size={24} aria-hidden /> Contar con mi voz</button>)}
+          : <button className="btn-primario" onClick={dictar}><Mic size={24} aria-hidden /> Contar con mi voz</button>)}
 
       <h2 className="subtitulo">¿Prefiere elegir una opción?</h2>
       <OpcionesRapidas />

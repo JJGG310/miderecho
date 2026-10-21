@@ -4,7 +4,7 @@ import { Encabezado, Titulo, DichoDeOtraForma, LeyDesplegable, BotonVoz, ICONOS_
 import { useConexion } from '../lib/conexion.jsx';
 import { ir, memoria } from '../lib/ruta.js';
 
-// Tamaño de los cuadros (px): reserva el espacio antes de que carguen.
+// Proporción de los cuadros (ancho, alto): reserva el espacio antes de que carguen. Los WebP están al doble (unos 370 px).
 const TAM = { salud: [185, 229] };
 const lecturaCuadro = (q, n) => [`Cuadro ${n}: ${q.titulo}.`, q.texto, ...(q.dice || []).map(([quien, t]) => `${quien}: ${t}`),
   q.lista && `${q.listaTitulo} ${q.lista.join(' ')}`, q.pasos && `Pasos que puede seguir: ${q.pasos.join(' ')}`].filter(Boolean).join(' ');
@@ -15,7 +15,8 @@ export default function Derecho({ id }) {
   const { enLinea } = useConexion();
   if (!d) return <main className="pantalla"><Encabezado /><Titulo>No encontramos ese tema</Titulo></main>;
   const [ancho, alto] = TAM[d.id] || [185, 157];
-  const contar = () => { memoria.conversacion = [{ rol: 'persona', texto: d.consulta }]; ir('asistente'); };
+  // Conversación nueva: vuelve a preguntar si hay peligro y a pedir la autorización de la IA.
+  const contar = () => { Object.assign(memoria, { conversacion: [{ rol: 'persona', texto: d.consulta }], sinPeligro: false, consentimiento: null }); ir('asistente'); };
   const peticion = () => { memoria.orientacion = null; ir('documento', 'peticion'); };
 
   return (
@@ -28,7 +29,7 @@ export default function Derecho({ id }) {
           <li key={i}>
             <img src={`figma/comic-${d.id}-${i + 1}.webp`} alt="" width={ancho} height={alto} loading={i ? 'lazy' : 'eager'} />
             <div className="cuadro-texto">
-              <div className="fila-titulo"><h3><span className="numero">{i + 1}</span> {q.titulo}</h3><BotonVoz texto={lecturaCuadro(q, i + 1)} /></div>
+              <div className="fila-titulo"><h2><span className="numero">{i + 1}</span> {q.titulo}</h2><BotonVoz texto={lecturaCuadro(q, i + 1)} /></div>
               <p className="texto">{q.texto}</p>
               {q.dice?.map(([quien, t]) => <p key={quien} className="texto dialogo"><b>{quien}:</b> «{t}»</p>)}
               {q.lista && <><p className="texto"><b>{q.listaTitulo}</b></p><ul className="lista-simple">{q.lista.map(x => <li key={x}>{x}</li>)}</ul></>}

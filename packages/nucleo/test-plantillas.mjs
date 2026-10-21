@@ -34,7 +34,7 @@ assert.match(doc.tutela_salud, /derechos fundamentales a la salud y a la vida en
 assert.match(doc.tutela_salud, /Necesito un medicamento \(insulina\), que me ordenó mi médico tratante/);
 assert.match(doc.tutela_salud, /me respondió que no/);
 assert.match(doc.tutela_salud, /Medida provisional.*artículo 7 del Decreto 2591/s);
-assert.match(doc.tutela_salud, /no he presentado otra acción de tutela por los mismos hechos/);
+assert.match(doc.tutela_salud, /no he presentado otra acción de tutela respecto de los mismos hechos y derechos/);
 assert.match(doc.tutela_salud, /Orden o fórmula médica/);
 assert.match(doc.tutela_salud, /Vereda La Esperanza, Chaparral/);
 // Tutela general: sin medida provisional si no es urgente

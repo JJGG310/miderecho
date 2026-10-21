@@ -118,16 +118,24 @@ export function LeyDesplegable({ texto, normas, fuente, children }) {
   );
 }
 
-// Antes de borrar: la opción segura va primero y es la principal.
+// Antes de borrar: la opción segura va primero y es la principal. Al cerrar, el foco vuelve al botón que la abrió.
+// Si el navegador no tiene showModal, se muestra igual como capa fija (clase sin-modal).
 export function Confirmar({ titulo, children, si = 'Sí, borrar', alSi, alNo }) {
   const ref = useRef(null);
-  useEffect(() => { ref.current?.showModal?.(); }, []);
+  const [modal] = useState(() => typeof HTMLDialogElement !== 'undefined' && 'showModal' in HTMLDialogElement.prototype);
+  const [antes] = useState(() => document.activeElement);   // el botón que la abrió
+  useEffect(() => {
+    if (modal && !ref.current?.open) ref.current?.showModal();
+    ref.current?.querySelector('button')?.focus();   // "No, dejarlo"
+    return () => antes?.focus?.();
+  }, [modal, antes]);
   return (
-    <dialog ref={ref} className="confirmar" aria-labelledby="confirmar-titulo" onCancel={e => { e.preventDefault(); alNo(); }}>
+    <dialog ref={ref} className={`confirmar${modal ? '' : ' sin-modal'}`} open={!modal || undefined} aria-modal="true" aria-labelledby="confirmar-titulo"
+      onCancel={e => { e.preventDefault(); alNo(); }} onKeyDown={e => { if (!modal && e.key === 'Escape') alNo(); }}>
       <h2 id="confirmar-titulo">{titulo}</h2>
       {children && <p className="texto">{children}</p>}
-      <button className="btn-primario" onClick={alNo} autoFocus>No, dejarlo</button>
-      <button className="btn-peligro" onClick={alSi}>{si}</button>
+      <button type="button" className="btn-primario" onClick={alNo}>No, dejarlo</button>
+      <button type="button" className="btn-peligro" onClick={alSi}>{si}</button>
     </dialog>
   );
 }
