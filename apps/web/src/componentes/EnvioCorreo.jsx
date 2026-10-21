@@ -167,9 +167,10 @@ export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar, ajeno }) {
         : <p className="aviso-error">Para enviarlo necesitamos confirmar su celular con un código: vuelva y escríbalo en sus datos.</p>)}
 
       <label className="check"><input type="checkbox" checked={f.autoriza} onChange={e => set('autoriza', e.target.checked)} /> Autorizo a MiDerecho a enviar en mi nombre este documento completo a {nombreDestino}{para ? ` (${para.correo})` : ''}. Lleva mi nombre, mi cédula, mis datos de contacto y lo que conté{salud ? ', incluida información de mi salud' : ''}. El correo sale por Resend, un servicio de Estados Unidos que guarda una copia por 30 días. MiDerecho no lo guarda.</label>
+      {ajeno && !enLinea && <p className="nota-privacidad" role="status">Sin señal: el documento de su vecino no se guarda en este celular, así que no puede quedar esperando. Guárdelo o imprímalo en PDF, o envíelo cuando vuelva la señal.</p>}
       {estado === 'cola' && <p className="nota-privacidad" role="status">Sin señal: lo enviamos apenas vuelva. Mientras tanto queda guardado cifrado en este celular, con su clave; puede cerrar esta pantalla. En Mis casos verá cuándo salga.</p>}
       {estado?.error && <p className="aviso-error"><AlertTriangle size={14} aria-hidden /> {estado.error}. Puede intentarlo otra vez o entregarlo a mano.</p>}
-      <button className="btn-primario" disabled={!listo || estado === 'enviando' || estado === 'cola'} onClick={() => (enLinea ? enviar() : encolarCorreo())}>
+      <button className="btn-primario" disabled={!listo || estado === 'enviando' || estado === 'cola' || (ajeno && !enLinea)} onClick={() => (enLinea ? enviar() : !ajeno && encolarCorreo())}>
         {estado === 'enviando' ? <><Loader2 className="girar" size={18} aria-hidden /> Enviando…</> : estado?.error ? 'Enviar de nuevo' : !enLinea ? 'Enviar apenas vuelva la señal' : deMentira ? 'Probar el envío' : 'Enviar ahora'}
       </button>
       <button className="btn-secundario" onClick={() => { setAbierto(false); setEstado(null); alAbrir(null); }}>Mejor no lo envío</button>

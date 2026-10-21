@@ -100,6 +100,33 @@ assert.equal(r.orientacion.documento, 'peticion');
 assert.ok(r.orientacion.ley.texto, 'la ley sale del contenido fijo');
 assert.equal(pedidos.length, n, 'nada salió del celular');
 
+// ---------- 2b. la cola no duplica ni manda lo borrado ----------
+// Se bloquea con un envío en camino: el borrado cifrado no alcanza a guardarse, pero al abrir no sale otra vez.
+red = false;
+cola.encolar('llamar', { telefono: '3001112233', acepto: true });
+await almacen.esperar();
+red = true;
+const fetchReal = globalThis.fetch;
+globalThis.fetch = async (...x) => { almacen.bloquear(); return fetchReal(...x); };
+await cola.procesarEnvios();
+globalThis.fetch = fetchReal;
+const llamadas = pedidos.filter(p => p.ruta === 'llamar').length;
+await almacen.abrir('1234');
+await cola.procesarEnvios();
+assert.equal(pedidos.filter(p => p.ruta === 'llamar').length, llamadas, 'no se repite al abrir');
+assert.equal(almacen.envios().length, 0);
+// "Borrar todo" a mitad de la cola: lo que seguía no sale.
+red = false;
+cola.encolar('llamar', { telefono: '3001112233', acepto: true });
+cola.encolar('recordatorios', { codigo: 'BORR', canal: 'sms', fechas: [iso(dia(5))], telefono: '3001112233' });
+red = true;
+globalThis.fetch = async (...x) => { almacen.borrarTodo(); return fetchReal(...x); };
+const antesBorrar = pedidos.length;
+await cola.procesarEnvios();
+globalThis.fetch = fetchReal;
+assert.equal(pedidos.length, antesBorrar + 1, 'después de borrar todo no sale nada más');
+assert.ok(!pedidos.some(p => p.datos.codigo === 'BORR'));
+
 // ---------- 3. precache del service worker ----------
 const raiz = fileURLToPath(new URL('.', import.meta.url)), tmp = mkdtempSync(join(tmpdir(), 'miderecho-offline-'));
 try {

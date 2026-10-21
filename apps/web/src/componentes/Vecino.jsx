@@ -74,7 +74,8 @@ export function AvisoVecino({ alAceptar, alVolver }) {
 export const NotaVecino = () => <p className="nota-privacidad">Documento de su vecino: no se guarda nada en este celular.</p>;
 
 // Al final: cómo sigue el vecino su caso sin el celular del líder. quien: "La entidad debe responder", "El juez debe decidir"…
-export function SeguimientoVecino({ quien, plazo, enviado }) {
+export function SeguimientoVecino({ quien, plazo, enviado: k }) {
+  const enviado = k && !k.pendiente && k;   // un envío "por enviar" todavía no salió
   const venc = enviado && plazo ? iso(sumarHabiles(new Date(enviado.fecha), plazo)) : null;
   const pasos = [
     enviado ? 'Ya se envió. Anote el código del caso y el número de envío que salen arriba.'

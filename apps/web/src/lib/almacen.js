@@ -62,6 +62,7 @@ const unir = (a, b) => ({
 
 export const almacen = {
   hayClave: () => !!leer(CIFRADO),
+  abierta: () => !!clave,
   async crear(pin) {
     const s = crypto.getRandomValues(new Uint8Array(16));
     const k = await derivar(pin, s);

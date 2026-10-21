@@ -43,6 +43,13 @@ async function post(ruta, datos) {
   } catch { return { ok: false, error: 'No se pudo conectar con el servidor' }; }
 }
 
+// Ids ya enviados, sin cifrar (son números al azar): si la app se bloqueó o se recargó con un envío en camino, el borrado
+// cifrado pudo no guardarse; al abrir, lo que esté aquí se descarta en vez de salir otra vez.
+const SALIDOS = 'miderecho-envios-salidos';
+const salidos = () => { try { return JSON.parse(localStorage.getItem(SALIDOS)) || []; } catch { return []; } };
+const marcarSalido = id => { try { localStorage.setItem(SALIDOS, JSON.stringify([...salidos(), id].slice(-50))); } catch { /* sin almacenamiento */ } };
+const sigue = id => almacen.abierta() && almacen.envios().some(x => x.id === id);   // no se bloqueó ni se borró todo
+
 let corriendo = false;
 // Solo con la app abierta (sin la clave no se pueden leer) y con red. Lo que el servidor rechaza (4xx) no se reintenta;
 // sin conexión, 429 o error del servidor, queda para la próxima.
@@ -52,13 +59,16 @@ export async function procesarEnvios() {
   let enviados = 0;
   const fallas = [];
   try {
+    for (const id of salidos()) if (sigue(id)) almacen.quitarEnvio(id);
     for (const e of [...almacen.envios()]) {
       if (!hayRed()) break;
+      if (!sigue(e.id)) continue;
       const datos = tratar[e.ruta]?.antes ? tratar[e.ruta].antes(e.datos) : e.datos;
       if (!datos) { almacen.quitarEnvio(e.id); continue; }
       const r = await post(e.ruta, datos);
       const final = r.ok || (r.estado >= 400 && r.estado < 500 && r.estado !== 429);
       if (!final) continue;
+      marcarSalido(e.id);
       almacen.quitarEnvio(e.id);
       if (r.ok) { enviados++; tratar[e.ruta]?.listo?.(r, e); }
       else { fallas.push(r.error); tratar[e.ruta]?.fallo?.(r, e); }
