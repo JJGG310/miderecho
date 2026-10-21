@@ -1,3 +1,4 @@
+import './_alias.js';
 // Utilidades de las funciones de /api. El guion bajo evita que Vercel publique este archivo como función.
 // Sin claves de Twilio (o de ElevenLabs, o VAPID para push) todo queda en modo simulado (solo validación, sin límites);
 // sin Redis, los datos viven en memoria.
