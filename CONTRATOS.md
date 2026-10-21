@@ -27,10 +27,14 @@ window.miderecho = {
   // tipo: 'peticion' | 'tutela_salud' | 'tutela' | 'servicios_publicos' | ...
   // Devuelve el texto de la pantalla actual (título, cuerpo y opciones), para que el agente sepa dónde está.
   pantallaActual() -> { id, titulo, texto, opciones: [texto] },
-  // Toca una opción visible por su texto (como si la persona la tocara).
+  // Toca una opción visible por su texto exacto (como si la persona la tocara).
   elegir(textoOpcion) -> boolean,
+  // Protocolo de riesgo: descarta el borrador sin guardar nada y muestra la pantalla de ayuda.
+  riesgo(),
 };
 ```
+
+El agente de voz **no** puede tocar por la persona: "Sí, acepto", el "No" de la pregunta de peligro, ni botones de borrar, enviar o cerrar.
 
 ### 2. `plantillas.js` (lo crea Documentos)
 
@@ -49,8 +53,8 @@ Cliente del navegador para el servidor. Todas devuelven `Promise<{ ok, simulado,
 export function enviarSMS(telefono, texto)
 export function enviarWhatsApp(telefono, texto, { pdfUrl } = {})
 export function llamar(telefono, mensaje)                       // llamada con voz que lee el mensaje
-export function programarRecordatorios({ codigo, telefono, canal, fechas, mensaje })  // canal: 'sms' | 'whatsapp' | 'llamada'; fechas: ['YYYY-MM-DD']
-export function cancelarRecordatorios(codigo)
+export function programarRecordatorios({ codigo, telefono, canal, fechas, mensaje })  // canal: 'sms' | 'whatsapp' | 'llamada'; fechas: ['YYYY-MM-DD']; devuelve además { token }
+export function cancelarRecordatorios(codigo, token)          // el token secreto que devolvió programarRecordatorios
 ```
 
 ### 4. `agente-voz.js` (lo crea Agente de voz)
