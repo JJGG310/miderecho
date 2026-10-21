@@ -17,4 +17,8 @@ export const ir = (...partes) => { location.hash = '/' + partes.join('/'); };
 export const atras = () => (history.length > 1 ? history.back() : ir('inicio'));
 
 // Datos que pasan de una pantalla a otra sin quedar en la URL ni en el celular (solo en memoria).
-export const memoria = { conversacion: null, orientacion: null, borrador: null };
+// sinPeligro: ya respondió "No" a "¿Hay alguien en peligro?" en este caso. consentimiento: versión del aviso de la IA
+// que aceptó en esta conversación (no se guarda en el celular).
+export const memoria = { conversacion: null, orientacion: null, borrador: null, caso: null, sinPeligro: false, consentimiento: null };
+// Al bloquear o ante peligro: se descarta lo que puede tener datos del caso.
+export const olvidar = () => Object.assign(memoria, { conversacion: null, orientacion: null, borrador: null, caso: null, sinPeligro: false, consentimiento: null });

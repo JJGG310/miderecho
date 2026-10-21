@@ -9,7 +9,7 @@ import { deIso } from '@miderecho/nucleo';
 import { BotonVoz } from './comunes.jsx';
 import { almacen } from '../lib/almacen.js';   // solo para guardar el código del caso; los tokens van en lib/avisos.js
 import { ir } from '../lib/ruta.js';
-import { CANALES, avisosDe, fechasAviso, nuevoCodigo, programar, cancelarAvisos, plazosCercanos, llamadaAgendada, pedirLlamada, cancelarLlamada } from '../lib/avisos.js';
+import { CANALES, avisosDe, fechasAviso, nuevoCodigo, programar, cancelarAvisos, llamadaAgendada, pedirLlamada, cancelarLlamada } from '../lib/avisos.js';
 
 const corta = f => 'el ' + deIso(f).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 const enLista = xs => xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs.at(-1)}`;
@@ -46,15 +46,15 @@ export function resumenAvisos(caso) {
   return canales.length ? `Le recordaremos ${enLista(fechas)} por ${enLista(canales)}.` : `Abra Mis casos ${enLista(fechas)} para revisar su plazo.`;
 }
 
+// En Inicio, aunque la app esté bloqueada: solo dice que hay un plazo cerca, sin entidad ni tema (el celular puede ser compartido).
 export function AvisoPlazos() {
-  const lineas = plazosCercanos(almacen.casos());
-  if (!lineas.length) return null;
+  if (!almacen.plazoCerca()) return null;
+  const texto = 'Tiene un plazo que vence hoy o mañana. Abra Mis casos para revisarlo.';
   return (
-    <section className="tarjeta tierra" role="alert">
-      <AlertTriangle size={20} aria-hidden />
-      <h2>Plazos para revisar <BotonVoz texto={lineas.join(' ')} /></h2>
-      {lineas.map(l => <p key={l} className="suave">{l}</p>)}
-      <button className="btn-secundario" onClick={() => ir('casos')}>Ver mis casos</button>
+    <section className="tarjeta tierra" role="status">
+      <div className="fila-titulo"><h2><AlertTriangle size={22} aria-hidden /> Tiene un plazo cerca</h2><BotonVoz texto={texto} /></div>
+      <p className="texto">{texto}</p>
+      <button className="btn-secundario" onClick={() => ir('casos')}>Abrir Mis casos</button>
     </section>
   );
 }

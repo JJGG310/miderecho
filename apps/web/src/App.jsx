@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { ProveedorConexion } from './lib/conexion.jsx';
-import { useRuta } from './lib/ruta.js';
+import { useRuta, memoria } from './lib/ruta.js';
+import { almacen, useAbierta } from './lib/almacen.js';
+import { BarraNav } from './componentes/comunes.jsx';
 import Inicio from './pantallas/Inicio.jsx';
 import Derechos from './pantallas/Derechos.jsx';
 import Derecho from './pantallas/Derecho.jsx';
@@ -9,44 +11,50 @@ import Documento from './pantallas/Documento.jsx';
 import MisCasos from './pantallas/MisCasos.jsx';
 import Historial from './pantallas/Historial.jsx';
 import Perfil from './pantallas/Perfil.jsx';
+import Clave from './pantallas/Clave.jsx';
+import Peligro, { PreguntaPeligro } from './pantallas/Peligro.jsx';
+import Consentimiento, { consintio } from './pantallas/Consentimiento.jsx';
 // La política de datos se descarga solo cuando se abre (el service worker igual la guarda para usarla sin internet).
 const Politica = lazy(() => import('./pantallas/Politica.jsx'));
 
-// Pantalla de carga del Figma ("Bandeja de Entrada App").
-function Carga() {
-  return (
-    <main className="carga" aria-busy="true">
-      <img src="figma/logo-splash.png" alt="MiDerecho" width="183" height="183" />
-      <p>Tus derechos, explicados fácilmente</p>
-      <div className="spinner" aria-hidden>{Array.from({ length: 12 }, (_, i) => <span key={i} style={{ '--i': i }} />)}</div>
-      <p className="suave-carga">Cargando tu espacio...</p>
-    </main>
-  );
-}
+// Documentos nuevos: antes de empezar se pregunta si hay alguien en peligro.
+const NUEVOS = ['peticion', 'servicios_publicos', 'tutela_salud', 'tutela'];
 
-function Pantallas() {
-  const [p, a] = useRuta();
+function Pantallas({ p, a }) {
+  const abierta = useAbierta();   // Mis casos e Historial solo se ven con la clave
+  const [, seguir] = useState(0);
+  const preguntar = !memoria.sinPeligro && (p === 'asistente' || (p === 'documento' && NUEVOS.includes(a)));
+  if (preguntar) return <PreguntaPeligro alSeguir={() => seguir(n => n + 1)} />;
+  // Antes de mandar algo a la inteligencia artificial, el aviso y la autorización (una vez por conversación).
+  if (p === 'asistente' && !consintio()) return <Consentimiento alAceptar={() => seguir(n => n + 1)} />;
   switch (p) {
     case 'derechos': return a ? <Derecho id={a} /> : <Derechos />;
     case 'asistente': return <Asistente />;
     case 'documento': return <Documento tipo={a} key={a || 'menu'} />;
-    case 'casos': return <MisCasos />;
-    case 'historial': return <Historial />;
+    case 'casos': return abierta ? <MisCasos /> : <Clave />;
+    case 'historial': return abierta ? <Historial id={a} key={a || 'lista'} /> : <Clave />;
     case 'perfil': return <Perfil />;
+    case 'peligro': return <Peligro />;
     case 'politica': return <Suspense fallback={null}><Politica completa={a === 'completa'} key={a || 'historieta'} /></Suspense>;
     default: return <Inicio />;
   }
 }
 
 export default function App() {
-  const [cargando, setCargando] = useState(() => !sessionStorageGet('visto'));
+  const [p, a] = useRuta();
+  // Celular compartido: al salir de la app (otra app, pantalla apagada) se bloquean los casos y el historial.
   useEffect(() => {
-    if (!cargando) return;
-    const t = setTimeout(() => { setCargando(false); sessionStorageSet('visto', '1'); }, 1400);
-    return () => clearTimeout(t);
-  }, [cargando]);
-  return <ProveedorConexion><div className="marco">{cargando ? <Carga /> : <Pantallas />}</div></ProveedorConexion>;
+    const salir = () => { if (document.hidden) almacen.bloquear(); };
+    document.addEventListener('visibilitychange', salir);
+    return () => document.removeEventListener('visibilitychange', salir);
+  }, []);
+  return (
+    <ProveedorConexion>
+      <div className="marco">
+        <Pantallas p={p} a={a} />
+        {/* La historieta de la política trae su propia barra (Anterior / Siguiente). */}
+        {p !== 'politica' && <BarraNav actual={p} />}
+      </div>
+    </ProveedorConexion>
+  );
 }
-
-function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
-function sessionStorageSet(k, v) { try { sessionStorage.setItem(k, v); } catch { /* sin almacenamiento */ } }

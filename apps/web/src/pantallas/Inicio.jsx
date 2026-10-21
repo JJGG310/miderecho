@@ -1,70 +1,77 @@
-import { useState } from 'react';
-import { Paperclip, Mic, ArrowUp, WifiOff } from 'lucide-react';
-import { Encabezado, BarraNav, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
+import { useEffect, useState } from 'react';
+import { Mic, ArrowUp, WifiOff } from 'lucide-react';
+import { Encabezado, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
 import { AvisoPlazos } from '../componentes/Avisos.jsx';
+import { AvisoIA, consintio } from './Consentimiento.jsx';
 import { useConexion } from '../lib/conexion.jsx';
 import { useDictado, hayDictado } from '../lib/voz.js';
 import { ir, memoria } from '../lib/ruta.js';
 import { limpiar } from '@miderecho/nucleo/privacidad';
 
-const SALUDO = 'Hola. ¿Qué necesitas resolver hoy? No necesitas conocer términos legales. Cuéntanos qué está pasando.';
+const SALUDO = '¡Hola! ¿Qué necesita resolver hoy? No necesita saber de leyes. Cuéntenos qué está pasando: puede escribir o contarlo con su voz.';
 
 export default function Inicio() {
   const { enLinea } = useConexion();
   const [texto, setTexto] = useState(memoria.borrador || '');
-  const [adjunto, setAdjunto] = useState(null);
-  const dictado = useDictado(t => setTexto(x => (x ? x + ' ' : '') + t));
-
   const cambiar = v => { setTexto(v); memoria.borrador = v; };
+  const dictado = useDictado(t => setTexto(x => (memoria.borrador = (x ? x + ' ' : '') + t)));
+  // Cada conversación nueva vuelve a preguntar si hay alguien en peligro y vuelve a pedir la autorización de la IA.
+  useEffect(() => { memoria.sinPeligro = false; memoria.consentimiento = null; }, []);
+  // El dictado manda el audio a Google: antes del primer dictado se muestra el aviso.
+  const [aviso, setAviso] = useState(false);
+  const dictar = () => (consintio() || dictado.escuchando ? dictado.alternar() : setAviso(true));
+  const conTexto = !!texto.trim();
+
   const enviar = () => {
-    if (!texto.trim()) return;
+    if (!conTexto) return;
     // Lo que se muestra y se envía ya va sin cédulas, teléfonos ni correos.
     memoria.conversacion = [{ rol: 'persona', texto: limpiar(texto.trim()).texto }];
-    memoria.adjunto = adjunto;
     memoria.borrador = '';
     ir('asistente');
   };
 
-  return (
-    <main className="pantalla con-nav">
+  if (aviso) return (
+    <main className="pantalla">
       <Encabezado />
-      <h1 className="saludo">Hola! <span aria-hidden>👋🏼</span> <BotonVoz texto={SALUDO} /><br />Qué necesitas resolver hoy?</h1>
-      <p className="texto">No necesitas conocer términos legales. Cuéntanos qué está pasando.</p>
-      <AvisoPlazos />
+      <AvisoIA alAceptar={() => { setAviso(false); dictado.alternar(); }} alRechazar={() => setAviso(false)} />
+    </main>
+  );
 
+  return (
+    <main className="pantalla inicio">
+      <Encabezado />
+      <h1 className="saludo"><span>¡Hola! ¿Qué necesita resolver hoy?</span><BotonVoz texto={SALUDO} /></h1>
+      <AvisoPlazos />
       <div className="caja-relato tarjeta">
-        {enLinea ? (
+        {enLinea ? (<>
           <textarea
+            rows={3}
             value={texto}
             onChange={e => cambiar(e.target.value)}
-            placeholder="Escribe aquí lo que te está pasando..."
-            aria-label="Cuéntanos qué te está pasando"
+            placeholder="Cuéntenos aquí qué le está pasando. No necesita saber de leyes."
+            aria-label="Cuéntenos qué le está pasando"
             onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) enviar(); }}
           />
-        ) : (
+          {conTexto && hayDictado && !dictado.escuchando && (
+            <button className="btn-mini mic" onClick={dictar} aria-label="Seguir contando con la voz"><Mic size={24} aria-hidden /></button>
+          )}
+        </>) : (
           <div className="sin-conexion" role="status">
-            <p className="sin-conexion-titulo"><WifiOff size={18} aria-hidden /> Estás sin conexión</p>
-            <p>Cuando vuelvas a tener internet, podremos ayudarte a analizar tu situación. Mientras tanto, puedes consultar tus derechos y las búsquedas que hayas guardado</p>
+            <p className="sin-conexion-titulo"><WifiOff size={20} aria-hidden /> Está sin internet</p>
+            <p>Cuando vuelva la señal, el asistente podrá ayudarle. Mientras tanto puede crear un documento, conocer sus derechos y ver sus casos.</p>
           </div>
         )}
-        <div className="caja-acciones">
-          <label className={`adjuntar ${!enLinea ? 'apagado' : ''}`}>
-            <Paperclip size={16} aria-hidden />
-            <span>{adjunto ? adjunto : 'Adjuntar archivo'}</span>
-            <input type="file" accept="image/*,application/pdf" disabled={!enLinea} hidden onChange={e => setAdjunto(e.target.files?.[0]?.name || null)} />
-          </label>
-          <button className={`btn-mini mic ${dictado.escuchando ? 'escuchando' : ''}`} disabled={!enLinea || !hayDictado} onClick={dictado.alternar} aria-label={dictado.escuchando ? 'Parar el dictado' : 'Dictar con la voz'}>
-            <Mic size={16} />
-          </button>
-          <button className="btn-mini enviar" disabled={!enLinea || !texto.trim()} onClick={enviar} aria-label="Enviar">
-            <ArrowUp size={16} />
-          </button>
-        </div>
       </div>
 
-      <h2 className="subtitulo">Prefieres elegir una opción?</h2>
+      {/* Un solo botón grande: contar con la voz o, si ya escribió, enviar. */}
+      {enLinea && (dictado.escuchando
+        ? <button className="btn-primario escuchando" onClick={dictado.alternar}><Mic size={24} aria-hidden /> Escuchando… toque para terminar</button>
+        : conTexto || !hayDictado
+          ? <button className="btn-primario" disabled={!conTexto} onClick={enviar}><ArrowUp size={24} aria-hidden /> Enviar</button>
+          : <button className="btn-primario" onClick={dictar}><Mic size={24} aria-hidden /> Contar con mi voz</button>)}
+
+      <h2 className="subtitulo">¿Prefiere elegir una opción?</h2>
       <OpcionesRapidas />
-      <BarraNav actual="inicio" />
     </main>
   );
 }

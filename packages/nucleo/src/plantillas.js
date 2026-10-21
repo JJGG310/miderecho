@@ -1,12 +1,13 @@
 // Plantillas de los documentos: funciones puras, sin DOM. Se usan en el navegador y en Node (servidor, agente telefónico).
 // BORRADOR: un consultorio jurídico debe validarlas antes de usarlas con personas reales (investigacion/12, sección 6).
-import { NOMBRE, VERIFICADO, CORREO_SERVICIO, TEMAS, DERECHOS, SALUD_NIEGA, SERVICIOS, MOTIVOS_SP } from './contenido.js';
+import { NOMBRE, CORREO_SERVICIO, TEMAS, DERECHOS, SALUD_NIEGA, SERVICIOS, MOTIVOS_SP } from './contenido.js';
 import { deIso } from './plazos.js';
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fechaDoc = d => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 const linea = '______________________';
-const pie = `<p class="pie">Documento preparado con ${NOMBRE}. ${VERIFICADO}. No es asesoría de abogado.</p>`;
+// El aviso de borrador (VERIFICADO) se muestra en la app, no en el papel que llega al juez o a la entidad.
+const pie = `<p class="pie">Documento preparado con ${NOMBRE}.</p>`;
 // Datos de la persona: si los dio en el paso "Tus datos para el documento" van impresos; si no, queda la línea para llenar a mano.
 const accionante = c => `${esc(c.nombre || linea)}, C.C. ${esc(c.cedula || linea)}`;
 const dondeRecibe = c => `${c.direccion ? esc(c.direccion) : `Vereda ${esc(c.vereda)}, ${esc(c.municipio)}`}. Teléfono: ${esc(c.telefono || linea)}`;
@@ -82,7 +83,7 @@ function docTutelaPeticion(c) {
     <h3>Derecho vulnerado</h3><p>Derecho fundamental de petición (artículo 23 de la Constitución Política y Ley 1755 de 2015).</p>
     <h3>Pretensión</h3><p>Que se ordene a ${esc(c.entidad)} dar una respuesta de fondo, clara, precisa y congruente a mi petición dentro de las 48 horas siguientes a la notificación del fallo.</p>
     <h3>Pruebas</h3><p>${c.porCorreo ? 'Tengo copia del' : 'Copia del'} derecho de petición y de la constancia de entrega${c.modo === 'envio' ? ' (correo electrónico de envío)' : ''}${c.porCorreo ? `, ${aportare}` : '.'}</p>
-    <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela por los mismos hechos.</p>
+    <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela respecto de los mismos hechos y derechos.</p>
     <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
     ${firmaJudicial(c)}
     ${pie}
@@ -124,7 +125,7 @@ function docTutela(c, hoy) {
       `La presento en un tiempo razonable: la vulneración de ${derechos} continúa hoy.`,
     ])}
     <h3>Pruebas</h3>${c.pruebas?.length ? `<p>${c.porCorreo ? `Tengo copia de estos documentos ${aportare}` : 'Adjunto copia de:'}</p>${lista(c.pruebas)}` : `<p>No tengo documentos en este momento. Pido que se le solicite a ${esc(c.entidad)} la información de mi caso.</p>`}
-    <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela por los mismos hechos.</p>
+    <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela respecto de los mismos hechos y derechos.</p>
     <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
     ${firmaJudicial(c)}
     ${pie}

@@ -1,25 +1,38 @@
-import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb } from 'lucide-react';
-import { useConexion } from '../lib/conexion.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb, Lock, WifiOff, Scale } from 'lucide-react';
+import { iso, deIso } from '@miderecho/nucleo';
+import { useConexion, DEMO } from '../lib/conexion.jsx';
 import { useLectura } from '../lib/voz.js';
-import { ir, atras } from '../lib/ruta.js';
+import { almacen, useAbierta } from '../lib/almacen.js';
+import { ir, atras, olvidar } from '../lib/ruta.js';
 
 export const ICONOS_DERECHO = { salud: HeartPulse, trabajo: BriefcaseBusiness, vivienda: House, peticion: Landmark, igualdad: Users, otros: ShieldCheck };
 
-// Logo + interruptor de conexión (Figma: "image 2" y "Switch").
+// Logo del Figma en SVG (nítido en cualquier pantalla). La hoja hace de punto de la "i".
+function Logo() {
+  return (
+    <svg className="logo-svg" viewBox="0 0 124 28" role="img" aria-label="MiDerecho">
+      <text x="0" y="25" fill="#667757" textLength="28" lengthAdjust="spacingAndGlyphs">Mı</text>
+      <path d="M22.5 10.5c-.5-4.5 2-8.3 6.8-9.5.6 4.6-2 8.4-6.8 9.5z" fill="#c6a16d" />
+      <text x="31" y="25" fill="#1a3a27" textLength="93" lengthAdjust="spacingAndGlyphs">Derecho</text>
+    </svg>
+  );
+}
+
+// Logo, "Sin internet" (solo si de verdad no hay señal), ayuda si hay peligro y Bloquear (si la clave está puesta).
 export function Encabezado() {
-  const { enLinea, red, alternar } = useConexion();
+  const { enLinea, forzado, alternar } = useConexion();
+  const abierta = useAbierta();
+  const bloquear = () => { almacen.bloquear(); olvidar(); ir('inicio'); };
   return (
     <header className="encabezado">
-      <button className="logo" onClick={() => ir('inicio')} aria-label="MiDerecho, ir al inicio">
-        <img src="figma/logo.png" alt="MiDerecho" width="123" height="26" />
-      </button>
-      <button
-        className={`interruptor ${enLinea ? 'on' : ''}`}
-        role="switch"
-        aria-checked={enLinea}
-        aria-label={enLinea ? 'Con conexión. Tocar para usar sin conexión' : red ? 'Sin conexión (modo demo). Tocar para conectar' : 'Sin conexión'}
-        onClick={alternar}
-      ><span /></button>
+      <button className="logo" onClick={() => ir('inicio')} aria-label="MiDerecho, ir al inicio"><Logo /></button>
+      <div className="encabezado-acciones">
+        {!enLinea && <span className="chip-estado" role="status"><WifiOff size={18} aria-hidden /> Sin internet</span>}
+        {DEMO && <button className="interruptor" role="switch" aria-checked={!forzado} onClick={alternar}>Demo: {forzado ? 'sin' : 'con'} internet</button>}
+        <button className="btn-encabezado peligro" onClick={() => ir('peligro')}>¿En peligro?</button>
+        {abierta && <button className="btn-encabezado" onClick={bloquear} aria-label="Bloquear con la clave"><Lock size={18} aria-hidden /><span className="solo-ancho">Bloquear</span></button>}
+      </div>
     </header>
   );
 }
@@ -29,17 +42,17 @@ export function BotonVoz({ texto, className = '' }) {
   const Icono = leyendo ? VolumeX : Volume2;
   return (
     <button className={`btn-voz ${className}`} onClick={() => alternar(typeof texto === 'function' ? texto() : texto)} aria-label={leyendo ? 'Parar la lectura' : 'Escuchar'}>
-      <Icono size={16} />
+      <Icono size={22} aria-hidden />
     </button>
   );
 }
 
 // Título de pantalla: flecha atrás, ícono opcional, título y bocina.
-export function Titulo({ children, icono: Icono, volver = true, lectura }) {
+export function Titulo({ children, icono: Icono, volver = true, alVolver, lectura }) {
   return (
     <div className="titulo">
-      {volver && <button className="btn-atras" onClick={atras} aria-label="Volver"><ArrowLeft size={24} strokeWidth={2.5} /></button>}
-      {Icono && <Icono className="titulo-icono" size={24} strokeWidth={2.2} aria-hidden />}
+      {volver && <button className="btn-atras" onClick={alVolver || atras} aria-label="Volver"><ArrowLeft size={26} strokeWidth={2.5} aria-hidden /></button>}
+      {Icono && <Icono className="titulo-icono" size={26} strokeWidth={2.2} aria-hidden />}
       <h1>{children}</h1>
       {lectura && <BotonVoz texto={lectura} />}
     </div>
@@ -65,20 +78,19 @@ export function BarraNav({ actual }) {
   );
 }
 
-// "Prefieres elegir una opción?" — Crear un documento / Conocer mis derechos.
+// "¿Prefiere elegir una opción?" Los documentos se arman sin internet: las plantillas están en el celular.
 export function OpcionesRapidas() {
-  const { enLinea } = useConexion();
   return (
     <div className="opciones-rapidas">
-      <button className="tarjeta opcion" disabled={!enLinea} onClick={() => ir('documento')}>
-        <span className="opcion-cabeza"><FileMinus size={24} aria-hidden />{!enLinea && <span className="insignia">Deshabilitada</span>}</span>
+      <button className="tarjeta opcion" onClick={() => ir('documento')}>
+        <FileMinus size={26} aria-hidden />
         <b>Crear un documento</b>
-        <small>Peticiones y otros escritos</small>
+        <small>Gratis y sin abogado</small>
       </button>
       <button className="tarjeta opcion" onClick={() => ir('derechos')}>
-        <span className="opcion-cabeza"><BookOpen size={24} aria-hidden /></span>
+        <BookOpen size={26} aria-hidden />
         <b>Conocer mis derechos</b>
-        <small>Explicaciones sencillas</small>
+        <small>Con historietas</small>
       </button>
     </div>
   );
@@ -87,19 +99,67 @@ export function OpcionesRapidas() {
 export function DichoDeOtraForma({ children, titulo = 'Dicho de otra forma' }) {
   return (
     <section className="tarjeta oliva">
-      <Lightbulb size={20} strokeWidth={1.6} aria-hidden />
-      <h2>{titulo}</h2>
-      <p className="suave">{children}</p>
+      <div className="fila-titulo"><h2><Lightbulb size={22} strokeWidth={1.8} aria-hidden /> {titulo}</h2><BotonVoz texto={`${titulo}. ${children}`} /></div>
+      <p className="texto">{children}</p>
     </section>
   );
 }
 
-export function Normas({ children, fuente }) {
+// La ley va al final y plegada: primero lo que la persona entiende y puede hacer.
+export function LeyDesplegable({ texto, normas, fuente, children }) {
   return (
-    <section className="tarjeta tierra">
-      <h2>Normas para consultar</h2>
-      <p className="suave">{children}</p>
-      {fuente && <p className="suave">Fuente oficial: <a href={fuente.url} target="_blank" rel="noreferrer">{fuente.texto}</a></p>}
-    </section>
+    <details className="desplegable">
+      <summary><Scale size={22} aria-hidden /> Ver qué dice la ley</summary>
+      {children}
+      {texto && <p className="texto">{texto}</p>}
+      {normas && <p className="texto"><b>Normas para consultar:</b> {normas}</p>}
+      {fuente && <p className="texto"><a href={fuente.url} target="_blank" rel="noreferrer">{fuente.texto}</a> (necesita internet)</p>}
+    </details>
   );
 }
+
+// Antes de borrar: la opción segura va primero y es la principal. Al cerrar, el foco vuelve al botón que la abrió.
+// Si el navegador no tiene showModal, se muestra igual como capa fija (clase sin-modal).
+export function Confirmar({ titulo, children, si = 'Sí, borrar', alSi, alNo }) {
+  const ref = useRef(null);
+  const [modal] = useState(() => typeof HTMLDialogElement !== 'undefined' && 'showModal' in HTMLDialogElement.prototype);
+  const [antes] = useState(() => document.activeElement);   // el botón que la abrió
+  useEffect(() => {
+    if (modal && !ref.current?.open) ref.current?.showModal();
+    ref.current?.querySelector('button')?.focus();   // "No, dejarlo"
+    return () => antes?.focus?.();
+  }, [modal, antes]);
+  return (
+    <dialog ref={ref} className={`confirmar${modal ? '' : ' sin-modal'}`} open={!modal || undefined} aria-modal="true" aria-labelledby="confirmar-titulo"
+      onCancel={e => { e.preventDefault(); alNo(); }} onKeyDown={e => { if (!modal && e.key === 'Escape') alNo(); }}>
+      <h2 id="confirmar-titulo">{titulo}</h2>
+      {children && <p className="texto">{children}</p>}
+      <button type="button" className="btn-primario" onClick={alNo}>No, dejarlo</button>
+      <button type="button" className="btn-peligro" onClick={alSi}>{si}</button>
+    </dialog>
+  );
+}
+
+// Aviso corto que flota encima de la barra de abajo y se va solo.
+export function Aviso({ children, alCerrar }) {
+  const cerrar = useRef(alCerrar);
+  cerrar.current = alCerrar;
+  useEffect(() => { const t = setTimeout(() => cerrar.current(), 5000); return () => clearTimeout(t); }, []);
+  return <p className="aviso-flotante" role="status">{children}</p>;
+}
+
+// Selector de fecha (hoy o antes). hoy: la fecha de "hoy" (en modo demo puede ir adelantada).
+// Sin <form>: se usa dentro de otros formularios.
+export function ElegirFecha({ etiqueta, boton = 'Guardar la fecha', hoy = new Date(), alGuardar }) {
+  const max = iso(hoy);
+  const [f, setF] = useState(max);
+  return (
+    <div className="elegir-fecha">
+      <label className="campo"><span className="etiqueta">{etiqueta}</span><input type="date" value={f} max={max} onChange={e => setF(e.target.value)} /></label>
+      <button className="btn-secundario" type="button" disabled={!f || f > max} onClick={() => alGuardar(deIso(f))}>{boton}</button>
+    </div>
+  );
+}
+
+// Fecha para leer: "lunes 3 de noviembre".
+export const fechaLarga = s => deIso(s).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
