@@ -7,7 +7,7 @@
   "llm": {
     "modelo": "gemini-3.5-flash",
     "temperatura": 0,
-    "respaldo": "el que elija ElevenLabs",
+    "respaldo": "gemini-2.5-flash (fijo; el aviso de voz lo dice)",
     "herramientas_en_paralelo": false
   },
   "voz": {
@@ -73,7 +73,7 @@
       "parametros": {
         "texto": "lo que dijo la persona en una o dos frases, sin datos personales"
       },
-      "devuelve": "{ accion, mensaje, opciones, orientacion?: { tema, documento, documento_titulo, pasos, donde_acudir, aviso } } con el filtro de privacidad aplicado; o { ok: false, motivo }",
+      "devuelve": "{ accion, mensaje, opciones, orientacion?: { tema, documento, documento_titulo, frase (fija, FRASES de agenteVoz.js), ley (texto fijo de o.ley.texto), aviso } } con el filtro de privacidad aplicado; o { ok: false, motivo }. No lleva los pasos ni a dónde acudir que redacta el modelo: esos se leen en pantalla",
       "regla": "apps/web/src/lib/agenteVoz.js pasa el texto por limpiar() del núcleo antes del asistente y otra vez lo que vuelve antes del agente. Bloqueada con el protocolo de riesgo activo."
     },
     {
@@ -113,7 +113,7 @@
     "rafagas": false,
     "anulaciones_desde_el_cliente": "todas apagadas, incluido el modo solo texto",
     "comodines": "No funcionan: con '*.vercel.app' un preview fue rechazado ('Host ... is not allowed'). Cada preview que deba usar el agente se agrega con su alias fijo (miderecho-git-<rama>-jjgg310s-projects.vercel.app).",
-    "como": "El navegador pide POST /api/elevenlabs-sesion (prototipo/api/elevenlabs-sesion.js). La función, con ELEVENLABS_API_KEY de Vercel, pide a ElevenLabs GET /v1/convai/conversation/token?agent_id=… y devuelve { token }. apps/web/src/lib/agenteVoz.js abre la sesión con conversationToken (WebRTC). Solo atiende pedidos JSON del mismo sitio (Origin igual al host, Sec-Fetch-Site same-origin) y 10 por IP por hora."
+    "como": "El navegador pide POST /api/elevenlabs-sesion con { aviso: 'voz-v1' } (prototipo/api/elevenlabs-sesion.js). La función, con ELEVENLABS_API_KEY de Vercel, pide a ElevenLabs GET /v1/convai/conversation/token?agent_id=… y devuelve { token }. apps/web/src/lib/agenteVoz.js abre la sesión con conversationToken (WebRTC). Solo atiende pedidos JSON del mismo sitio (Origin igual al host, Sec-Fetch-Site same-origin), 10 por IP por hora y 60 al día en total, con contar() de _comun.js (Redis si está; si no, en memoria)."
   },
   "sdk_navegador": {
     "paquete": "@elevenlabs/client@1.26.0",
@@ -121,7 +121,7 @@
     "sri": "sha384-GAgUf1yx/dGreo/QTqLRVycB5sMQdsPKOmbMWlKec+fjMXzz+OXy4c6EfjB7Anb7",
     "conexion": "webrtc con conversationToken del servidor (Opus gasta muchos menos datos que el PCM del websocket)"
   },
-  "microfono": "En la v2 el modo voz reemplaza la caja de texto del Asistente: mientras dura la llamada no hay campos para escribir en esa pantalla, y al salir de ella (por ejemplo, al tocar 'Crear el documento', donde se piden nombre y cédula) la llamada termina.",
+  "microfono": "En la v2 el modo voz reemplaza la caja de texto del Asistente: mientras dura la llamada no hay campos para escribir en esa pantalla. La llamada termina al salir de la pantalla (por ejemplo, a 'Crear el documento', donde se piden nombre y cédula), al cerrar la app o al dejarla en segundo plano (visibilitychange).",
   "agente_de_pruebas": {
     "agent_id": "agent_3301m5e2amx2f9etc6k5hzwp7kct",
     "nombre": "MiDerecho (pruebas locales)",
@@ -130,5 +130,7 @@
   },
   "acciones_que_el_agente_no_tiene": "Aceptar avisos o autorizaciones, borrar, enviar SMS o WhatsApp, crear el documento, navegar o cerrar: no existe herramienta para eso (se filtra por acción, no por el texto de un botón). Las herramientas son un objeto congelado con solo las dos de arriba.",
   "herramientas_viejas": "iniciar_caso (tool_0401m5dg87gyehjv2qtzs5spj5ka), pantalla_actual (tool_7901m5dg8a2gfcvap8az4zayzs7a) y elegir_opcion (tool_4901m5dg8cc1f3htrvdbh95kbckd) siguen en el espacio de trabajo pero ya no están en ningún agente web.",
-  "contexto_inicial": "Al conectar, ModoVoz.jsx manda sendContextualUpdate con la última respuesta del asistente de la app y sus opciones (filtradas). No manda el relato de la persona."
+  "contexto_inicial": "Al conectar, ModoVoz.jsx manda sendContextualUpdate con la última respuesta del asistente de la app y sus opciones (filtradas). No manda el relato de la persona.",
+  "riesgo_por_transcripcion": "El SDK 1.26.0 entrega lo que dice la persona en onMessage({ source: 'user', role: 'user', message }) gracias a 'user_transcript' en client_events. agenteVoz.js aplica hayRiesgo() del núcleo a cada uno: si hay peligro, muestra la ayuda fija, bloquea contar_al_asistente y avisa al agente con sendContextualUpdate. La transcripción no se guarda ni se registra. Confirmado en vivo el 21-oct-2026 con el agente de pruebas y retención cero: el evento user_transcript llega al cliente (la retención cero solo afecta lo que ElevenLabs guarda).",
+  "aviso_de_voz": "ModoVoz.jsx, versión AVISO_VOZ = 'voz-v1'. /api/elevenlabs-sesion solo entrega la sesión con { aviso: 'voz-vN' } y cuenta aceptaciones por versión y día (sin IP ni datos); el celular guarda { version, fecha } en sus preferencias. Si cambia el texto, subir la versión."
 }

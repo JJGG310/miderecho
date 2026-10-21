@@ -24,12 +24,14 @@ export default function Asistente() {
   const [texto, setTexto] = useState('');
   const fin = useRef(null);
   const iniciado = useRef(false);
+  const enRiesgo = useRef(false);   // lo activa el modo voz: desde ahí no se muestra ni se guarda otra respuesta
   const dictado = useDictado(t => setTexto(x => (x ? x + ' ' : '') + t));
 
   const consultar = async lista => {
     setCargando(true); setError(null);
     try {
       const r = await preguntarAsistente(lista);
+      if (enRiesgo.current) return null;
       const nueva = [...lista, { rol: 'asistente', texto: r.mensaje }];
       setMensajes(nueva);
       memoria.conversacion = nueva;
@@ -60,7 +62,7 @@ export default function Asistente() {
     return consultar(lista);
   };
   // El agente de voz detectó peligro: la misma ayuda fija que manda el servidor, sin llamar a la IA.
-  const marcarRiesgo = () => setRespuesta({ accion: 'riesgo', riesgo: true, ayuda: AYUDA_RIESGO });
+  const marcarRiesgo = () => { enRiesgo.current = true; setRespuesta({ accion: 'riesgo', riesgo: true, ayuda: AYUDA_RIESGO }); };
 
   const riesgo = respuesta?.accion === 'riesgo';
   const orientado = respuesta?.accion === 'orientar';

@@ -8,9 +8,9 @@ Estado al 21-oct-2026. Rama `claude/voz-v2-avisos-c14c86`. Complementa `docs/com
 |---|---|---|
 | Modo voz | `apps/web/src/componentes/ModoVoz.jsx`, `apps/web/src/lib/agenteVoz.js`, cambios mínimos en `pantallas/Asistente.jsx` | Botón **Hablar en vez de escribir** en "Tu situación". Aviso claro antes del micrófono (con **Escuchar el aviso**), sesión firmada, estados ("Conectando…", "Te escucho", "El asistente está hablando…") y **Colgar**. `#/asistente/voz` lo abre directo, sin relato escrito |
 | Herramientas de cliente | `agenteVoz.js` | Solo dos: `contar_al_asistente` (entrega al asistente de la app lo que entendió y devuelve su respuesta) y `activar_protocolo_riesgo` |
-| Avisos | `prototipo/api/_avisos.js`, `sms.js`, `whatsapp.js` | `POST /api/sms` y `/api/whatsapp` con `{ plantilla, telefono, datos }`. Sin texto libre |
+| Avisos | `prototipo/api/_avisos.js` (`manejarAviso(canal)`), `sms.js`, `whatsapp.js` | `POST /api/sms` y `/api/whatsapp` con `{ plantilla, telefono, datos }`. Sin texto libre |
 | "Avísame por mensaje" | `apps/web/src/componentes/AvisoListo.jsx` | SMS o WhatsApp con "su documento quedó listo" y el código, con autorización expresa. **No está enlazado todavía** (ver §7) |
-| Herramientas del agente telefónico | `prototipo/api/_herramientas.js`, vía `/api/elevenlabs-sesion?herramienta=…` | `orientar`, `documento`, `plazo` y `aviso`, protegidas con secreto. Listas, sin registrar en ElevenLabs (`agente/telefono.md`, §5) |
+| Herramientas del agente telefónico | `prototipo/api/_herramientas.js` (`herramienta(req, res)`), hoy vía `/api/elevenlabs-sesion?herramienta=…` | `orientar`, `documento`, `plazo`, `aviso` y `riesgo`, protegidas con secreto. Listas, sin registrar en ElevenLabs (`agente/telefono.md`, §5) |
 | Pruebas | `prototipo/api/_test-agente-avisos.mjs` | Avisos, herramientas de servidor y de cliente, en modo simulado y con Twilio falso |
 
 Preview probado: https://miderecho-324h9g4a9-jjgg310s-projects.vercel.app (sin claves: voz "no disponible", avisos simulados, herramientas cerradas con 503).
@@ -19,11 +19,15 @@ Preview probado: https://miderecho-324h9g4a9-jjgg310s-projects.vercel.app (sin c
 
 - **El agente no puede aceptar, borrar, enviar ni cerrar nada.** No existe herramienta para eso: el objeto de herramientas está congelado con dos acciones (se filtra por acción, no por el texto de un botón). El aviso de voz y la autorización del SMS los toca la persona.
 - **Filtro de privacidad del núcleo** (`limpiar`) en los dos sentidos: lo que el agente manda al asistente y lo que vuelve al agente. Al conectar, el agente recibe la última respuesta del asistente, no el relato.
-- **Protocolo de riesgo:** si lo detecta el agente o si `/api/asistente` responde `riesgo`, la pantalla muestra la ayuda fija del núcleo (`AYUDA_RIESGO`) y no se manda nada más al asistente hasta colgar.
-- **La llamada vive en la pantalla del Asistente.** Al salir (por ejemplo, a "Crear el documento", donde se piden nombre y cédula) se cuelga. Mientras dura no hay caja de texto ni opciones para tocar, así el micrófono no oye a nadie dictando su cédula.
+- **Lo jurídico que dice el agente es fijo:** en la orientación recibe la frase aprobada del documento y "qué dice la ley" del contenido validado (`o.ley.texto`), y los lee textual. Los pasos que redacta el modelo se quedan en la pantalla (con su bocina).
+- **Protocolo de riesgo por regla fija:** la app aplica `hayRiesgo()` del núcleo a la transcripción de lo que dice la PERSONA (`onMessage` del SDK con `source: 'user'`), no al resumen del modelo. Si hay peligro, muestra la ayuda fija (`AYUDA_RIESGO`), bloquea `contar_al_asistente`, descarta una respuesta del asistente que llegue tarde y avisa al agente con `sendContextualUpdate`. También se activa si lo detecta el agente o si `/api/asistente` responde `riesgo`. La transcripción no se guarda ni se registra.
+  - **Confirmado con retención cero** (21-oct-2026): el agente tiene `user_transcript` en `client_events`, el SDK 1.26.0 lo entrega como `onMessage({ source: 'user', role: 'user', message })`, y una conversación de prueba con audio sintético contra el agente de pruebas (retención cero activa) recibió el evento. La retención cero solo cambia lo que ElevenLabs guarda, no lo que manda en vivo. Ojo: si la persona habla encima del agente, el comienzo de la frase se puede perder (la regla ve lo que el servicio transcribe).
+- **La llamada vive en la pantalla del Asistente.** Al salir (por ejemplo, a "Crear el documento", donde se piden nombre y cédula), al cerrar la app o al dejarla en segundo plano, se cuelga. Mientras dura no hay caja de texto ni opciones para tocar, así el micrófono no oye a nadie dictando su cédula.
+- **Aviso antes de hablar** (versión `voz-v1`): máquina y no abogado; para qué; ElevenLabs con Gemini (también el modelo de respaldo, fijado en `gemini-2.5-flash`) y Claude de Anthropic; que no se guarda la voz; que hablar de lo sensible es opcional; los derechos del titular (Ley 1581: conocer, actualizar, corregir, suprimir, revocar); enlace a `#/politica` (pantalla de la rama politica-comic). "Escuchar el aviso" no lee corchetes ("dato por completar"). **Prueba mínima de la aceptación:** el celular guarda `{ version, fecha }`; `/api/elevenlabs-sesion` solo da sesión con la versión aceptada y cuenta aceptaciones por versión y día, sin IP ni datos.
 - **Sin `ELEVENLABS_API_KEY`**, el modo voz dice "El asistente de voz no está disponible ahora. Puedes seguir escribiendo." y no descarga el SDK. La app sigue igual.
-- **Avisos sin texto libre:** plantillas cerradas en el servidor; cualquier clave distinta de `plantilla`, `telefono` y `datos` (por ejemplo `texto` o `pdfUrl`) da 400. Cada dato tiene formato cerrado (código `A-Z0-9` de 4 a 12, fecha `AAAA-MM-DD` real, hora `HH:MM`). Nada del caso: ni tema, ni entidad, ni nombre.
+- **Avisos sin texto libre:** plantillas cerradas en el servidor; cualquier clave distinta de `plantilla`, `telefono` y `datos` (por ejemplo `texto` o `pdfUrl`) da 400. Cada dato debe ser **texto** con formato exacto: código de 4 caracteres del generador de la app (`^[A-HJ-NP-Z2-9]{4}$`) y fecha `AAAA-MM-DD` que exista. Listas u objetos se rechazan. Nada del caso: ni tema, ni entidad, ni nombre.
 - **Se conservan las protecciones de `_comun.js`** (sin tocar ese archivo): solo celulares colombianos, `NUMEROS_DEMO` con falla cerrada, 60 por hora por red, 10 por día por número, `LIMITE_DIARIO`, solo JSON y solo desde el propio sitio. Logs sin número completo ni texto.
+- **Sesiones de voz limitadas con Redis:** `/api/elevenlabs-sesion` usa `contar()` de `_comun.js` (10 por IP por hora y 60 al día en total), compartido entre instancias cuando hay Upstash.
 
 ## 3. Plantillas
 
@@ -33,9 +37,8 @@ Sin tildes para caber en un SMS (GSM-7, menos de 160 caracteres):
 |---|---|---|
 | `documento_listo` | `codigo` | Su documento K7P2 quedo listo. Si necesita ayuda, vaya con su lider o a la Personeria. |
 | `plazo` | `codigo`, `fecha` | Caso K7P2: el plazo vence el 30-nov. Si la entidad no le ha respondido, avise a su lider. |
-| `llamada_agendada` | `fecha`, `hora` | A las 9:30 a. m. del 22-oct le llamaremos. Si usted no la pidio, ignore este mensaje. |
 
-Para cambiar un texto se edita `PLANTILLAS` en `_avisos.js` (y la plantilla aprobada de WhatsApp, si existe). El agente telefónico solo puede usar `documento_listo` y `plazo`.
+Para cambiar un texto se edita `PLANTILLAS` en `_avisos.js` (y la plantilla aprobada de WhatsApp, si existe). El agente telefónico usa las dos, pero la fecha de `plazo` la calcula el servidor. (`llamada_agendada` se quitó: nadie la usaba.)
 
 ## 4. Variables de entorno (Vercel, Production y Preview)
 
@@ -44,9 +47,9 @@ Para cambiar un texto se edita `PLANTILLAS` en `_avisos.js` (y la plantilla apro
 | `ELEVENLABS_API_KEY` | Clave de ElevenLabs con permiso para agentes. Solo la usa `/api/elevenlabs-sesion` para pedir el token de cada conversación | El modo voz dice "no disponible" |
 | `AGENTE_HERRAMIENTAS_SECRETO` | Secreto compartido de las herramientas del agente telefónico (32 caracteres o más). El mismo valor va en los *Secrets* de ElevenLabs y llega en la cabecera `x-miderecho-secreto` | Las herramientas responden 503 |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`, `TWILIO_WHATSAPP_FROM` | Las de `docs/comunicaciones.md` §7 | Modo simulado: `{ ok: true, simulado: true }` |
-| `NUMEROS_DEMO` | Celulares del equipo. Con Twilio real, solo se envía a ellos | Envíos reales cerrados (503), salvo `PERMITIR_ENVIO_ABIERTO=1` con Redis |
+| `NUMEROS_DEMO` | Celulares del equipo. Con Twilio real, solo se envía a ellos | Envíos reales cerrados (503), salvo `PERMITIR_ENVIO_ABIERTO=1` con Redis. El `aviso` del agente telefónico la exige siempre hasta atar el número a la llamada |
 | `LIMITE_DIARIO`, `PERMITIR_ENVIO_ABIERTO`, `CLAVE_CIFRADO`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Las de `docs/comunicaciones.md` §7. `CLAVE_CIFRADO` y Redis también cifran y guardan las variables del documento del agente telefónico (72 h) | Sin Redis, en memoria de cada instancia |
-| `TWILIO_WA_DOCUMENTO_LISTO`, `TWILIO_WA_PLAZO`, `TWILIO_WA_LLAMADA_AGENDADA` | `ContentSid` (`HX…`) de la plantilla aprobada por Meta de cada aviso, con las variables en el orden de la tabla de §3 (`{{1}}`, `{{2}}`). `TWILIO_WA_PLAZO` puede ser la misma de `TWILIO_WHATSAPP_PLANTILLA` | WhatsApp manda el texto como mensaje normal: sirve en el sandbox o dentro de las 24 h; fuera de ellas Twilio lo rechaza |
+| `TWILIO_WA_DOCUMENTO_LISTO`, `TWILIO_WA_PLAZO` | `ContentSid` (`HX…`) de la plantilla aprobada por Meta de cada aviso, con las variables en el orden de la tabla de §3 (`{{1}}`, `{{2}}`). `TWILIO_WA_PLAZO` puede ser la misma de `TWILIO_WHATSAPP_PLANTILLA` | WhatsApp manda el texto como mensaje normal: sirve en el sandbox o dentro de las 24 h; fuera de ellas Twilio lo rechaza |
 | `VITE_AGENTE_PRUEBAS` | **Solo desarrollo local**: id del agente de pruebas para usar la voz sin la clave. No existe en el build de producción | — |
 
 `DOMINIOS_PDF` ya no se usa: `/api/whatsapp` no manda PDF.
@@ -87,9 +90,10 @@ curl -s https://<preview>/api/sms -H 'Content-Type: application/json' -d '{"plan
 
 1. **Enlazar `AvisoListo`** donde se muestra el documento terminado (`Documento.jsx`, vista "Tu documento", o en Mis casos): `<AvisoListo codigo={caso.codigo} />`. Los casos de la v2 todavía no tienen código: al guardar el caso, agregar `codigo` con el mismo generador del prototipo (`prototipo/app.js`, `nuevoCodigo`: 4 caracteres de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`). Es el mismo código que usan los recordatorios.
 2. **Opcional:** un botón en Inicio hacia `#/asistente/voz` para hablar desde el principio.
-3. **`/api/sms` y `/api/whatsapp` cambiaron de interfaz.** Si alguna otra pieza los llamaba con `{ telefono, texto }`, ahora recibe 400. Actualicé las líneas de `sms` y `whatsapp` de `prototipo/api/_test-api.mjs` (era de Comunicaciones) y la sección de `docs/comunicaciones.md` que habla de texto libre y `pdfUrl` queda desactualizada.
-4. **Límite de funciones de Vercel:** las herramientas del agente van dentro de `/api/elevenlabs-sesion` para no sumar otra función. En `main` hay 10; con `correo.js`, `llamar.js` y `push.js` de las otras sesiones serían 13. El plan Hobby ha tenido un tope de 12 funciones por despliegue (no lo pude confirmar en la documentación actual): revisarlo en el primer despliegue con todo integrado. Si falla, `asistente.js`, `documento.js`, `plazo.js` y `salud.js` exportan la misma app de Express y se pueden unir en una.
-5. **Dominio del preview en el agente:** el agente principal solo abre desde los dominios de `agente/configuracion.json` (`acceso.dominios_permitidos`). Para probar la voz en un preview hay que agregar su alias fijo en ElevenLabs (Agent → Security → Allowlist) y tener `ELEVENLABS_API_KEY` en Preview.
+3. **Despachador:** los manejadores quedan como funciones exportadas en archivos con guion bajo: `manejarAviso('sms' | 'whatsapp')` en `_avisos.js` y `herramienta(req, res)` en `_herramientas.js`. El de la sesión es el `default` de `elevenlabs-sesion.js`.
+4. **`/api/sms` y `/api/whatsapp` cambiaron de interfaz.** Si alguna otra pieza los llamaba con `{ telefono, texto }`, ahora recibe 400. Actualicé las líneas de `sms` y `whatsapp` de `prototipo/api/_test-api.mjs` (era de Comunicaciones) y la sección de `docs/comunicaciones.md` que habla de texto libre y `pdfUrl` queda desactualizada.
+5. **Límite de funciones de Vercel:** las herramientas del agente van dentro de `/api/elevenlabs-sesion` para no sumar otra función. En `main` hay 10; con `correo.js`, `llamar.js` y `push.js` de las otras sesiones serían 13. El plan Hobby ha tenido un tope de 12 funciones por despliegue (no lo pude confirmar en la documentación actual): revisarlo en el primer despliegue con todo integrado. Si falla, `asistente.js`, `documento.js`, `plazo.js` y `salud.js` exportan la misma app de Express y se pueden unir en una.
+6. **Dominio del preview en el agente:** el agente principal solo abre desde los dominios de `agente/configuracion.json` (`acceso.dominios_permitidos`). Para probar la voz en un preview hay que agregar su alias fijo en ElevenLabs (Agent → Security → Allowlist) y tener `ELEVENLABS_API_KEY` en Preview.
 
 ## 8. Qué falta para usarlo en vivo
 
@@ -100,3 +104,4 @@ curl -s https://<preview>/api/sms -H 'Content-Type: application/json' -d '{"plan
 - Autorización: el SMS se manda solo con la casilla marcada, pero el servidor no guarda prueba de esa autorización (no guarda el número). Validar con abogado si basta para un envío único pedido por la persona.
 - Teléfono: registrar las herramientas en el agente "MiDerecho teléfono" (`agente/telefono.md` §5) y construir el canje del código.
 - Completar "[Organización], [contacto]" del aviso de voz y validar los textos con un consultorio jurídico.
+- El enlace `#/politica` del aviso funciona cuando se una la rama politica-comic.

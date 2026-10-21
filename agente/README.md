@@ -22,8 +22,10 @@ Las pruebas de las herramientas (de cliente y de servidor) y de los avisos está
 - El agente solo tiene **dos acciones**: `contar_al_asistente` y `activar_protocolo_riesgo` (objeto congelado en `agenteVoz.js`). No existe herramienta para aceptar avisos o autorizaciones, borrar, enviar SMS o WhatsApp, crear el documento ni cerrar: se filtra por acción, no por el texto de un botón (lección de la auditoría).
 - El consentimiento se acepta antes de abrir el micrófono, con botón "Escuchar el aviso" (voz del celular, sin internet).
 - Todo texto pasa por `limpiar()` del núcleo: lo que el agente manda al asistente y lo que vuelve al agente (cédulas, teléfonos y correos salen como `[número]`, `[teléfono]`, `[correo]`). Al conectar, el agente recibe la última respuesta del asistente, no el relato.
-- Con riesgo (lo detecta el agente o lo responde `/api/asistente`), la pantalla muestra la ayuda fija y `contar_al_asistente` queda bloqueada hasta colgar.
-- La llamada vive solo en la pantalla del Asistente: al salir (por ejemplo, a "Crear el documento", donde se piden nombre y cédula) se cuelga. Mientras dura, no hay caja de texto ni opciones para tocar.
+- En la orientación, el agente solo recibe lo jurídico fijo: la frase aprobada del documento y "qué dice la ley" del contenido validado. Los pasos que redacta el modelo se quedan en la pantalla.
+- **Riesgo por regla fija:** la app escucha la transcripción de lo que dice la persona (evento `user_transcript` del SDK, que llega con retención cero; confirmado en vivo) y le aplica `hayRiesgo()` del núcleo. Si hay peligro, muestra la ayuda, bloquea `contar_al_asistente` y avisa al agente, sin esperar al modelo. La transcripción no se guarda ni se registra. También se activa si lo detecta el agente o si `/api/asistente` responde `riesgo`.
+- La llamada vive solo en la pantalla del Asistente: al salir (por ejemplo, a "Crear el documento", donde se piden nombre y cédula), al cerrar la app o al dejarla en segundo plano, se cuelga. Mientras dura, no hay caja de texto ni opciones para tocar.
+- El aviso nombra a ElevenLabs, Gemini (también el modelo de respaldo, fijado en `gemini-2.5-flash`) y Claude; dice para qué, que hablar de lo sensible es opcional y los derechos del titular, y enlaza la política (`#/politica`). Se guarda prueba mínima de la aceptación (versión y fecha, sin datos).
 - Sin `ELEVENLABS_API_KEY` en el servidor, dice "El asistente de voz no está disponible ahora" y no descarga el SDK.
 
 ## Variables de entorno (Vercel)
