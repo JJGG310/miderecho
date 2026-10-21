@@ -32,7 +32,7 @@ export default function Asistente() {
       if (r.accion === 'orientar') { memoria.orientacion = r.orientacion; almacen.guardarOrientacion(r.orientacion); }
       if (almacen.pref('modoVoz', false)) hablar(r.mensaje);
     } catch (e) {
-      setError(navigator.onLine ? 'No pudimos hablar con el asistente. Intenta de nuevo.' : 'Se perdió la conexión. Tu relato no se envió.');
+      setError(navigator.onLine ? 'No pudimos hablar con el asistente. Intente de nuevo.' : 'Se perdió la conexión. Su relato no se envió.');
     } finally { setCargando(false); }
   };
 
@@ -44,7 +44,10 @@ export default function Asistente() {
     if (mensajes.at(-1).rol === 'persona' && enLinea) consultar(mensajes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => { fin.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [mensajes, cargando, respuesta]);
+  useEffect(() => {
+    const o = document.querySelector('.orientacion');   // al orientar, se ve desde el comienzo (no desde la ley, al final)
+    (o || fin.current)?.scrollIntoView({ behavior: 'smooth', block: o ? 'start' : 'end' });
+  }, [mensajes, cargando, respuesta]);
 
   const responder = t => {
     if (!t.trim() || cargando) return;
@@ -59,8 +62,8 @@ export default function Asistente() {
   return (
     <main className="pantalla">
       <Encabezado />
-      <Titulo lectura={() => mensajes.filter(m => m.rol === 'asistente').map(m => m.texto).join(' ')}>Tu situación</Titulo>
-      <p className="nota-privacidad">Antes de enviar, quitamos cédulas, teléfonos y correos. No guardamos lo que nos cuentas.</p>
+      <Titulo lectura={() => mensajes.filter(m => m.rol === 'asistente').map(m => m.texto).join(' ')}>Su situación</Titulo>
+      <p className="nota-privacidad">Antes de enviar, quitamos cédulas, teléfonos y correos. No guardamos lo que nos cuenta.</p>
 
       <div className="chat" aria-live="polite">
         {mensajes.map((m, i) => (
@@ -69,7 +72,7 @@ export default function Asistente() {
             {m.rol === 'asistente' && <BotonVoz texto={m.texto} className="voz-burbuja" />}
           </div>
         ))}
-        {cargando && <div className="burbuja asistente cargando"><Loader2 className="girar" size={16} aria-hidden /> Pensando…</div>}
+        {cargando && <div className="burbuja asistente cargando"><Loader2 className="girar" size={20} aria-hidden /> Pensando…</div>}
         {error && <div className="aviso-error" role="alert">{error} <button onClick={() => consultar(mensajes)}>Reintentar</button></div>}
       </div>
 
@@ -77,7 +80,8 @@ export default function Asistente() {
         <section className="tarjeta riesgo" role="alert">
           <ShieldAlert size={22} aria-hidden />
           <h2>A dónde acudir</h2>
-          <div dangerouslySetInnerHTML={{ __html: respuesta.ayuda }} />
+          <a className="btn-peligro lleno" href="tel:123">Llamar al 123</a>
+          <div className="texto" dangerouslySetInnerHTML={{ __html: respuesta.ayuda }} />
           <button className="btn-secundario" onClick={() => { memoria.conversacion = null; setMensajes([]); ir('inicio'); }}>Salir sin guardar</button>
         </section>
       )}
@@ -92,12 +96,11 @@ export default function Asistente() {
 
       {!riesgo && !orientado && (
         <div className="caja-respuesta tarjeta">
-          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={enLinea ? 'Escribe tu respuesta...' : 'Sin conexión'} disabled={!enLinea} rows={2} aria-label="Tu respuesta" />
-          <button className={`btn-mini mic ${dictado.escuchando ? 'escuchando' : ''}`} disabled={!enLinea || !hayDictado} onClick={dictado.alternar} aria-label="Dictar con la voz"><Mic size={16} /></button>
-          <button className="btn-mini enviar" disabled={!enLinea || !texto.trim() || cargando} onClick={() => responder(texto)} aria-label="Enviar"><ArrowUp size={16} /></button>
+          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={enLinea ? 'Escriba su respuesta…' : 'Sin internet'} disabled={!enLinea} rows={2} aria-label="Su respuesta" />
+          <button className={`btn-mini mic ${dictado.escuchando ? 'escuchando' : ''}`} disabled={!enLinea || !hayDictado} onClick={dictado.alternar} aria-label={dictado.escuchando ? 'Parar el dictado' : 'Dictar con la voz'}><Mic size={24} aria-hidden /></button>
+          <button className="btn-mini enviar" disabled={!enLinea || !texto.trim() || cargando} onClick={() => responder(texto)} aria-label="Enviar"><ArrowUp size={24} aria-hidden /></button>
         </div>
       )}
-      {respuesta?.fuente === 'simulada' && <p className="nota-modo">Modo básico (sin IA){respuesta.aviso ? `: ${respuesta.aviso}` : ''}</p>}
       <div ref={fin} />
     </main>
   );

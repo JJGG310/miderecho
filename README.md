@@ -38,15 +38,15 @@ Para probarlo en el celular: `npm run dev:web -- --host` y abrir la IP del compu
 ## Demo (guion corto)
 
 1. **Inicio** → escribir: *"La EPS no me da la cita con el cardiólogo hace dos meses, mi cédula es 1.144.555.666"*. La cédula sale como `[número]`: el filtro de privacidad la quita antes de enviarla.
-2. El asistente pregunta si es urgente → *"Sí, es urgente"* → orientación completa → **Crear el documento: Tutela de salud** → Municipio → **Ver el documento** → **Lo entregué hoy**.
-3. **Mis casos** → activar *Modo demo: adelantar un mes* → en una petición vencida aparece **"No: crear la tutela"**.
-4. Tocar el **interruptor** de arriba a la derecha → modo sin conexión: el asistente se apaga y **Conoce tus derechos** sigue funcionando completo, con historietas y voz.
+2. "¿Hay alguien en peligro?" → *No* → el asistente pregunta si es urgente → *"Sí, es urgente"* → orientación → **Crear el documento: Tutela de salud** (lo que salió del relato viene marcado con ✓; lo demás, vacío) → pasos 1 a 4 → **Ya lo entregué (elegir fecha)**.
+3. **Mis casos** → crear la clave de 4 números (casos e historial quedan cifrados). Abrir la app con `?demo=1` (por ejemplo `http://localhost:5173/?demo=1#/casos`) y activar *Modo demo: adelantar un mes* → en una petición vencida aparece **"No: crear la tutela"**; en una tutela, **"¿Qué decidió el juez?"** → *En contra* → plazo de impugnación en rojo.
+4. Con `?demo=1` aparece el botón **Demo: con internet** arriba: al tocarlo, el asistente se apaga y **Conozca sus derechos** y **Crear un documento** siguen funcionando, con historietas y voz. Sin `?demo`, la app solo dice "Sin internet" cuando de verdad no hay señal.
 5. **Riesgo:** *"Reclamé por la tierra y un grupo armado me amenazó"* → la app no pregunta más, no guarda nada y muestra a dónde acudir.
 
 ## Reglas que no se negocian (investigacion/06 y 12)
 
 - La app **no es abogado**. La IA conversa, entiende y clasifica. "Qué dice la ley", los plazos y los documentos salen de **contenido fijo** que valida un consultorio jurídico.
-- **Privacidad:** cédulas, teléfonos y correos se quitan en el celular y otra vez en el servidor antes de llegar a la IA. El servidor no guarda conversaciones. **Nombre, cédula, celular y dirección se piden solo al crear el documento** (paso "Tus datos para el documento"): van impresos en el papel, nunca a la IA ni al servidor, y no se guardan en el celular. También se pueden dejar en blanco y llenar a mano. En el celular solo quedan los casos (sin datos personales ni relato) y el tema de cada búsqueda. **Borrar todo** está en Perfil.
+- **Privacidad:** cédulas, teléfonos y correos se quitan en el celular y otra vez en el servidor antes de llegar a la IA. El servidor no guarda conversaciones. **Nombre, cédula, celular y dirección se piden solo al crear el documento** (paso "Tus datos para el documento"): van impresos en el papel, nunca a la IA ni al servidor, y no se guardan en el celular. También se pueden dejar en blanco y llenar a mano. En el celular solo quedan los casos (sin datos personales ni relato) y el tema de cada búsqueda, cifrados con una clave de 4 números (PBKDF2 + AES-GCM). **Borrar todo** está en Perfil.
 - **Protocolo de riesgo:** ante amenazas o grupos armados, corta antes de llamar a la IA y muestra a dónde acudir.
 
 ## Desplegar
@@ -58,7 +58,7 @@ El proyecto de Vercel existente (https://miderecho-two.vercel.app) tiene como ra
 
 ## Pendientes
 
-- **Imágenes del Figma en alta resolución:** las de `apps/web/public/figma/` (logo y las 6 historietas) salieron de capturas a 1x. Valentina: exportarlas a 2x o 3x con el mismo nombre y reemplazarlas.
+- **Historietas en alta resolución:** `apps/web/public/figma/comic-{tema}-{1..4}.webp` son los 4 cuadros de cada historieta, cortados de capturas a 1x (~185 px de ancho). Valentina: exportar cada cuadro a 2x (unos 700 px, WebP de 50 KB o menos) con el mismo nombre. El texto de cada cuadro está en `packages/nucleo/src/derechos.js` (`cuadros`).
 - Íconos: se usan los de Lucide (los mismos trazos del Figma) en lugar de las imágenes, para que se vean nítidos.
 - Validación jurídica de plantillas, plazos y textos (lista en `investigacion/00`, sección 12.5).
-- El Figma usa "tú" y las plantillas heredadas del prototipo usan "usted": unificar.
+- La app usa "usted". Falta pasar a "usted" los mensajes del asistente (`apps/api`: prompt y modo básico).

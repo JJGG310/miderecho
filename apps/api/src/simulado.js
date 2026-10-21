@@ -24,7 +24,7 @@ export function responderSimulado(mensajes) {
       pasos: ['Busca la factura con el cobro que no reconoces (solo se reclaman las de los últimos 5 meses).', 'Presenta el reclamo a la empresa con la app y guarda la copia con la fecha.', 'Espera la respuesta: la empresa tiene 15 días hábiles.', 'Si no te responde a tiempo, la ley entiende que te dio la razón.'],
       donde_acudir: ['Oficina de atención de la empresa', 'Personería del municipio', 'Superintendencia de Servicios Públicos (Superservicios)'],
       buscar_abogado_si: 'Si la empresa niega el reclamo, tienes solo 5 días hábiles para presentar el recurso.',
-      datos: { servicio, motivo: 'cobro', desde: 'hace un mes' },
+      datos: { servicio, motivo: 'cobro' },
     }, 'Entiendo: te están cobrando de más en el servicio. Para esto sirve un reclamo a la empresa de servicios públicos, es gratis y no necesitas abogado.');
   }
 
@@ -39,7 +39,7 @@ export function responderSimulado(mensajes) {
       pasos: ['Haz el derecho de petición a la alcaldía con la app.', 'Envíalo o entrégalo y pide el número de radicado.', 'Cuenta 15 días hábiles: la app te avisa cuándo vence.', 'Si no te responden, la app te prepara la tutela.'],
       donde_acudir: ['Alcaldía del municipio', 'Personería del municipio'],
       buscar_abogado_si: 'Si después de la tutela no cumplen, pide orientación en la Personería o un consultorio jurídico.',
-      datos: { temaId, desde: 'hace un mes' },
+      datos: { temaId },
     }, 'Entiendo. Para esto sirve un derecho de petición a la alcaldía: es gratis, no necesitas abogado y te deben contestar por escrito.');
   }
 
@@ -61,7 +61,7 @@ export function responderSimulado(mensajes) {
       pasos: ['Reúne la orden médica y la respuesta de la EPS (o el número de tu solicitud).', 'Haz la tutela de salud con la app y pide medida provisional.', 'Llévala al juzgado del municipio o preséntala en Tutela en línea.', 'Di que es urgente al entregarla.'],
       donde_acudir: ['Juzgado del municipio (reparto)', 'Personería del municipio', 'Superintendencia de Salud'],
       buscar_abogado_si: 'Si el juez niega la tutela, tienes solo 3 días hábiles para impugnar.',
-      datos: { que, desde: 'hace un mes', urgente: true },
+      datos: { que, urgente: true },
     } : {
       tema: 'La EPS no da la atención', derecho: 'salud', documento: 'peticion',
       resumen: 'La EPS no te ha dado la cita, el medicamento o la autorización que necesitas.',
@@ -70,7 +70,7 @@ export function responderSimulado(mensajes) {
       pasos: ['Haz el derecho de petición a la EPS con la app.', 'Guarda la copia y el número de radicado.', 'Cuenta 15 días hábiles: la app te avisa.', 'Si no te responden o se pone urgente, la app te prepara la tutela de salud.'],
       donde_acudir: ['Oficina de la EPS', 'Personería del municipio', 'Superintendencia de Salud'],
       buscar_abogado_si: 'Si tu salud empeora mientras esperas, no esperes los 15 días: haz la tutela de salud.',
-      datos: { temaId: 'salud', que, desde: 'hace un mes' },
+      datos: { temaId: 'salud', que },
     }, urgente ? 'Entiendo, es urgente. Para esto sirve una tutela de salud: le pides a un juez que proteja tu salud, y no necesitas abogado.' : 'Entiendo. Para empezar, sirve un derecho de petición a la EPS: es gratis y te deben contestar por escrito.');
   }
 
@@ -96,7 +96,7 @@ export function responderSimulado(mensajes) {
       pasos: ['Guarda la carta venta, recibos y todo lo que muestre que vives y trabajas el predio.', 'Haz un derecho de petición a la Agencia Nacional de Tierras con la app.', 'Nadie puede cobrarte por este trámite: si te piden plata, es una estafa.'],
       donde_acudir: ['Agencia Nacional de Tierras (ANT)', 'Consultorio jurídico'],
       buscar_abogado_si: 'Si hay otra persona que dice ser dueña, busca un consultorio jurídico.',
-      datos: { temaId: 'tierras', desde: 'hace más de un año' },
+      datos: { temaId: 'tierras' },
     }, 'Entiendo. Puedes empezar con un derecho de petición a la Agencia Nacional de Tierras.');
   }
 

@@ -1,12 +1,13 @@
 // Plantillas de los documentos: funciones puras, sin DOM. Se usan en el navegador y en Node (servidor, agente telefónico).
 // BORRADOR: un consultorio jurídico debe validarlas antes de usarlas con personas reales (investigacion/12, sección 6).
-import { NOMBRE, VERIFICADO, CORREO_SERVICIO, TEMAS, DERECHOS, SALUD_NIEGA, SERVICIOS, MOTIVOS_SP } from './contenido.js';
+import { NOMBRE, CORREO_SERVICIO, TEMAS, DERECHOS, SALUD_NIEGA, SERVICIOS, MOTIVOS_SP } from './contenido.js';
 import { deIso } from './plazos.js';
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fechaDoc = d => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 const linea = '______________________';
-const pie = `<p class="pie">Documento preparado con ${NOMBRE}. ${VERIFICADO}. No es asesoría de abogado.</p>`;
+// El aviso de borrador (VERIFICADO) se muestra en la app, no en el papel que llega al juez o a la entidad.
+const pie = `<p class="pie">Documento preparado con ${NOMBRE}.</p>`;
 // Datos de la persona: si los dio en el paso "Tus datos para el documento" van impresos; si no, queda la línea para llenar a mano.
 const accionante = c => `${esc(c.nombre || linea)}, C.C. ${esc(c.cedula || linea)}`;
 const dondeRecibe = c => `${c.direccion ? esc(c.direccion) : `Vereda ${esc(c.vereda)}, ${esc(c.municipio)}`}. Teléfono: ${esc(c.telefono || linea)}`;

@@ -6,14 +6,15 @@ export const VERIFICADO = 'Plantilla en borrador, pendiente de validación jurí
 export const CORREO_SERVICIO = 'respuestas@miderecho.example'; // buzón del servicio (simulado)
 
 export const AVISO = `<p><b>${NOMBRE}</b> es un servicio gratuito que le ayuda a armar documentos como el derecho de petición, la tutela o un reclamo. Es información general y plantillas: <b>no somos abogados</b> ni reemplazamos a uno.</p>
-<p>No le vamos a pedir nada sensible (si es víctima, su etnia, sus creencias o a qué organización pertenece). Lo que cuente sobre su salud solo va en el documento y no se guarda. Solo si usted quiere que enviemos el documento le pediremos nombre y cédula, y se borran apenas se envía.</p>
-<p>Puede borrar todo cuando quiera con el botón <b>Borrar todo</b>. Responsable: [Organización], [contacto].</p>`;
+<p>No le vamos a pedir nada sensible (si es víctima, su etnia, sus creencias o a qué organización pertenece). Lo que le cuenta al asistente sale del celular sin cédulas, teléfonos ni correos, y no lo guardamos.</p>
+<p>Su nombre, su cédula y su celular solo se piden al crear un documento: van impresos en el papel, no se envían a la inteligencia artificial y no se guardan en el celular. Si prefiere, los escribe a mano.</p>
+<p>En este celular solo quedan sus casos (sin datos personales) y los temas de sus búsquedas, protegidos con su clave de 4 números. Puede borrarlo todo cuando quiera con el botón <b>Borrar todo</b>.</p>`;
 
 export const AYUDA_RIESGO = `<p>Aquí no vamos a guardar nada de lo que nos contó.</p>
 <ul>
-  <li>Si hay peligro ahora: <b>llame al 123</b>.</li>
+  <li>Si hay peligro ahora: <a href="tel:123">llame al 123</a>.</li>
   <li>La <b>Personería</b> de su municipio o la <b>Defensoría del Pueblo</b> pueden activar rutas de protección.</li>
-  <li><b>Programa Somos Defensores</b>: proteccion@somosdefensores.org</li>
+  <li><b>Programa Somos Defensores</b>: <a href="mailto:proteccion@somosdefensores.org">proteccion@somosdefensores.org</a></li>
 </ul>
 <p class="nota">Prototipo: números y rutas por confirmar con las entidades aliadas.</p>`;
 

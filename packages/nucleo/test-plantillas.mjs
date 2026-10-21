@@ -18,13 +18,13 @@ const ejemplos = {
   recurso_servicios: { ...base, tipo: 'recurso_servicios', servicio: 'energia', entidad: 'Electrificadora', notif: '2026-11-09', razones: [], palabras: 'El medidor está dañado.', modo: 'mano' },
 };
 
-// Hay plantilla para cada tipo y cada documento sale completo, con la marca de borrador y sin datos sin llenar.
+// Hay plantilla para cada tipo y cada documento sale completo, sin datos sin llenar. La marca de borrador va en la app, no en el papel.
 assert.deepEqual(Object.keys(ejemplos).sort(), Object.keys(TIPOS).sort());
 const doc = {};
 for (const [tipo, datos] of Object.entries(ejemplos)) {
   doc[tipo] = generarDocumento(tipo, datos, HOY);
   for (const malo of ['undefined', 'NaN', 'Invalid Date', '[object Object]', '{']) assert.ok(!doc[tipo].includes(malo), `${tipo}: contiene ${malo}`);
-  assert.ok(doc[tipo].includes(VERIFICADO), `${tipo}: falta la marca de validación jurídica`);
+  assert.ok(!doc[tipo].includes(VERIFICADO), `${tipo}: la marca de borrador no debe salir en el papel`);
   assert.ok(!/soy abogad/i.test(doc[tipo]), tipo);
 }
 assert.ok(doc.tutela_salud.includes('EPS &lt;Sur&gt;') && !doc.tutela_salud.includes('<Sur>'), 'escapa el HTML');

@@ -9,11 +9,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['figma/*.png', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'MiDerecho',
         short_name: 'MiDerecho',
-        description: 'Tus derechos, explicados fácilmente. Funciona sin internet.',
+        description: 'Sus derechos, explicados fácilmente. Funciona sin internet.',
         lang: 'es-CO',
         start_url: '/',
         display: 'standalone',
@@ -25,9 +25,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Todo el modo sin conexión (textos, cómics, fuentes) queda guardado en el celular.
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
-        globIgnores: ['**/*cyrillic*', '**/*vietnamese*'],
+        // Todo el modo sin conexión (textos y cuadros de las historietas, ~230 KB) queda guardado en el celular.
+        globPatterns: ['**/*.{js,css,html,png,svg,webp}'],
         navigateFallbackDenylist: [/^\/api\//],
       },
     }),
