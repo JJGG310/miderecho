@@ -1,5 +1,6 @@
 MiDerecho: base de conocimiento del asistente de voz
 Borrador pendiente de validación por un consultorio jurídico. Es información general, no asesoría. Sin datos personales.
+El asistente dice estas frases casi textuales y solo si se las preguntan. No las amplía, no las aplica al caso concreto y no saca conclusiones sobre lo que va a pasar.
 
 QUÉ ES MIDERECHO
 - Una app gratuita que ayuda a armar documentos para pedirle cosas a las entidades y proteger derechos, sin abogado y sin viajar.
@@ -41,13 +42,13 @@ DESPUÉS DE LA TUTELA
 RECLAMO A LA EMPRESA DE SERVICIOS PÚBLICOS (AGUA, LUZ, GAS)
 - Sirve para cobros injustos, cortes o daños.
 - Se presenta ante la empresa y no necesita abogado.
-- Si la empresa no responde en quince días hábiles, el reclamo se entiende a favor del usuario. Eso se llama silencio administrativo positivo.
+- Si la empresa no responde en quince días hábiles, el reclamo se entiende a favor del usuario (silencio administrativo positivo). Pida orientación en la Personería para hacerlo valer.
 - Si la empresa lo niega, hay cinco días hábiles para presentar el recurso. Después se puede seguir ante la Superintendencia de Servicios Públicos.
 
 LA ESCALERA: QUÉ SIGUE DESPUÉS DE CADA DOCUMENTO
 - Derecho de petición. Si no responden o responden sin fondo: tutela por petición. Si la niegan: impugnación en tres días. Si no cumplen: desacato.
 - Problema de salud urgente: tutela de salud. Después, impugnación o desacato.
-- Factura o corte de agua o luz: reclamo a la empresa. Si no responden en quince días hábiles, gana el usuario. Si lo niegan: recurso en cinco días hábiles.
+- Factura o corte de agua o luz: reclamo a la empresa. Si no responden en quince días hábiles, se entiende a favor del usuario; pida orientación para hacerlo valer. Si lo niegan: recurso en cinco días hábiles.
 - MiDerecho guarda los plazos en el celular y avisa qué sigue.
 
 DÓNDE BUSCAR AYUDA GRATIS

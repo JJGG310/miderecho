@@ -1,21 +1,32 @@
 # Agente de voz de MiDerecho
 
-Agente conversacional en ElevenLabs que habla con la persona y maneja la app a través de `window.miderecho` (CONTRATOS.md §1 y §4). La IA conversa, entiende y clasifica; lo jurídico sale de las plantillas de la app.
+Agente conversacional en ElevenLabs que habla con la persona y maneja la app a través de `window.miderecho` (CONTRATOS.md §1 y §4). La IA conversa, entiende y clasifica; lo jurídico sale de las plantillas de la app y de unas pocas frases fijas.
 
-- **Agente:** `agent_8101m5dg7s5se9trrst6fjpvz52d` ("MiDerecho", español). El id es público; no hay claves en el repo.
+- **Agente:** `agent_8101m5dg7s5se9trrst6fjpvz52d` ("MiDerecho"). Exige **sesión firmada**: solo se abre con el token que entrega `prototipo/api/elevenlabs-sesion.js`.
+- **Agente de pruebas:** `agent_3301m5e2amx2f9etc6k5hzwp7kct` ("MiDerecho (pruebas locales)"). Igual al principal, pero sin sesión firmada, solo `localhost`/`127.0.0.1`, con modo texto y 20 conversaciones al día. Si se cambia el principal, cambiar también este.
 - **Módulo del navegador:** `prototipo/agente-voz.js`.
 
 | Archivo | Qué es |
 |---|---|
-| `prompt.md` | Prompt del sistema (diseño seguro del informe 11, protocolo de riesgo, listas cerradas) |
+| `prompt.md` | Prompt del sistema: protocolo de riesgo, frases fijas, botones que solo toca la persona, listas cerradas |
 | `conocimiento.md` | Base de conocimiento en lenguaje claro (borrador sin validar por un consultorio jurídico) |
-| `configuracion.json` | Todo lo demás para recrearlo: primer mensaje, voz, herramientas con ids, guardrails, privacidad, dominios, límites, SDK |
+| `configuracion.json` | Todo lo demás para recrearlo: primer mensaje, voz, herramientas con ids, guardrails, privacidad, acceso, límites, SDK |
 | `telefono.md` | Cómo pasar este agente a una línea de Twilio (solo preparado) |
-| `prueba.html` | Página de prueba con un `window.miderecho` falso. **No se publica** |
+| `prueba.html` | Página de prueba con un `window.miderecho` falso que imita `app.js`. **No se publica** |
+| `test-sesion.mjs` | Prueba de la función de sesión sin red: `node agente/test-sesion.mjs` |
 
-## Recrearlo
+## Lo que el módulo hace por su cuenta (no depende del modelo)
 
-Con el conector de ElevenLabs (o el panel): crear el agente con `prompt.md`, el primer mensaje y la voz de `configuracion.json`; crear la base de conocimiento con `conocimiento.md` en modo *prompt*; crear las tres herramientas de cliente con los parámetros de `configuracion.json`; y copiar guardrails, privacidad, dominios, límites y turnos. Si cambia el id, actualizar `AGENTE` en `prototipo/agente-voz.js`.
+- El agente no puede tocar nada en la pantalla del aviso de privacidad, ni el "No" de la pregunta de peligro, ni botones de enviar, borrar, cerrar u olvidar. Solo acepta el texto exacto de una opción visible.
+- Al ver "Esto es serio…" o al llamar `activar_protocolo_riesgo`, bloquea todas las herramientas salvo "Salir" hasta colgar. Usa `window.miderecho.riesgo()` si existe.
+- Apaga el micrófono mientras la pantalla tenga campos para escribir y lo reabre con "Ya terminé" o al cambiar de pantalla.
+- Tapa números de 6 o más cifras de lo que lee de la pantalla.
+
+## Variables de entorno (Vercel)
+
+| Variable | Para qué |
+|---|---|
+| `ELEVENLABS_API_KEY` | Clave de ElevenLabs con permiso para agentes conversacionales. La usa solo `api/elevenlabs-sesion.js` para pedir el token de cada conversación. **Nunca en el repositorio.** Sin ella la función responde 503 y el botón dice "El asistente no está disponible" (la app sigue funcionando) |
 
 ## Probarlo
 
@@ -25,18 +36,19 @@ Desde la raíz del repo:
 python3 -m http.server 8000
 ```
 
-y abrir `http://localhost:8000/agente/prueba.html`. La caja de texto conversa con el agente real sin micrófono y la lista muestra cada llamada a `window.miderecho`.
+y abrir `http://localhost:8000/agente/prueba.html`. La caja de texto conversa con el agente de pruebas sin micrófono y la lista muestra cada llamada a `window.miderecho`. Para probar el agente principal con voz hace falta `vercel dev` (o un preview) con `ELEVENLABS_API_KEY`.
 
 ## Integración (sesión principal)
 
 - `prototipo/index.html`, después de `app.js`: `<script type="module" src="agente-voz.js"></script>`
-- `prototipo/sw.js`: agregar `'agente-voz.js'` a `ARCHIVOS` y subir `CACHE` (por ejemplo `miderecho-v4`). El SDK viene del CDN solo cuando la persona acepta hablar; el service worker no lo guarda.
-- Lo que el módulo espera de Documentos: `tipo` ∈ peticion, tutela_salud, tutela, servicios_publicos; `tema` = ids de `TEMAS`; `entidad` ∈ alcaldia, eps, ant; `desde` = textos de `DESDE`; que la opción del aviso siga empezando por "Sí, acepto" (el agente no puede tocarla). Lo ideal es que `pantallaActual()` no incluya nombre ni cédula: el módulo tapa los números largos, pero no puede tapar nombres.
+- `prototipo/sw.js`: agregar `'agente-voz.js'` a `ARCHIVOS` y subir `CACHE`. El SDK viene del CDN solo cuando la persona acepta hablar; el service worker no lo guarda. `api/` no se cachea.
+- Vercel: poner `ELEVENLABS_API_KEY` en Production y Preview.
+- Lo que el módulo espera de Documentos: `iniciarCaso({ tipo, tema, municipio, entidad, desde })` con `entidad` como clave (`alcaldia`, `eps`, `ant`); que la opción del aviso empiece por "Sí, acepto"; que la pregunta de peligro tenga "No", "Sí" y "No sé"; que la ayuda se titule "Esto es serio…"; y, cuando exista, `window.miderecho.riesgo()`.
 
 ## Pendientes
 
-- **Voz:** la elegida ("Gabriel", acento andino nariñense, pausado) está en la biblioteca y el conector no puede agregarla. Agregarla a "Mis voces" en elevenlabs.io y cambiar `voice_id`. Hoy usa "Cristian Sanchez" (paisa), la única colombiana ya en la cuenta.
-- **Dominios:** el agente solo acepta producción, `localhost`, `127.0.0.1` y el preview de esta rama. ElevenLabs no acepta comodines (`*.vercel.app` se probó y no sirve): para otro preview, agregar su alias fijo `miderecho-git-<rama>-jjgg310s-projects.vercel.app`. La lista se basa en la cabecera Origin, que un programa fuera del navegador puede falsificar; la protección real es la sesión firmada (`enable_auth` + un endpoint en `api/` que pida el token con la clave): pendiente con Comunicaciones. Mientras tanto limitan el gasto: 60 conversaciones al día, 3 a la vez, sin ráfagas, 10 minutos por conversación.
-- **Audio real:** probado con un micrófono simulado en silencio (conecta, habla, cambia de estado, cuelga). Falta una prueba hablando de verdad desde un celular, con ruido y acento rural.
+- **Clave:** crear la clave de ElevenLabs y ponerla en Vercel (`ELEVENLABS_API_KEY`). Hasta entonces el agente principal no abre en ningún lado, porque ya exige sesión firmada.
+- **Voz:** la elegida ("Gabriel", acento andino nariñense, pausado) está en la biblioteca y el conector no puede agregarla. Agregarla a "Mis voces" en elevenlabs.io y cambiar `voice_id` en los dos agentes. Hoy usa "Cristian Sanchez" (paisa).
+- **Audio real:** probado con un micrófono simulado en silencio (conecta, habla, silencia al escribir, cuelga). Falta una prueba hablando de verdad desde un celular, con ruido y acento rural.
 - **Privacidad:** borrar desde el panel de ElevenLabs los resúmenes de las conversaciones de prueba anteriores al modo de retención cero (datos inventados).
-- **Jurídico:** validar `conocimiento.md` y los textos fijos con un consultorio jurídico; confirmar con los aliados los datos de ayuda del protocolo de riesgo.
+- **Jurídico:** validar `conocimiento.md`, las frases fijas y el texto del protocolo de riesgo con un consultorio jurídico y con los aliados; completar "[Organización], [contacto]" en el consentimiento.

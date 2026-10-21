@@ -1,9 +1,9 @@
 {
-  "_nota": "Copia de la configuración del agente en ElevenLabs (20-oct-2026). El prompt está en prompt.md y la base de conocimiento en conocimiento.md. Sin claves: el id del agente es público.",
+  "_nota": "Copia de la configuración del agente en ElevenLabs (20-oct-2026, corregida tras la auditoría). El prompt está en prompt.md y la base de conocimiento en conocimiento.md. Sin claves.",
   "agent_id": "agent_8101m5dg7s5se9trrst6fjpvz52d",
   "nombre": "MiDerecho",
   "idioma": "es",
-  "primer_mensaje": "Hola. Soy el asistente de voz de MiDerecho, un servicio gratuito. Soy una máquina, no una persona, y no soy abogado. La app no guarda lo que usted me cuente. ¿En qué le puedo ayudar?",
+  "primer_mensaje": "Hola. Soy el asistente de voz de MiDerecho, un servicio gratuito. Soy una máquina, no soy abogado, y la app no guarda lo que me cuente. No me diga su cédula, su nombre ni su dirección. Cuénteme en pocas palabras de qué se trata, sin nombres ni números.",
   "llm": {
     "modelo": "gemini-3.5-flash",
     "temperatura": 0,
@@ -75,15 +75,39 @@
           "tutela",
           "servicios_publicos"
         ],
-        "tema": [
-          "agua",
-          "vias",
-          "salud",
-          "ayudas",
-          "tierras",
-          "educacion",
-          "otro"
-        ],
+        "tema": {
+          "peticion": [
+            "agua",
+            "vias",
+            "salud",
+            "ayudas",
+            "tierras",
+            "educacion",
+            "otro"
+          ],
+          "servicios_publicos": [
+            "acueducto",
+            "energia",
+            "gas",
+            "aseo"
+          ],
+          "tutela": [
+            "salud",
+            "minimo_vital",
+            "educacion",
+            "debido_proceso",
+            "peticion",
+            "otro_derecho"
+          ],
+          "tutela_salud": [
+            "cita",
+            "medicamento",
+            "cirugia",
+            "examen",
+            "transporte",
+            "otra_cosa"
+          ]
+        },
         "municipio": "texto (nombre exacto de la lista de contenido.js si está en ella)",
         "entidad": [
           "alcaldia",
@@ -99,10 +123,9 @@
         ]
       },
       "requeridos": [
-        "tipo",
-        "tema"
+        "tipo"
       ],
-      "devuelve": "pantalla actual { id, titulo, texto, opciones } con números largos tapados"
+      "devuelve": "pantalla actual { id, titulo, texto, opciones } con números de 6 o más cifras tapados"
     },
     {
       "id": "tool_7901m5dg8a2gfcvap8az4zayzs7a",
@@ -118,7 +141,14 @@
       "parametros": {
         "texto": "texto exacto de la opción"
       },
-      "regla": "agente-voz.js rechaza 'Sí, acepto': el aviso lo acepta la persona con su dedo"
+      "regla": "agente-voz.js solo acepta el texto EXACTO de una opción visible y rechaza: cualquier opción en la pantalla del aviso (la que tiene 'Sí, acepto'); botones que coincidan con /borr|enviar|env[ií]en|acepto|cerrar|olvid/i; el 'No' de la pregunta de peligro (ahí solo 'Sí' y 'No sé'); y todo salvo 'Salir' con el protocolo de riesgo activo."
+    },
+    {
+      "id": "tool_7501m5e22321fj5szt7rgd7yshqb",
+      "nombre": "activar_protocolo_riesgo",
+      "mapea_a": "window.miderecho.riesgo() si existe (descarta el borrador y muestra la ayuda)",
+      "espera_respuesta": true,
+      "regla": "Después agente-voz.js bloquea las demás herramientas hasta colgar, salvo elegir 'Salir'. También se activa solo al ver la pantalla 'Esto es serio…'."
     }
   ],
   "herramientas_sistema": [
@@ -143,19 +173,26 @@
       "localhost",
       "127.0.0.1"
     ],
-    "exigir_origin": false,
     "por_que_no_exigir_origin": "La voz va por WebRTC (LiveKit) y esa conexión no manda Origin; con la exigencia activa ElevenLabs la rechaza (error 3000).",
-    "firma_de_sesion": false,
+    "firma_de_sesion": true,
     "concurrencia_max": 3,
     "conversaciones_por_dia": 60,
     "rafagas": false,
-    "anulaciones_desde_el_cliente": "todas apagadas (el navegador no puede cambiar prompt, voz ni herramientas)",
-    "comodines": "No funcionan: con '*.vercel.app' un preview fue rechazado ('Host ... is not allowed'). Cada preview que deba usar el agente se agrega con su alias fijo (miderecho-git-<rama>-jjgg310s-projects.vercel.app)."
+    "anulaciones_desde_el_cliente": "todas apagadas, incluido el modo solo texto",
+    "comodines": "No funcionan: con '*.vercel.app' un preview fue rechazado ('Host ... is not allowed'). Cada preview que deba usar el agente se agrega con su alias fijo (miderecho-git-<rama>-jjgg310s-projects.vercel.app).",
+    "como": "El navegador pide POST /api/elevenlabs-sesion (prototipo/api/elevenlabs-sesion.js). La función, con ELEVENLABS_API_KEY de Vercel, pide a ElevenLabs GET /v1/convai/conversation/token?agent_id=… y devuelve { token }. agente-voz.js abre la sesión con conversationToken (WebRTC). Solo atiende pedidos JSON del mismo sitio (Origin igual al host, Sec-Fetch-Site same-origin) y 10 por IP por hora."
   },
   "sdk_navegador": {
     "paquete": "@elevenlabs/client@1.26.0",
     "url": "https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.26.0/dist/lib.iife.js",
     "sri": "sha384-GAgUf1yx/dGreo/QTqLRVycB5sMQdsPKOmbMWlKec+fjMXzz+OXy4c6EfjB7Anb7",
-    "conexion": "webrtc (por defecto en voz; Opus gasta muchos menos datos que el PCM del websocket)"
+    "conexion": "webrtc con conversationToken del servidor (Opus gasta muchos menos datos que el PCM del websocket)"
+  },
+  "microfono": "agente-voz.js lo silencia (setMicMuted) mientras la pantalla tenga campos de texto (vereda, relato, nombre, cédula, clave) y lo reabre con 'Ya terminé' o al cambiar de pantalla; entonces avisa al agente con sendContextualUpdate.",
+  "agente_de_pruebas": {
+    "agent_id": "agent_3301m5e2amx2f9etc6k5hzwp7kct",
+    "nombre": "MiDerecho (pruebas locales)",
+    "uso": "solo agente/prueba.html",
+    "diferencias": "sin sesión firmada, solo localhost y 127.0.0.1, permite modo texto, 20 conversaciones al día y 1 a la vez. Mismo prompt, herramientas, guardrails y privacidad: si se cambia el principal, cambiar también este."
   }
 }
