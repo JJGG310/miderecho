@@ -3,6 +3,7 @@ import { Trash2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { habilesEntre, deIso } from '@miderecho/nucleo';
 import { Encabezado, BarraNav, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
 import { almacen } from '../lib/almacen.js';
+import { Constancia } from '../componentes/EnvioCorreo.jsx';
 import { ir, memoria } from '../lib/ruta.js';
 
 const fecha = s => deIso(s).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
@@ -42,6 +43,7 @@ export default function MisCasos() {
                   <button className="btn-icono" onClick={() => { almacen.borrarCaso(c.id); recargar(); }} aria-label="Borrar caso"><Trash2 size={18} /></button>
                 </div>
                 <p className="suave">Entregado el {fecha(c.rad)}</p>
+                {c.envios?.length > 0 && <Constancia k={c.envios.at(-1)} />}
                 {c.venc && !vencido && <p className="plazo"><Clock size={16} aria-hidden /><span>{c.tipo.startsWith('tutela') ? 'El juez debe decidir' : 'Te deben responder'} a más tardar el <b>{fecha(c.venc)}</b>. Faltan {faltan} días hábiles.</span></p>}
                 {vencido && c.estado === 'esperando' && (
                   <>
@@ -54,6 +56,7 @@ export default function MisCasos() {
                     </div>
                   </>
                 )}
+                {c.estado === 'tutela' && <p className="plazo ok"><CheckCircle2 size={16} aria-hidden /><span>Ya hiciste la tutela por esta petición: está en Mis casos.</span></p>}
                 {c.estado === 'respondido' && <p className="plazo ok"><CheckCircle2 size={16} aria-hidden /><span>Te respondieron. Si la respuesta no resuelve tu caso, cuéntanos en Inicio.</span></p>}
               </li>
             );

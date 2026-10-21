@@ -10,7 +10,8 @@
     "./plantillas": "./src/plantillas.js",
     "./contenido": "./src/contenido.js",
     "./derechos": "./src/derechos.js",
-    "./privacidad": "./src/privacidad.js"
+    "./privacidad": "./src/privacidad.js",
+    "./directorio": "./src/directorio.js"
   },
   "scripts": { "test": "node test-plazos.mjs && node test-plantillas.mjs && node test-privacidad.mjs" }
 }
