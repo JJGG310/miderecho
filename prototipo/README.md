@@ -12,7 +12,7 @@ python3 -m http.server 8080 --bind 127.0.0.1 --directory prototipo
 
 Luego abrir http://127.0.0.1:8080 (en el celular: misma red y la IP del computador, o publicarla en cualquier hosting estático). En Chrome Android aparece "Instalar app".
 
-Prueba del cálculo de plazos: `node prototipo/test-plazos.mjs`
+Pruebas: `node prototipo/test-plazos.mjs`, `node prototipo/test-plantillas.mjs` y `node prototipo/api/_test-api.mjs`. Las funciones de `api/` solo corren en Vercel; con el servidor local de Python responden 501.
 
 ## Qué hace
 
@@ -32,13 +32,21 @@ Prueba del cálculo de plazos: `node prototipo/test-plazos.mjs`
 | ¿Su carta venta lo hace dueño? | Ruta de 3 preguntas que lleva a formalizar o a pedirle a la ANT con un derecho de petición |
 | Borrar todo | Elimina casos y clave del celular |
 
-**Voz:** 🔊 lee la pantalla; **Modo voz** lee cada pantalla sola; 🎤 dicta (necesita internet). El asistente de la barra cambia de estado (reposo, hablando, alerta, éxito), con el mismo patrón que Nauti en GambaMantis.
+**Documentos (desde la versión 2):** derecho de petición, tutela de salud (con medida provisional), tutela por otros derechos fundamentales, tutela por petición no respondida, impugnación del fallo, incidente de desacato, y reclamo y recurso ante la empresa de servicios públicos. Las plantillas están en `plantillas.js`, que funciona en el navegador y en Node. Análisis legal: `../investigacion/12-documentos-sin-abogado.md`.
+
+**Agente conversacional de voz:** botón "Hablar con el asistente" (`agente-voz.js`, agente de ElevenLabs). Antes de abrir el micrófono pide consentimiento. No puede tocar por la persona "Sí, acepto", el "No" de la pregunta de peligro, ni botones de borrar o enviar. Necesita `ELEVENLABS_API_KEY` en Vercel; detalles en `../agente/README.md`.
+
+**SMS, WhatsApp, llamadas y recordatorios:** funciones de Vercel en `api/` con Twilio y cliente en `comunicaciones.js`. Los recordatorios del plazo se programan solo si la persona los autoriza expresamente; el número queda cifrado en el servidor y el celular guarda únicamente un token para cancelarlos. Sin claves, todo corre en modo simulado. Configuración y variables: `../docs/comunicaciones.md`.
+
+**Voz del sistema:** 🔊 lee la pantalla; **Modo voz** lee cada pantalla sola; 🎤 dicta (necesita internet). El asistente de la barra cambia de estado (reposo, hablando, alerta, éxito), con el mismo patrón que Nauti en GambaMantis.
 
 **Modo demo** (en Mis casos): adelanta el calendario para mostrar el vencimiento y la tutela en la presentación.
 
 ## Qué está simulado
 
-- El **envío del correo** a la alcaldía y los **SMS** de recordatorio: se muestran, no se envían. En producción necesitan un servidor (correo transaccional + proveedor de SMS).
+- El **envío del correo** a la alcaldía: se muestra, no se envía. Falta un proveedor de correo y su función en `api/`.
+- **SMS, WhatsApp y llamadas:** el código está listo, pero sin claves de Twilio corren en modo simulado.
+- **Agente de voz:** no abre hasta poner `ELEVENLABS_API_KEY` en Vercel.
 - La cola **sin internet**: la petición queda en cola y se "envía" al volver la señal.
 
 ## Qué falta para producción
@@ -51,4 +59,4 @@ Prueba del cálculo de plazos: `node prototipo/test-plazos.mjs`
 
 ## Archivos
 
-`index.html` estructura · `styles.css` diseño · `app.js` pantallas y lógica · `contenido.js` textos jurídicos y municipios (lo que revisa el abogado) · `plazos.js` días hábiles y festivos · `sw.js` funcionamiento sin internet · `test-plazos.mjs` prueba
+`index.html` estructura · `styles.css` diseño · `app.js` pantallas y lógica · `contenido.js` textos jurídicos y municipios (lo que revisa el abogado) · `plantillas.js` documentos · `plazos.js` días hábiles y festivos · `comunicaciones.js` cliente de SMS, WhatsApp y llamadas · `agente-voz.js` asistente de voz · `api/` funciones de servidor · `sw.js` funcionamiento sin internet · `test-*.mjs` pruebas

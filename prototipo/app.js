@@ -1,6 +1,7 @@
 import { NOMBRE, AVISO, AYUDA_RIESGO, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, CARTA, DERECHOS, SALUD_NIEGA, RAZONES_IMPUGNACION, SERVICIOS, MOTIVOS_SP, RAZONES_RECURSO, EXPLICA } from './contenido.js';
 import { sumarHabiles, habilesEntre, iso, deIso } from './plazos.js';
 import { TIPOS, generarDocumento, plantillaHecho, valor, llenar, esc } from './plantillas.js';
+import { programarRecordatorios, cancelarRecordatorios } from './comunicaciones.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#app');
@@ -420,11 +421,12 @@ acciones.entrega = v => { caso.modo = v; siguiente(); };
 const pasoDatos = () => pantalla('Datos para enviar el documento', `<form data-form="datos" class="form">
     <label>Nombre completo<input name="nombre" required autocomplete="off"></label>
     <label>Número de cédula<input name="cedula" required inputmode="numeric" pattern="[0-9.]{5,15}" autocomplete="off"></label>
-    <label>Celular para recordatorios por SMS (opcional)<input name="telefono" inputmode="tel" autocomplete="off"></label>
+    <label>Celular para recordatorios por SMS (opcional)<input name="telefono" inputmode="tel" autocomplete="off" placeholder="3001234567"></label>
+    <label class="check"><input type="checkbox" name="recordar"> Autorizo que me envíen por SMS, a ese celular, los recordatorios del plazo. Solo llevan el código del caso y la fecha.</label>
     <label class="check"><input type="checkbox" required> Autorizo a ${NOMBRE} a enviar este documento en mi nombre y a recibir la respuesta para reenviármela.</label>
     <p class="nota">Estos datos solo están en este celular mientras se envía. Al enviar, se borran.</p>
     <button class="principal">Ver el documento</button></form>`);
-formularios.datos = ({ nombre, cedula, telefono }) => { Object.assign(caso, { nombre: nombre.trim(), cedula: cedula.trim(), telefono: telefono.trim() }); siguiente(); };
+formularios.datos = ({ nombre, cedula, telefono, recordar }) => { Object.assign(caso, { nombre: nombre.trim(), cedula: cedula.trim(), telefono: telefono.trim(), recordar: !!recordar }); siguiente(); };
 
 function pasoVista() {
   caso.codigo ||= nuevoCodigo();
@@ -455,23 +457,36 @@ function guardarCaso(estado, rad) {
   const c = { codigo: caso.codigo ||= nuevoCodigo(), tipo: t, temaId: caso.temaId, servicio: caso.servicio, motivo: caso.motivo, derecho: caso.derecho,
     entidad: caso.entidad, correo: caso.correo, municipio: caso.municipio, modo: caso.modo, plazo: caso.plazo || TIPOS[t].plazo,
     peticiones: t === 'peticion' || t === 'servicios_publicos' ? caso.peticiones?.map(p => p.texto) : undefined,   // en tutelas pueden traer datos de salud
-    limite: caso.limite, sms: !!caso.telefono, estado };
+    limite: caso.limite, sms: !!(caso.telefono && caso.recordar), estado };
+  const tel = c.sms && caso.telefono;
   if (rad) fijarPlazo(c, rad);
   casos = casos.filter(x => x.codigo !== c.codigo);   // el recurso reemplaza al reclamo del que viene
   casos.push(c);
   caso = null;   // aquí se descarta el borrador con los datos personales
   guardar();
+  if (tel && rad) programar(c, tel);
   return c;
 }
+// El número va al servidor (cifrado allá) y no se guarda en el celular: aquí solo queda el token para cancelar.
+// ponytail: si el caso quedó en cola sin internet, no se programan recordatorios (el número ya se borró).
+const fechasRecordatorio = c => [sumarHabiles(deIso(c.rad), c.plazo - 3), deIso(c.venc), sumarHabiles(deIso(c.rad), c.plazo + 1)];
+async function programar(c, telefono) {
+  const fechas = fechasRecordatorio(c).map(iso).filter(f => f > iso(hoy()));
+  const r = await programarRecordatorios({ codigo: c.codigo, telefono, canal: 'sms', fechas });
+  if (r.ok) { c.token = r.token; await guardar(); }
+  else { c.sms = false; document.getElementById('nota-sms')?.remove(); }
+  aviso(r.ok ? (r.simulado ? 'Recordatorios por SMS listos (modo de prueba: no se envían)' : 'Recordatorios por SMS programados') : `No se pudieron programar los SMS: ${r.error}`);
+}
+const cancelarSms = c => c?.token && cancelarRecordatorios(c.codigo, c.token);
 const fijarPlazo = (c, rad, n = c.plazo) => { c.rad = iso(rad); c.venc = iso(sumarHabiles(rad, n)); delete c.limite; };
 
 function resumenPlazo(c) {
-  const rad = deIso(c.rad), venc = deIso(c.venc), tutela = esTutela(c);
-  const recordatorios = [sumarHabiles(rad, c.plazo - 3), venc, sumarHabiles(rad, c.plazo + 1)];
+  const venc = deIso(c.venc), tutela = esTutela(c);
+  const recordatorios = fechasRecordatorio(c);
   return `<div class="plazo"><p>${tutela ? 'El juez debe decidir' : `La ${esServicio(c) ? 'empresa' : 'entidad'} debe responder`} a más tardar el</p><p class="fecha">${fechaLarga(venc)}</p><p class="nota">${c.plazo} días hábiles: sin contar sábados, domingos ni festivos.</p></div>
     ${esServicio(c) ? `<p>${EXPLICA.silencioCorto}</p>` : ''}
     <p>Le recordaremos el ${recordatorios.map(fechaCorta).join(', el ')}. Ese último día le preguntamos ${tutela ? 'qué decidió el juez' : 'si le respondieron'}.</p>
-    ${c.sms ? `<div class="simulado"><b>SMS (simulado):</b> ${c.tipo === 'peticion' ? 'Peticion' : 'Caso'} ${c.codigo} vence el ${fechaSms(venc)}. Si no responden, avise a su lider.</div>` : ''}`;
+    ${c.sms ? `<p class="nota" id="nota-sms">Esos recordatorios también le llegan por SMS al celular que nos dio, por ejemplo: "Caso ${c.codigo} vence el ${fechaSms(venc)}".</p>` : ''}`;
 }
 
 acciones.enviar = () => {
@@ -563,6 +578,7 @@ acciones.respuesta = cod => {
   ], vencido ? 'alerta' : 'reposo');
 };
 acciones.cerrar = async () => {
+  cancelarSms(buscar(sel));
   casos = casos.filter(c => c.codigo !== sel);
   await guardar();
   pantalla('Caso cerrado', '<p>Lo borramos de este celular. Si vuelve a necesitar algo, aquí estamos.</p>', [{ txt: 'Volver al inicio', accion: 'inicio' }], 'exito');
@@ -771,6 +787,7 @@ acciones.borrar = () => pantalla('¿Borrar todo?', '<p>Se borran todos los casos
   { txt: 'Cancelar', accion: 'inicio' },
 ]);
 acciones.borrarSi = () => {
+  casos.forEach(cancelarSms);
   localStorage.removeItem(KEY);
   clave = null; casos = []; olvidar();
   pantalla('Se borró todo', '<p>Ya no queda ningún caso en este celular. Si usó WhatsApp o SMS para este caso, borre también esos mensajes.</p>', [{ txt: 'Empezar de nuevo', accion: 'pin' }]);
