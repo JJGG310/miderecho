@@ -19,5 +19,10 @@ export function limpiar(texto = '') {
 }
 
 // Palabras que activan el protocolo de riesgo alto sin esperar a la IA (investigacion/06, protocolo de riesgo).
-const RIESGO = /\b(amenaz\w*|me (van|quieren) (a )?matar|matar(me|nos|lo|la)?|armad[oa]s?|grupo armado|disidencia|paramilitar\w*|guerrilla|extorsi\w*|vacuna|desplaza(r|ron|miento)\w*|me pegan?|me golpe\w*|violencia|abus\w*)\b/i;
+// "violó / violación" cuenta salvo cuando habla de derechos ("violaron mis derechos", "violación al debido proceso").
+const RIESGO = new RegExp([
+  /\b(amenaz\w*|me (van|quieren) (a )?matar|matar(me|nos|lo|la)?|armad[oa]s?|grupo armado|disidencia|paramilitar\w*|guerrilla|extorsi\w*|vacuna|desplaza(r|ron|miento)\w*|me pegan?|me golpe\w*|violencia|abus\w*|maltrat\w*)\b/,
+  /\bviol(ó|o|aron|aci[oó]n)(?![a-záéíóúñ])(?!\s+(\S+\s+){0,3}(derech|debido proceso))/,
+  /\bquit\S*\s+la\s+vida\b/,
+].map(r => r.source).join('|'), 'i');
 export const hayRiesgo = texto => RIESGO.test(String(texto));

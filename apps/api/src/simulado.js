@@ -1,6 +1,7 @@
 // Asistente simulado: reglas por palabras clave para que el demo funcione sin clave de API.
 // Devuelve el mismo formato que la herramienta "responder" del modelo.
 import { hayRiesgo } from '@miderecho/nucleo';
+import { RESPUESTA_RIESGO } from './orientacion.js';
 
 const tiene = (t, ...ps) => ps.some(p => t.includes(p));
 
@@ -9,10 +10,7 @@ export function responderSimulado(mensajes) {
   const t = persona.join(' ');
   const ultimo = persona.at(-1) || '';
 
-  if (hayRiesgo(t)) return {
-    accion: 'riesgo',
-    mensaje: 'Lo que me cuentas es serio. No te voy a pedir más datos y no vamos a guardar nada de esto. Si hay peligro ahora mismo, llama al 123.',
-  };
+  if (hayRiesgo(t)) return RESPUESTA_RIESGO;
 
   if (tiene(t, 'factura', 'cobr', 'recibo') && (tiene(t, 'agua', 'luz', 'energ', 'aseo', 'acueducto') || /\bgas\b/.test(t))) {
     const servicio = tiene(t, 'luz', 'energ') ? 'energia' : /\bgas\b/.test(t) ? 'gas' : tiene(t, 'aseo', 'basura') ? 'aseo' : 'acueducto';

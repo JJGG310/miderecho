@@ -31,7 +31,7 @@ npm run dev:web     # http://localhost:5173 (en otra terminal)
 npm test            # plazos, plantillas, privacidad y API
 ```
 
-**Proveedor del asistente:** Claude si hay `ANTHROPIC_API_KEY`; si no, Gemini si hay `GEMINI_API_KEY`; si no, **"modo básico"** (reglas por palabras clave), así el demo no se cae si falla la IA o la red. Si la IA falla a mitad del demo (cuota, bloqueo, tiempo agotado), la API pasa sola al modo básico. `/api/salud` dice cuál está activo (`ia: "claude" | "gemini" | "simulada"`). Variables, costos y qué datos van a Google: [docs/ia.md](docs/ia.md).
+**Proveedor del asistente:** Claude si hay `ANTHROPIC_API_KEY`; si no, Gemini si hay `GEMINI_API_KEY` y `GEMINI_PLAN` (`pago` o `gratis`); si no, **"modo básico"** (reglas por palabras clave), así el demo no se cae si falla la IA o la red. Si la IA falla a mitad del demo (cuota, tiempo agotado, respuesta fuera del formato), la API pasa sola al modo básico. `/api/salud` dice cuál está activo (`ia: "claude" | "gemini" | "simulada"`). Variables, costos y qué datos van a Google: [docs/ia.md](docs/ia.md).
 
 Para probarlo en el celular: `npm run dev:web -- --host` y abrir la IP del computador en la misma red.
 
@@ -53,7 +53,7 @@ Para probarlo en el celular: `npm run dev:web -- --host` y abrir la IP del compu
 
 El proyecto de Vercel existente (https://miderecho-two.vercel.app) tiene como raíz `prototipo/`. `prototipo/vercel.json` instala el monorepo, construye `apps/web` y publica ese resultado; las funciones `prototipo/api/asistente.js`, `documento.js`, `plazo.js` y `salud.js` sirven el backend de `apps/api`. Las funciones de Gallego (SMS, WhatsApp, llamadas, recordatorios, ElevenLabs) siguen en la misma carpeta.
 
-- Variables en Vercel: `ANTHROPIC_API_KEY`, o `GEMINI_API_KEY` (+ `GEMINI_ENDPOINT` si es de Vertex). Sin ninguna, el asistente usa el modo básico. Ver [docs/ia.md](docs/ia.md).
+- Variables en Vercel: `ANTHROPIC_API_KEY`, o `GEMINI_API_KEY` + `GEMINI_PLAN` (+ `GEMINI_ENDPOINT` si es de Vertex). Sin ninguna, el asistente usa el modo básico. Ver [docs/ia.md](docs/ia.md).
 - `prototipo/package.json` (`"type": "module"`) es necesario: sin él, Vercel compila las funciones a CommonJS y fallan al cargar.
 
 ## Pendientes

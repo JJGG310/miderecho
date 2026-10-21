@@ -49,7 +49,7 @@ No vendemos ni prestamos sus datos, no los usamos para publicidad y no armamos p
 
 | Dato | Dónde queda | Cuánto tiempo | Para qué |
 |---|---|---|---|
-| **Lo que le cuenta al asistente** (escrito o dictado) | Sale de su celular hacia nuestro servidor y hacia Claude, la inteligencia artificial de Anthropic, en Estados Unidos. Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo y no quita nombres: no los escriba en el chat. Nuestro servidor no lo guarda | La conversación se borra del celular al cerrar la app. Anthropic puede conservarlo por un tiempo limitado, según sus condiciones [validar: según los términos comerciales de Anthropic, las entradas y salidas de la API se borran a los 30 días salvo excepciones de seguridad; confirmar la cifra vigente y pedir retención cero] | Entender su caso y orientarle |
+| **Lo que le cuenta al asistente** (escrito o dictado) | Sale de su celular hacia nuestro servidor y hacia la inteligencia artificial que esté activa: Claude (Anthropic) o Gemini (Google), las dos en Estados Unidos. Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo y no quita nombres: no los escriba en el chat. Nuestro servidor no lo guarda | La conversación se borra del celular al cerrar la app. La empresa de la inteligencia artificial puede conservarlo por un tiempo limitado, según sus condiciones [validar: según los términos comerciales de Anthropic, las entradas y salidas de la API se borran a los 30 días salvo excepciones de seguridad; confirmar la cifra vigente y pedir retención cero. Gemini, plan de pago: Google lo registra "por un tiempo limitado" solo para detectar abusos, sin cifra publicada, y lo guarda hasta 24 horas en memoria (caché); confirmar por escrito. Plan gratis: Google lo usa para mejorar sus productos y puede revisarlo una persona; solo para pruebas y con aviso. Ver docs/ia.md] | Entender su caso y orientarle |
 | **Su nombre, su cédula, dónde recibir la respuesta y su celular**, que se piden al crear el documento | Solo en la memoria del celular mientras arma el documento, e impresos en el papel. No van a la inteligencia artificial ni al servidor. También puede dejarlos en blanco y llenarlos a mano | No se guardan | Que el documento sea válido (Ley 1755, art. 16) |
 | **Lo que escribe en el formulario del documento**, como lo que pasó o lo de su salud | Va en el documento | La app no guarda ese texto | Escribir el documento |
 | **Mis casos**: tipo de documento, entidad, municipio y vereda, lo que pidió, fechas del plazo y en qué va | En este celular. Si otras personas usan su celular, póngale clave o bórrelos en Perfil | Hasta que usted los borre | Seguimiento del plazo |
@@ -82,7 +82,7 @@ Para algunas funciones usamos empresas que tratan datos por encargo nuestro. Var
 
 | Función | Empresa | País | Qué recibe | Cuándo |
 |---|---|---|---|---|
-| **Asistente** | Claude, de Anthropic | Estados Unidos | Lo que usted le cuenta, después del filtro (sin cédulas, teléfonos ni correos cuando el filtro los encuentra; con los nombres que escriba) | Siempre que le escribe al asistente con internet. Sin clave de Anthropic, o si la IA falla, responde un "modo básico" con reglas que no sale de nuestro servidor |
+| **Asistente** | Claude (Anthropic) o Gemini (Google), según el que esté activo | Estados Unidos | Lo que usted le cuenta, después del filtro (sin cédulas, teléfonos ni correos cuando el filtro los encuentra; con los nombres que escriba) | Siempre que le escribe al asistente con internet. Sin clave de IA, o si la IA falla, responde un "modo básico" con reglas que no sale de nuestro servidor. Si en una prueba se usa la versión gratuita de Gemini, cada respuesta lo avisa: Google puede usar lo que se escriba para mejorar sus productos |
 | **Dictar con el micrófono** | El servicio de dictado de su navegador (en Android, Google) | Estados Unidos | Su voz mientras dicta | Solo si toca el micrófono |
 | **Alojamiento de la app y del servidor** | Vercel | Estados Unidos | La dirección IP y lo que pasa por el servidor | Siempre que usa la app con internet |
 
@@ -110,7 +110,7 @@ La ley llama **datos sensibles** a los de salud, origen étnico, religión, idea
 
 - Contarnos esos temas es **opcional**: no tiene que hacerlo y la app funciona igual.
 - En la tutela de salud sí hay que contar el problema de salud: va en el documento. En Mis casos queda que es una tutela de salud y a qué EPS va.
-- Si le cuenta al asistente algo de su salud, le llega a Claude después del filtro. No guardamos la conversación, pero el tema de la consulta puede quedar en el Historial.
+- Si le cuenta al asistente algo de su salud, le llega a la inteligencia artificial (Claude o Gemini) después del filtro. No guardamos la conversación, pero el tema de la consulta puede quedar en el Historial.
 - No usamos su voz para reconocerle ni para identificar a nadie.
 - Si el caso es de un niño, niña o adolescente, la persona adulta escribe sus datos solo en el documento, y la app no los guarda.
 
@@ -174,7 +174,7 @@ Si usted cuenta que alguien está en peligro o que le han amenazado, la app deja
 - La **Personería** de su municipio o la **Defensoría del Pueblo** pueden activar rutas de protección.
 - **Programa Somos Defensores**: proteccion@somosdefensores.org.
 
-[validar: las palabras que activan el protocolo (`hayRiesgo` en `privacidad.js`) las revisa el servidor antes de llamar a la IA; si la amenaza se cuenta con otras palabras, el mensaje sí llega a Claude, que puede responder con el protocolo. Confirmar rutas y líneas con las organizaciones aliadas antes del piloto.]
+[validar: las palabras que activan el protocolo (`hayRiesgo` en `privacidad.js`) las revisa el servidor antes de llamar a la IA; si la amenaza se cuenta con otras palabras, el mensaje sí llega a la IA activa (Claude o Gemini), que puede responder con el protocolo; si Gemini lo bloquea por seguridad, la app también activa el protocolo. Confirmar rutas y líneas con las organizaciones aliadas antes del piloto.]
 
 ## 12. No somos abogados
 
@@ -199,7 +199,7 @@ Diez viñetas con el asistente (un globo de diálogo del mismo color que sus res
 | 3 | Lo que no guardamos | La conversación; nombre y cédula del documento no se guardan ni van a la IA, solo van en el papel: no escribirlos en el chat; el PDF es suyo | 3, 4 |
 | 4 | Lo que queda en su celular | Casos (entidad, municipio, vereda, fechas) y el tema de cada consulta, aunque sea de salud; póngale clave o bórrelo en Perfil | 3, 10 |
 | — | Pregunta 1 | Si otra persona usa su celular, ¿puede ver sus casos? → Sí, si no tiene clave | 3 |
-| 5 | El asistente y otras empresas | Claude, de Anthropic (EE. UU.), lee lo que cuenta; el filtro intenta quitar cédulas, teléfonos y correos pero no atrapa todo: no escribir nombres, cédulas ni direcciones; voz, mensajes y correo, cuando existan, solo si usted lo pide | 5 |
+| 5 | El asistente y otras empresas | Claude (Anthropic) o Gemini (Google), en EE. UU., lee lo que cuenta; el filtro intenta quitar cédulas, teléfonos y correos pero no atrapa todo: no escribir nombres, cédulas ni direcciones; voz, mensajes y correo, cuando existan, solo si usted lo pide | 5 |
 | — | Pregunta 2 | ¿Qué le quitamos a su relato? → Cédulas, teléfonos y correos, cuando el filtro los encuentra (no "todo, también los nombres") | 5, 10 |
 | 6 | Lo delicado es opcional | No tiene que contar si es víctima, su etnia, religión, ideas ni organización; en la tutela de salud, lo de salud va en el documento | 6 |
 | 7 | Sus derechos | Conocer, corregir, borrar, retirar el permiso, quejarse ante la SIC (explicada en una frase); gratis | 7 |
