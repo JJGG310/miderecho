@@ -325,15 +325,8 @@ h3 { font: 800 1.2rem/1.2 var(--display); font-stretch: 125%; }
 
 /* ---------- 7. Video ---------- */
 .video-marco { position: relative; max-width: 900px; margin-top: 28px; aspect-ratio: 16 / 9; border-radius: 20px; overflow: hidden; background: var(--crema-video); border: 2px solid rgba(38, 73, 51, .2); }
-.video-marco > video, .video-marco > iframe, .video-marco > img { width: 100%; height: 100%; object-fit: cover; border: 0; }
-.video-pendiente > img { opacity: .5; }
-.video-aviso {
-  position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 12px; width: max-content; max-width: 88%;
-  padding: 10px 18px 10px 10px; border-radius: 999px; background: var(--verde); color: var(--crema); font-weight: 700; font-size: clamp(.9rem, .8rem + .4vw, 1.05rem);
-}
-.video-play { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--ocre); }
-.video-play::after { content: ''; margin-left: 3px; border-left: 12px solid var(--verde-hondo); border-block: 8px solid transparent; }
+.video-marco > video, .video-marco > iframe { display: block; width: 100%; height: 100%; object-fit: cover; border: 0; }
+.video-nota { margin-top: 12px; font: .9rem var(--maquina); color: var(--suave); }
 
 /* ---------- 8. Modelo ---------- */
 .modelo-grid { display: grid; gap: 56px; }

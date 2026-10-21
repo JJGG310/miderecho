@@ -30,8 +30,8 @@
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('anima');
     setTimeout(function () { if (!window.ScrollTrigger) document.documentElement.classList.remove('anima'); }, 2500);
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js" defer></script>
+  <script src="vendor/gsap.min.js" defer></script>
+  <script src="vendor/ScrollTrigger.min.js" defer></script>
   <script src="animacion.js" defer></script>
 </head>
 <body>
@@ -241,7 +241,7 @@
             <li class="rasgo" data-revela>
               <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M10 42 C 14 30 22 16 38 6 C 42 18 36 32 18 36 Z"/><path d="M10 42 L28 18 M17 31 L24 32 M21 25 L29 26"/></svg></span>
               <h3>Liviana como una pluma</h3>
-              <p>La app entera pesa menos de 1 MB (unos 845 KB) y después casi no gasta datos.</p>
+              <p>La app entera pesa menos de 1 MB y después casi no gasta datos.</p>
             </li>
           </ul>
         </div>
@@ -285,12 +285,12 @@
               <span class="icono" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M6 10 H28 V26 H16 L10 32 V26 H6 Z"/><path d="M32 18 H42 V34 H38 V40 L32 34 H22 V30"/></svg></span>
               <div>
                 <h3>La política de datos, en historieta</h3>
-                <p>Doña Rosa pregunta y el asistente responde, en 13 viñetas que también se escuchan. Es Legal Design: entender antes de aceptar.</p>
+                <p>Doña Rosa pregunta y el asistente responde, en 10 viñetas y 3 preguntas que también se escuchan. Es Legal Design: entender antes de aceptar.</p>
                 <div class="vineta" aria-label="Ejemplo de la historieta">
                   <p class="globo"><b>Doña Rosa:</b> ¿Y quién va a ver lo que yo escriba?</p>
                   <p class="globo globo-respuesta"><b>Asistente:</b> Soy una máquina, no una persona.</p>
                 </div>
-                <p class="estado estado-prueba">Borrador: falta validarla con un abogado y nombrar al responsable de los datos.</p>
+                <p class="estado estado-prueba">Borrador: falta validarla con un abogado y publicar la dirección de MiDerecho S.A.S., la responsable de los datos.</p>
               </div>
             </li>
           </ul>
@@ -357,18 +357,14 @@
     <section id="video" class="banda banda-crema banda-sigue">
       <div class="contenedor">
         <h2 class="titulo" data-revela>Véalo funcionar</h2>
-        <!--
-          PARA PONER EL VIDEO: reemplace todo el contenido de <div class="video-marco"> por uno de estos:
-          · Archivo propio (guárdelo en img/):
-            <video controls preload="none" poster="img/como-funciona-poster.jpg" src="img/como-funciona.mp4"></video>
-          · YouTube o Vimeo:
-            <iframe src="https://www.youtube-nocookie.com/embed/ID_DEL_VIDEO" title="Cómo funciona MiDerecho" allow="fullscreen; picture-in-picture" loading="lazy"></iframe>
-          y borre la clase "video-pendiente".
-        -->
-        <div class="video-marco video-pendiente" data-revela>
-          <img src="img/buho-saluda-poster.jpg" width="720" height="406" alt="" loading="lazy">
-          <p class="video-aviso"><span class="video-play" aria-hidden="true"></span>Video próximamente: la app, paso a paso, con el búho.</p>
-        </div>
+        <p class="bajada" data-revela>Los siete momentos del servicio, de la vereda a la tutela, en 48 segundos.</p>
+        <!-- Video hecho con Remotion (rama de la presentación, presentacion/clips/MiDerecho-flujo.mp4), comprimido a 1 MB. Solo se descarga si la persona le da play. -->
+        <figure class="video-marco" data-revela>
+          <video controls preload="none" playsinline width="1280" height="720" poster="img/como-funciona-poster.jpg" aria-describedby="video-nota">
+            <source src="img/como-funciona.mp4" type="video/mp4">
+          </video>
+        </figure>
+        <p class="video-nota" id="video-nota">Sin sonido · 1 MB · el texto de cada momento aparece en pantalla.</p>
       </div>
     </section>
 
@@ -429,8 +425,8 @@
           </figure>
         </div>
 
-        <!-- EQUIPO: cambie [Nombre] y [Rol] por los datos de cada persona. Para agregar a alguien, copie un <li>. -->
-        <div class="equipo">
+        <!-- EQUIPO: oculto hasta tener nombres y roles. Cambie [Nombre y apellido] y [Rol], copie un <li> por persona y borre el atributo hidden. -->
+        <div class="equipo" hidden>
           <h2 class="titulo titulo-chico" data-revela>El equipo</h2>
           <ul class="equipo-lista">
             <li data-revela><p class="persona">[Nombre y apellido]</p><p class="rol">[Rol]</p></li>
@@ -448,7 +444,7 @@
             <li>El asistente usa Gemini en su plan gratuito.</li>
             <li>El envío por correo solo llega a direcciones de prueba.</li>
             <li>Los avisos por notificación, SMS, WhatsApp y llamada se simulan.</li>
-            <li>La política de datos es un borrador y falta nombrar al responsable.</li>
+            <li>La política de datos es un borrador: la responsable es MiDerecho S.A.S. y falta publicar su dirección.</li>
           </ul>
         </aside>
       </div>
