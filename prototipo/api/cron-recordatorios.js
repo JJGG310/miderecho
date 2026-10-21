@@ -1,0 +1,42 @@
+// GET /api/cron-recordatorios: Vercel Cron la llama a diario a las 13:00 UTC (8 a. m. en Colombia; en Hobby, hasta 59 min tarde).
+// Envía los recordatorios de hoy y los que quedaron de ayer, con texto fijo (código y fecha), en tandas y con tiempo límite.
+// Nunca reescribe un registro: si lo cancelan mientras corre, no revive.
+import { atender, falla, descifrar, enviar, kv, contar, simulado, limiteDiario, hoyColombia } from './_comun.js';
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const corta = f => `${+f.slice(8)}-${MESES[f.slice(5, 7) - 1]}`;
+export const textoRecordatorio = (codigo, f) => `Caso ${codigo}: recordatorio del ${corta(f)}. Si la entidad no le ha respondido, avise a su lider.`;
+
+export default async function handler(req, res) {
+  return atender(req, res, {
+    async GET() {
+      const secreto = process.env.CRON_SECRET;
+      if (!secreto) console.error('[cron] falta CRON_SECRET: no se envía ningún recordatorio');
+      if (!secreto || req.headers.authorization !== `Bearer ${secreto}`) throw falla(401, 'No autorizado');
+      const hoy = hoyColombia(), ayer = new Date(Date.parse(hoy) - 864e5).toISOString().slice(0, 10), inicio = Date.now();
+      const cuenta = { enviados: 0, fallidos: 0, omitidos: 0, pendientes: 0 };
+      for (const f of [ayer, hoy]) {
+        const [ids] = await kv(['SMEMBERS', 'dia:' + f]);
+        for (let i = 0; i < ids.length; i += 10) {
+          if (Date.now() - inicio > 40e3) { cuenta.pendientes += ids.length - i; break; }   // lo que falte sale mañana, como "ayer"
+          await Promise.all(ids.slice(i, i + 10).map(id => procesar(id, f, hoy, cuenta)));
+        }
+      }
+      console.log('[cron]', JSON.stringify(cuenta));
+      return { ok: true, ...cuenta };
+    },
+  });
+}
+
+async function procesar(id, f, hoy, cuenta) {
+  const [txt] = await kv(['GET', 'rec:' + id], ['SREM', 'dia:' + f, id]);   // sale del día antes de enviar: nunca va dos veces
+  if (!txt) return;   // cancelado o vencido
+  const r = JSON.parse(txt), plantilla = process.env.TWILIO_WHATSAPP_PLANTILLA;
+  if (!simulado(r.canal) && await contar('total', 86400) > limiteDiario()) return void cuenta.omitidos++;
+  try {
+    await enviar(r.canal, descifrar(r.c), textoRecordatorio(r.codigo, f),
+      { plantilla: r.canal === 'whatsapp' && plantilla && { sid: plantilla, variables: { 1: r.codigo, 2: corta(f) } } });
+    cuenta.enviados++;
+  } catch (e) { cuenta.fallidos++; console.error('[cron] no se envió:', e.message); }
+  if (r.fechas.at(-1) <= hoy) await kv(['DEL', 'rec:' + id]);   // era el último: se borra ya
+}
