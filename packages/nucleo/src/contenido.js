@@ -83,6 +83,19 @@ export const CARTA = {
   poco: ['Su papel prueba que usted posee, pero no es título', 'Guarde la carta venta, los recibos y todo lo que muestre que usted vive y trabaja el predio. Para formalizar por posesión se necesitan, según el caso, entre 5 y 10 años. Un consultorio jurídico le dice cuándo podrá hacerlo.', false],
   posesion: ['Su papel sirve como prueba. Puede formalizar', 'La carta venta no lo hace dueño, pero prueba que usted posee. Tiene dos caminos: la formalización gratuita de la Agencia Nacional de Tierras (según su patrimonio) o un proceso especial ante el juez (Ley 1561 de 2012), con apoyo gratuito de un consultorio jurídico.', true],
 };
+// Preguntas de la ruta. Cada opción: [ícono, texto, a dónde lleva (otra pregunta o un resultado de CARTA), subtítulo].
+export const CARTA_PREGUNTAS = {
+  papel: { pregunta: '¿Qué papel tiene del predio?', opciones: [
+    ['📃', 'Carta venta o papel privado', 'folio'], ['🤝', 'Promesa de compraventa', 'folio'], ['📜', 'Escritura sin registrar', 'sinregistro'],
+    ['✅', 'Escritura registrada', 'registrada'], ['🤷', 'No tengo nada escrito', 'folio']] },
+  folio: { pregunta: '¿El predio tiene certificado de tradición y libertad?', ayuda: 'Es el documento de la Oficina de Registro que muestra la historia del predio (folio de matrícula).', opciones: [
+    ['📁', 'Sí, tiene folio', 'tiempo'], ['❓', 'No, o no sé', 'baldio', 'Podría ser un baldío de la Nación']] },
+  tiempo: { pregunta: '¿Cuánto tiempo lleva usted o su familia en el predio, sin que nadie lo reclame?', opciones: [
+    ['🌱', 'Menos de 5 años', 'poco'], ['🌳', '5 años o más', 'posesion']] },
+};
+// Avisos de la misma ruta (investigacion/09, sección 5): la ANT no cobra por formalizar y la conciliación en equidad es gratuita.
+export const AVISO_ANT = 'Nadie puede cobrarle por tramitar su formalización ante la Agencia Nacional de Tierras. Si le piden plata, es una estafa.';
+export const CONCILIACION = '¿Problemas de linderos o de paso con un vecino? La conciliación en equidad es gratuita y el acuerdo tiene fuerza legal.';
 
 // ---------- Tutelas (Decreto 2591 de 1991). Todo el bloque: [validar] con consultorio jurídico ----------
 const PRUEBAS = ['Copia de la decisión, carta o respuesta de la entidad', 'Copia de lo que le pedí a la entidad y la prueba de entrega', 'Recibos, fotos u otros papeles que muestren lo que pasa'];

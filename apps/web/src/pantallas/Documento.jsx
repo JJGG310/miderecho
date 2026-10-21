@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, ChevronRight, ShieldCheck, CalendarCheck } from 'lucide-react';
-import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, RAZONES_IMPUGNACION, VERIFICADO, sumarHabiles, iso } from '@miderecho/nucleo';
+import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, RAZONES_IMPUGNACION, RAZONES_RECURSO, VERIFICADO, sumarHabiles, iso } from '@miderecho/nucleo';
 import { Encabezado, Titulo, BotonVoz, ElegirFecha, fechaLarga } from '../componentes/comunes.jsx';
 import Buho from '../componentes/Buho.jsx';
 import EnvioCorreo from '../componentes/EnvioCorreo.jsx';
@@ -20,7 +20,7 @@ const MENU = [
   ['tutela', Scale, 'No me respetan otro derecho', 'Tutela ante un juez'],
 ];
 // Documentos que salen de un caso de Mis casos (memoria.caso).
-const DE_CASO = ['tutela_peticion', 'impugnacion', 'desacato'];
+const DE_CASO = ['tutela_peticion', 'impugnacion', 'desacato', 'recurso_servicios'];
 const NOTA_BORRADOR = `${VERIFICADO}: falta que un consultorio jurídico la revise. Este aviso no sale en el papel.`;
 // Reclamo "Otro problema", sin peticiones de plantilla.
 const PIDE_REVISAR = 'Revisar mi caso y darme una respuesta de fondo, clara y por escrito.';
@@ -209,7 +209,7 @@ function Formulario({ tipo }) {
     const caso = {
       ...previo,
       id, tipo, titulo: t.titulo, icono: t.icono,
-      entidad: datos.entidad, municipio: datos.municipio, vereda: datos.vereda, derecho: c.derecho,
+      entidad: datos.entidad, municipio: datos.municipio, vereda: datos.vereda, derecho: c.derecho, servicio: c.servicio, motivo: c.motivo,
       rad: iso(f), venc: plazo ? iso(sumarHabiles(f, plazo)) : null, plazo: plazo || null,
       // Solo los textos de plantilla de lo que pidió: sirven para la tutela si no responden.
       peticiones: (datos.peticiones || []).map(p => p.texto), modo: 'mano', estado: 'esperando', ...extra,
@@ -330,7 +330,7 @@ function DatosPersonales({ tipo, valores: p, cambiar, volver, listo, paso }) {
   const [faltan, setFaltan] = useState([]);
   const set = (k, v) => cambiar(x => ({ ...x, [k]: v }));
   const judicial = judicialDe(tipo);
-  const quien = judicial ? 'el juez' : tipo === 'servicios_publicos' ? 'la empresa' : 'la entidad';
+  const quien = judicial ? 'el juez' : tipo.includes('servicios') ? 'la empresa' : 'la entidad';
   const lectura = `Sus datos para el documento. Ahora sí necesitamos su nombre y su cédula, porque ${quien} debe saber quién pide y a dónde responderle. No se envían a la inteligencia artificial y no se guardan en este celular. Si prefiere, déjelos para llenarlos a mano en el papel.`;
   const enviar = e => {
     e.preventDefault();
@@ -392,7 +392,7 @@ function pasosEntrega(tipo, datos) {
     desacato: 'Entréguelo en el mismo juzgado que decidió la tutela, con una copia de la decisión. Escriba a mano el número del proceso.',
   }[tipo] || (judicialDe(tipo)
     ? 'Llévelo al juzgado de su municipio con copia de sus papeles y pida que lo reciban «para reparto», o preséntelo en Tutela en línea. No necesita abogado.'
-    : `Entréguelo en ${tipo === 'servicios_publicos' ? 'la empresa' : 'la entidad'} o envíelo a su correo.`);
+    : `Entréguelo en ${tipo.includes('servicios') ? 'la empresa' : 'la entidad'} o envíelo a su correo.`);
   return ['Guárdelo o imprímalo con el botón de abajo.', firma, entrega,
     'Pida una copia con sello o el número de recibido. Después anote aquí el día que lo entregó: desde ese día cuenta el plazo.'];
 }
@@ -409,7 +409,7 @@ function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
   const abierta = useAbierta();
   const papel = useRef(null);
   const pasos = pasosEntrega(tipo, datos);
-  const quien = judicialDe(tipo) ? 'El juez debe decidir' : tipo === 'servicios_publicos' ? 'La empresa debe responder' : 'La entidad debe responder';
+  const quien = judicialDe(tipo) ? 'El juez debe decidir' : tipo.includes('servicios') ? 'La empresa debe responder' : 'La entidad debe responder';
   useEffect(() => {
     window.scrollTo(0, 0);
     const abrir = () => { if (papel.current) papel.current.open = true; };
@@ -458,11 +458,13 @@ function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
 
 // Documentos que siguen a un caso de Mis casos. Mis casos no guarda datos personales, así que se vuelven a pedir.
 //   tutela_peticion: la petición no tuvo respuesta. impugnacion: el juez negó la tutela. desacato: ganó pero no cumplen.
+//   recurso_servicios: la empresa negó el reclamo (cobro o corte); el caso pasa a ser el recurso.
 function DeCaso({ tipo }) {
   const caso = memoria.caso;
   const [paso, setPaso] = useState('caso');
   const [extra, setExtra] = useState({ razones: [], palabras: '', orden: '', jurado: '' });
   const [faltaJurado, setFaltaJurado] = useState(false);
+  const [faltaRazon, setFaltaRazon] = useState(false);
   const [persona, setPersona] = useState(PERSONA_VACIA);
   // La tutela de una petición es un caso nuevo (la petición queda marcada); la impugnación y el desacato siguen el mismo caso.
   const [id] = useState(() => (tipo === 'tutela_peticion' ? crypto.randomUUID?.() || String(Date.now()) : caso?.id));
@@ -472,7 +474,8 @@ function DeCaso({ tipo }) {
   const n = { caso: 1, datos: 2, vista: 3 }[paso];
   const entregar = (f, otro = {}) => {
     const cambios = tipo === 'tutela_peticion' ? { tipo, titulo: t.titulo, icono: t.icono, estado: 'esperando', plazo: t.plazo, envios: undefined, codigo: undefined }
-      : tipo === 'impugnacion' ? { estado: 'impugnada', plazo: t.plazo } : { estado: 'desacato', plazo: null };
+      : tipo === 'impugnacion' ? { estado: 'impugnada', plazo: t.plazo }
+      : tipo === 'recurso_servicios' ? { tipo, titulo: t.titulo, icono: t.icono, estado: 'esperando', plazo: t.plazo } : { estado: 'desacato', plazo: null };
     // Se mezcla con lo ya guardado (por ejemplo, si primero lo anotó y después lo envió por correo): no se pierde su código.
     const previo = almacen.casos().find(c => c.id === id) || caso;
     const nuevo = { ...previo, ...cambios, id, rad: iso(f), venc: cambios.plazo ? iso(sumarHabiles(f, cambios.plazo)) : null, ...otro };
@@ -486,17 +489,21 @@ function DeCaso({ tipo }) {
   if (paso === 'datos') return <DatosPersonales tipo={tipo} valores={persona} cambiar={setPersona} volver={() => setPaso('caso')} listo={() => setPaso('vista')} paso={[n, 3]} />;
   if (paso === 'vista') return <Vista tipo={tipo} datos={{ ...caso, ...extra, ...personaParaDocumento(persona) }} volver={() => setPaso('datos')} alEntregar={entregar} paso={[n, 3]} />;
 
-  const peticion = tipo === 'tutela_peticion', impugnacion = tipo === 'impugnacion';
+  const peticion = tipo === 'tutela_peticion', impugnacion = tipo === 'impugnacion', recurso = tipo === 'recurso_servicios';
+  const razones = impugnacion ? RAZONES_IMPUGNACION : recurso ? RAZONES_RECURSO : null;
+  const sinRazon = recurso && !extra.razones.length && !extra.palabras.trim();
   const siguiente = e => {
     e.preventDefault();
     if (peticion && extra.jurado !== 'no') { setFaltaJurado(true); enfocar('jurado'); return; }
+    if (sinRazon) { setFaltaRazon(true); enfocar('razones'); return; }
     setPaso('datos');
   };
   return (
     <main className="pantalla">
       <Encabezado />
-      <p className="paso">Paso 1 de 3: {peticion ? 'antes de empezar' : impugnacion ? 'por qué no está de acuerdo' : 'qué ordenó el juez'}</p>
-      <Titulo lectura={peticion ? '¿Ya presentó otra tutela por estos mismos hechos y derechos?' : impugnacion ? '¿Por qué no está de acuerdo con la decisión del juez? Marque las que apliquen. Si no sabe, igual puede impugnar.' : '¿Qué le ordenó el juez? ' + EXPLICA.desacato}>{t.titulo}</Titulo>
+      <p className="paso">Paso 1 de 3: {peticion ? 'antes de empezar' : razones ? 'por qué no está de acuerdo' : 'qué ordenó el juez'}</p>
+      <Titulo lectura={peticion ? '¿Ya presentó otra tutela por estos mismos hechos y derechos?' : impugnacion ? '¿Por qué no está de acuerdo con la decisión del juez? Marque las que apliquen. Si no sabe, igual puede impugnar.'
+        : recurso ? `¿Por qué no está de acuerdo con la respuesta de la empresa? Tiene hasta el ${fechaLarga(caso.venc)} para presentarlo. ${EXPLICA.pagoRecurso}` : '¿Qué le ordenó el juez? ' + EXPLICA.desacato}>{t.titulo}</Titulo>
       <form className="formulario" onSubmit={siguiente} noValidate>
         {peticion && (
           <Opciones k="jurado" etiqueta="¿Ya presentó otra tutela por estos mismos hechos y derechos?" valor={extra.jurado} elegir={v => { setExtra(x => ({ ...x, jurado: v })); setFaltaJurado(false); }}
@@ -505,12 +512,14 @@ function DeCaso({ tipo }) {
             {extra.jurado === 'si' && <div className="ayuda" dangerouslySetInnerHTML={{ __html: EXPLICA.yaPresento }} />}
           </Opciones>
         )}
-        {impugnacion && <>
-          <Casillas k="razones" etiqueta="¿Por qué no está de acuerdo con la decisión del juez?" opciones={RAZONES_IMPUGNACION} sel={extra.razones}
+        {razones && <>
+          {recurso && <p className="texto"><b>Tiene hasta el {fechaLarga(caso.venc)} para presentarlo.</b> {EXPLICA.pagoRecurso}</p>}
+          <Casillas k="razones" etiqueta={impugnacion ? '¿Por qué no está de acuerdo con la decisión del juez?' : '¿Por qué no está de acuerdo con la respuesta de la empresa?'}
+            opciones={razones} sel={extra.razones} falta={faltaRazon && sinRazon}
             alternar={r => setExtra(x => ({ ...x, razones: x.razones.includes(r) ? x.razones.filter(y => y !== r) : [...x.razones, r] }))}>
-            <small className="ayuda">Marque las que apliquen. Si no sabe, igual puede impugnar.</small>
+            <small className="ayuda">{impugnacion ? 'Marque las que apliquen. Si no sabe, igual puede impugnar.' : 'Marque al menos una o escríbala abajo.'}</small>
           </Casillas>
-          <Campo etiqueta="Otra razón, con sus palabras (opcional)"><textarea rows={3} maxLength={1000} value={extra.palabras} onChange={e => setExtra(x => ({ ...x, palabras: e.target.value }))} /></Campo>
+          <Campo etiqueta={`Otra razón, con sus palabras${impugnacion ? ' (opcional)' : ''}`}><textarea rows={3} maxLength={1000} value={extra.palabras} onChange={e => setExtra(x => ({ ...x, palabras: e.target.value }))} /></Campo>
         </>}
         {tipo === 'desacato' && (
           <Campo etiqueta="Lo que ordenó el juez (opcional)">

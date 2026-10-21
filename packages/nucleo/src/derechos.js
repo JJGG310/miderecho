@@ -5,6 +5,8 @@
 // cuadros: el texto de cada viñeta de la historieta (apps/web: el búho cuenta y los personajes hablan en globos), también
 // para leerlo en voz alta. Los diálogos son los del Figma (los personajes se tratan de "tú").
 // consulta: lo que se le manda al asistente cuando la persona toca "¿Le está pasando algo así?".
+// Fichas sin historieta (todavía): en vez de cuadros traen pasos ("Qué puede hacer").
+// accion: 'peticion' o 'servicios_publicos' abren ese documento; 'carta' abre la ruta "¿Su carta venta lo hace dueño?".
 
 export const DERECHOS_INFO = [
   {
@@ -80,6 +82,46 @@ export const DERECHOS_INFO = [
         pasos: ['Solicitar por escrito que se realicen las reparaciones.', 'Guardar fotos de los daños y cualquier comunicación con el arrendador.', 'Conocer el contrato de arriendo y sus condiciones.', 'Buscar orientación en la Personería, la Defensoría del Pueblo o una entidad de vivienda si no recibe respuesta.'] },
     ],
     accion: 'ruta',
+  },
+  // [validar] con consultorio jurídico (investigacion/12, sección 2, punto 6)
+  {
+    id: 'servicios',
+    titulo: 'Derechos en los servicios públicos',
+    menu: 'Servicios públicos',
+    sub: 'Agua, luz o gas: cobros, cortes y daños',
+    icono: 'servicios',
+    descripcion: 'Si una empresa le presta el agua, la luz, el gas, el alcantarillado o el aseo, usted es su usuario y tiene derechos: que le cobren solo lo que consume, que el servicio funcione y que le respondan sus reclamos a tiempo y por escrito.',
+    dichoDeOtraForma: 'Si le llega un cobro que no entiende, le cortan el servicio o el servicio falla, puede reclamarle a la empresa por escrito y sin abogado. La empresa tiene 15 días hábiles para responder. Si no responde a tiempo, la ley entiende que le dio la razón.',
+    pasos: [
+      'Guarde las facturas y anote desde cuándo pasa el problema.',
+      'Presente un reclamo por escrito en la oficina de peticiones, quejas y recursos de la empresa, y pida el número de recibido.',
+      'Para reclamar no tiene que pagar lo que está reclamando. Solo se pueden reclamar facturas de los últimos 5 meses.',
+      'Si la empresa le dice que no a un cobro o a un corte, tiene 5 días hábiles para presentar un recurso. La Personería puede ayudarle.',
+    ],
+    queDiceLaLey: 'La Ley 142 de 1994 le permite presentar peticiones, quejas, reclamos y recursos ante la empresa (artículos 152 a 159). La empresa debe responder en 15 días hábiles; si no lo hace, opera el silencio administrativo positivo (artículo 158). Contra las decisiones sobre facturación, suspensión o corte procede el recurso de reposición y, en subsidio, el de apelación ante la Superintendencia de Servicios Públicos Domiciliarios, dentro de los 5 días hábiles siguientes a la notificación (artículos 154 y 159).',
+    normas: 'Ley 142 de 1994, artículos 152 a 159.',
+    consulta: 'Tengo un problema con el servicio de agua, luz o gas.',
+    accion: 'servicios_publicos',
+  },
+  // [validar] con consultorio jurídico (investigacion/09, sección 3)
+  {
+    id: 'tierras',
+    titulo: 'Tierras y formalización del predio',
+    menu: 'Tierras',
+    sub: 'Carta venta, títulos y formalizar el predio',
+    icono: 'tierras',
+    descripcion: 'Muchas familias campesinas viven y trabajan un predio sin tener el título. La carta venta o la promesa de compraventa no lo hacen dueño, pero sí sirven como prueba de que usted posee el predio. Hay caminos gratuitos para formalizarlo.',
+    dichoDeOtraForma: 'Para ser dueño de un predio hace falta una escritura registrada en la Oficina de Registro. Si solo tiene una carta venta, guárdela: prueba que usted vive y trabaja ahí. Según el caso, puede pedirle a la Agencia Nacional de Tierras que formalice su predio, y nadie puede cobrarle por ese trámite.',
+    pasos: [
+      'Guarde la carta venta, los recibos y todo lo que muestre que usted vive y trabaja el predio.',
+      'Si el predio tiene folio de matrícula, pida el certificado de tradición y libertad en la Oficina de Registro.',
+      'Pídale a la Agencia Nacional de Tierras (ANT), con un derecho de petición, que inicie la formalización. Es gratis.',
+      'Si tiene problemas de linderos o de paso con un vecino, la conciliación en equidad es gratuita.',
+    ],
+    queDiceLaLey: 'La venta de un inmueble solo se perfecciona con escritura pública (Código Civil, artículo 1857), y la propiedad pasa al comprador cuando esa escritura se inscribe en la Oficina de Registro de Instrumentos Públicos (artículo 756). Los baldíos de la Nación no se adquieren con el paso del tiempo: solo la Agencia Nacional de Tierras los adjudica (Ley 160 de 1994). Quien posee un predio privado puede formalizarlo ante la ANT (Decreto Ley 902 de 2017) o ante un juez con el proceso especial de la Ley 1561 de 2012.',
+    normas: 'Código Civil, artículos 756 y 1857; Ley 160 de 1994; Ley 1561 de 2012; Decreto Ley 902 de 2017.',
+    consulta: 'Tengo una duda sobre los papeles de mi predio.',
+    accion: 'carta',
   },
   {
     id: 'peticion',

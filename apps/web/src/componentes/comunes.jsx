@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb, Lock, WifiOff } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb, Lock, WifiOff, Sprout } from 'lucide-react';
 import { iso, deIso } from '@miderecho/nucleo';
 import { useConexion, DEMO } from '../lib/conexion.jsx';
 import { useLectura } from '../lib/voz.js';
@@ -7,7 +7,7 @@ import { almacen, useAbierta } from '../lib/almacen.js';
 import { ir, atras, olvidar } from '../lib/ruta.js';
 import Buho from './Buho.jsx';
 
-export const ICONOS_DERECHO = { salud: HeartPulse, trabajo: BriefcaseBusiness, vivienda: House, peticion: Landmark, igualdad: Users, otros: ShieldCheck };
+export const ICONOS_DERECHO = { salud: HeartPulse, trabajo: BriefcaseBusiness, vivienda: House, peticion: Landmark, igualdad: Users, otros: ShieldCheck, servicios: Lightbulb, tierras: Sprout };
 
 // Logo del Figma en SVG (nítido en cualquier pantalla). La hoja hace de punto de la "i".
 function Logo() {

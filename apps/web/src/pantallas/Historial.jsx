@@ -12,7 +12,7 @@ import { ir } from '../lib/ruta.js';
 const PASOS_DOC = t => [`Haga el documento con la app: ${t}.`, 'Entréguelo y pida la copia con sello o el número de recibido.', 'Anote ese día en Mis casos: le decimos hasta cuándo deben responder y qué sigue.'];
 const conFijo = i => {
   const d = derechoInfo(i.derecho);
-  return { ...i, dicho_de_otra_forma: d?.dichoDeOtraForma, pasos: i.documento && i.documento !== 'ninguno' ? PASOS_DOC(i.documento_titulo) : d?.cuadros.at(-1).pasos };
+  return { ...i, dicho_de_otra_forma: d?.dichoDeOtraForma, pasos: i.documento && i.documento !== 'ninguno' ? PASOS_DOC(i.documento_titulo) : d?.pasos || d?.cuadros.at(-1).pasos };   // las fichas sin historieta traen pasos
 };
 
 // Búsquedas guardadas (cifradas con la clave): se pueden consultar sin internet. Nunca el relato.

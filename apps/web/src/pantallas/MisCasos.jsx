@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Trash2, Clock, CheckCircle2 } from 'lucide-react';
-import { habilesEntre, deIso, iso, sumarHabiles, llenar, esc, TIPOS, EXPLICA } from '@miderecho/nucleo';
+import { habilesEntre, deIso, iso, sumarHabiles, llenar, esc, TIPOS, EXPLICA, MOTIVOS_SP } from '@miderecho/nucleo';
 import { Encabezado, BotonVoz, OpcionesRapidas, Confirmar, Aviso, ElegirFecha, fechaLarga } from '../componentes/comunes.jsx';
 import { EstadoAvisos, LlamadaAsistente } from '../componentes/Avisos.jsx';
 import Buho from '../componentes/Buho.jsx';
@@ -12,6 +12,7 @@ import { ir, memoria } from '../lib/ruta.js';
 
 const fecha = s => deIso(s).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 const esTutela = c => c.tipo.startsWith('tutela');
+const esServicio = c => c.tipo === 'servicios_publicos' || c.tipo === 'recurso_servicios';
 const html = (plantilla, c) => ({ __html: llenar(plantilla, { entidad: esc(c.entidad) }) });
 // Por fechas, no por horas: el día del vencimiento todavía no está vencido ("Hoy es el último día").
 const faltanDe = (c, hoy) => (c.venc ? habilesEntre(deIso(iso(hoy)), deIso(c.venc)) : null);
@@ -21,6 +22,7 @@ const vencidoDe = (c, hoy) => !!c.venc && iso(hoy) > c.venc;
 function etiqueta(c, hoy) {
   const faltan = faltanDe(c, hoy), vencido = vencidoDe(c, hoy), ultimo = c.venc === iso(hoy);
   if (c.estado === 'negada') return vencido ? ['⛔', 'rojo', 'Se venció el plazo para impugnar'] : ['⛔', 'rojo', ultimo ? 'Hoy es el último día para impugnar' : `Impugne a más tardar el ${fecha(c.venc)}`];
+  if (c.estado === 'por_recurrir') return vencido ? ['⛔', 'rojo', 'Se venció el plazo para el recurso'] : ['⛔', 'rojo', ultimo ? 'Hoy es el último día para el recurso' : `Presente el recurso a más tardar el ${fecha(c.venc)}`];
   if (c.estado === 'tutela') return ['✅', 'verde', 'Ya hizo la tutela por esta petición'];
   if (c.estado === 'ganada') return ['✅', 'verde', 'El juez le dio la razón'];
   if (c.estado === 'desacato') return ['⏳', 'verde', `Pidió el desacato el ${fecha(c.rad)}`];
@@ -97,12 +99,12 @@ export default function MisCasos() {
 
 // Qué sigue en cada caso, según el estado y el plazo (como el prototipo: fallo, impugnación y desacato).
 function Siguiente({ c, hoy, recargar, cerrar }) {
-  const [pregunta, setPregunta] = useState(null);   // 'favor' | 'contra' | 'aviso' | 'no'
+  const [pregunta, setPregunta] = useState(null);   // 'favor' | 'contra' | 'aviso' | 'no' | 'negado'
   // Al cambiar de estado, los recordatorios del plazo anterior ya no sirven: se cancelan.
   const guardar = cambios => { cancelarAvisos(c.codigo); almacen.guardarCaso({ ...c, ...cambios }); setPregunta(null); recargar(); };
   const preparar = tipo => { memoria.caso = c; ir('documento', tipo); };
   const vencido = vencidoDe(c, hoy);
-  const quien = esTutela(c) || c.estado === 'impugnada' ? 'El juez debe decidir' : c.tipo === 'servicios_publicos' ? 'La empresa debe responderle' : 'La entidad debe responderle';
+  const quien = esTutela(c) || c.estado === 'impugnada' ? 'El juez debe decidir' : esServicio(c) ? 'La empresa debe responderle' : 'La entidad debe responderle';
   const entregado = <p className="suave">Entregado el {fecha(c.rad)}</p>;
 
   if (c.estado === 'negada') return vencido ? (
@@ -119,6 +121,25 @@ function Siguiente({ c, hoy, recargar, cerrar }) {
       </div>
       <div className="texto" dangerouslySetInnerHTML={{ __html: EXPLICA.impugnar }} />
       <button className="btn-primario" onClick={() => preparar('impugnacion')}>Preparar la impugnación</button>
+    </div>
+  );
+
+  // Reclamo de servicios públicos negado: 5 días hábiles para el recurso (Ley 142, art. 154), como la impugnación.
+  if (c.estado === 'por_recurrir') return vencido ? (
+    <div className="siguiente">
+      <div className="texto" dangerouslySetInnerHTML={{ __html: EXPLICA.recursoVencido }} />
+      <button className="btn-secundario" onClick={cerrar}>Cerrar el caso</button>
+    </div>
+  ) : (
+    <div className="siguiente">
+      <div className="urgente" role="alert">
+        <span>Tiene muy poco tiempo. Presente el recurso a más tardar el</span>
+        <span className="fecha">{fechaLarga(c.venc)}</span>
+        <span>Son {TIPOS.recurso_servicios.presentar} días hábiles. No espere al último día.</span>
+      </div>
+      <div className="texto" dangerouslySetInnerHTML={{ __html: EXPLICA.recurso }} />
+      <p className="texto">{EXPLICA.pagoRecurso}</p>
+      <button className="btn-primario" onClick={() => preparar('recurso_servicios')}>Preparar el recurso</button>
     </div>
   );
 
@@ -142,6 +163,34 @@ function Siguiente({ c, hoy, recargar, cerrar }) {
 
   if (c.estado === 'tutela') return <p className="plazo ok"><CheckCircle2 size={20} aria-hidden /><span>La tutela por esta petición está en Mis casos.</span></p>;
   if (c.estado === 'respondido') return <p className="plazo ok"><CheckCircle2 size={20} aria-hidden /><span>Si la respuesta no resuelve su caso, cuéntenos en Inicio.</span></p>;
+
+  // Servicios públicos: la empresa puede contestar antes del plazo y, si dice que no, solo hay 5 días hábiles para el recurso.
+  // Por eso se pregunta desde el primer día. El recurso procede contra cobros y cortes (Ley 142, art. 154); sin motivo guardado, se ofrece.
+  if (esServicio(c)) {
+    const recurrible = !c.motivo || MOTIVOS_SP.find(m => m.id === c.motivo)?.recurso;
+    return (
+      <div className="siguiente">
+        {entregado}
+        {!vencido && c.venc && <p className="plazo"><Clock size={20} aria-hidden /><span>{quien} a más tardar el <b>{fechaLarga(c.venc)}</b>.</span></p>}
+        <p className="texto"><b>{vencido ? '¿Le respondieron?' : '¿Ya le respondió la empresa?'}</b></p>
+        {!pregunta && (
+          <div className="opciones-lista">
+            <button onClick={() => guardar({ estado: 'respondido' })}><span className="emoji" aria-hidden>🎉</span><span><b>Sí, me dio la razón</b></span></button>
+            <button onClick={() => setPregunta('negado')}><span className="emoji" aria-hidden>✋</span><span><b>Sí, pero me dijo que no</b></span></button>
+            {vencido && <button onClick={() => setPregunta('no')}><span className="emoji" aria-hidden>🔕</span><span><b>No me respondieron</b></span></button>}
+          </div>
+        )}
+        {pregunta === 'negado' && (c.tipo === 'recurso_servicios'
+          ? <><div className="texto" dangerouslySetInnerHTML={{ __html: EXPLICA.apelacion }} /><button className="btn-secundario" onClick={cerrar}>Cerrar el caso</button></>
+          : !recurrible
+            ? <><div className="texto" dangerouslySetInnerHTML={{ __html: EXPLICA.sinRecurso }} /><button className="btn-secundario" onClick={cerrar}>Cerrar el caso</button></>
+            : <ElegirFecha hoy={hoy} etiqueta="¿Qué día le avisaron la respuesta de la empresa?" boton="Guardar y ver el plazo"
+                alGuardar={f => guardar({ estado: 'por_recurrir', rad: iso(f), notif: iso(f), venc: iso(sumarHabiles(f, TIPOS.recurso_servicios.presentar)), plazo: TIPOS.recurso_servicios.presentar })} />)}
+        {pregunta === 'no' && <div className="texto" dangerouslySetInnerHTML={html(EXPLICA.silencio, c)} />}
+        {pregunta && <button className="btn-enlace" onClick={() => setPregunta(null)}>Volver a las opciones</button>}
+      </div>
+    );
+  }
 
   // Esperando (o impugnada): todavía hay plazo.
   if (!vencido) return <>{entregado}{c.venc && <p className="plazo"><Clock size={20} aria-hidden /><span>{quien} a más tardar el <b>{fechaLarga(c.venc)}</b>.</span></p>}</>;
