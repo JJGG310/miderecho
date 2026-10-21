@@ -204,7 +204,8 @@ export const xml = t => t.replace(/[<>&"']/g, c => ENTIDAD[c]);   // entidades e
 
 // Llamada que pide su TwiML a una URL (api/llamar.js). La cuenta de prueba de Twilio acepta TwiML propio con <Say> y <Gather>.
 export async function llamarConUrl(tel, url) {
-  await twilio('Calls', { To: tel, From: desde('llamada'), Url: url });   // sin Method: la cuenta de prueba de Twilio lo rechaza; el menú acepta el POST
+  // StatusCallback: la cuenta de prueba lo permite; avisa al final si contestaron, no contestaron o falló (ver llamar.js, ?e=1).
+  await twilio('Calls', { To: tel, From: desde('llamada'), Url: url, StatusCallback: new URL(url).origin + '/api/llamar?e=1' });   // sin Method: la cuenta de prueba de Twilio lo rechaza; el menú acepta el POST
   console.log(`[voz] llamando a ${oculto(tel)}`);
   return { ok: true, simulado: false };
 }

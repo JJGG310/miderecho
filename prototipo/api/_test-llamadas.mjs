@@ -381,7 +381,7 @@ r = await llamar();
 assert.deepEqual([r.status, r.simulado, r.via], [200, false, 'voz']);
 const u = new URL(twilio.at(-1).Url), um = JSON.parse(Buffer.from(u.searchParams.get('m'), 'base64url'));   // sin Method: la prueba solo acepta To, From y Url
 assert.deepEqual([Object.keys(twilio.at(-1)), twilio.at(-1).To, twilio.at(-1).From, u.origin + u.pathname, [...u.searchParams.keys()], um.codigo, um.vence],
-  [['To', 'From', 'Url'], '+573001112233', '+15005550006', 'https://miderecho.test/api/llamar', ['m'], 'ABCD', '2026-11-03']);
+  [['To', 'From', 'Url', 'StatusCallback'], '+573001112233', '+15005550006', 'https://miderecho.test/api/llamar', ['m'], 'ABCD', '2026-11-03']);
 assert.equal(abrirSello(um.l).e, Math.floor(ahora / 1000) + 900);   // la asistente con IA, solo 15 minutos
 ahora += 91e3;
 assert.equal((await llamar({ codigo: '', vence: '' })).status, 200);

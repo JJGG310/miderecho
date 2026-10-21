@@ -37,6 +37,12 @@ const ENFRIAMIENTO_S = 90, recientes = new Map();
 export default async function handler(req, res) {
   // Twilio pide el TwiML por GET o, con la cuenta de prueba, por POST de formulario; la app siempre manda JSON.
   if (req.method === 'GET' && req.query?.audio) return audio(req, res);
+  // Aviso de Twilio al terminar la llamada (StatusCallback): solo el estado, nunca el número, para saber si contestaron.
+  if (req.method === 'POST' && req.query?.e === '1') {
+    const b = typeof req.body === 'object' && req.body ? req.body : {};
+    console.log(`[voz] fin de llamada: ${String(b.CallStatus || '?').slice(0, 20)}, ${+b.CallDuration || 0} s${b.ErrorCode ? ', error ' + String(b.ErrorCode).slice(0, 8) : ''}`);
+    return res.status(204).end();
+  }
   if (req.method === 'GET' || /x-www-form-urlencoded/i.test(req.headers['content-type'] || '')) return menuDeVoz(req, res);
   return atender(req, res, {
     async POST(b) {
