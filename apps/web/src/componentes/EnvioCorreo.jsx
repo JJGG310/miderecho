@@ -42,7 +42,8 @@ export function Constancia({ k }) {
   );
 }
 
-export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar }) {
+// ajeno: documento de un vecino (modo líder); no se compara con los casos guardados del líder.
+export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar, ajeno }) {
   const { enLinea } = useConexion();
   const judicial = paraJuzgado(tipo), dest = destinoDe(tipo, datos);
   const [modo, setModo] = useState(null);   // lo que dice GET /api/correo; null mientras no se sepa
@@ -59,7 +60,7 @@ export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar }) {
   const copia = f.autorizaCopia && correoValido(f.copia) ? f.copia.trim() : undefined;
   const copiaPermitida = modo?.libre !== false;   // en modo simulado o de prueba sin lista, el servidor no manda copias
   const avisos = [datos.telefono && `al celular ${datos.telefono}`, correoValido(datos.direccion) && `al correo ${datos.direccion}`, copiaPermitida && copia && `al correo ${copia}`].filter(Boolean);
-  const previo = dest && almacen.casos().find(c => c.tipo === tipo && c.envios?.some(k => k.para === dest.correo));
+  const previo = !ajeno && dest && almacen.casos().find(c => c.tipo === tipo && c.envios?.some(k => k.para === dest.correo));
   const listo = f.autoriza && para && (!judicial || avisos.length) && (!modo?.verificar || /^\d{6}$/.test(f.codigo));
 
   const enviar = useCallback(async () => {
