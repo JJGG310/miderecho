@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, CheckCircle2, ChevronRight, ShieldCheck, CalendarCheck } from 'lucide-react';
+import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, ChevronRight, ShieldCheck, CalendarCheck } from 'lucide-react';
 import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, RAZONES_IMPUGNACION, VERIFICADO, sumarHabiles, iso } from '@miderecho/nucleo';
 import { Encabezado, Titulo, BotonVoz, ElegirFecha, fechaLarga } from '../componentes/comunes.jsx';
+import Buho from '../componentes/Buho.jsx';
 import EnvioCorreo from '../componentes/EnvioCorreo.jsx';
 import { ElegirAvisos } from '../componentes/Avisos.jsx';
 import { FormClave } from './Clave.jsx';
@@ -36,7 +37,7 @@ function Menu() {
     <main className="pantalla">
       <Encabezado />
       <Titulo lectura={`Crear un documento. ¿Qué necesita? ${MENU.map(m => m[2]).join('. ')}. Todos son gratis, no necesitan abogado y se arman sin internet.`}>Crear un documento</Titulo>
-      <p className="texto">¿Qué necesita? Si no sabe cuál, vuelva al inicio y cuéntenos qué pasa.</p>
+      <Buho pose="pensando" ancho={64} primera>¿Qué necesita? Si no sabe cuál, vuelva al inicio y cuéntenos qué pasa.</Buho>
       <section className="tarjeta clara lista-temas">
         <ul>
           {MENU.map(([id, Icono, t, s]) => (
@@ -414,7 +415,7 @@ function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
       <p className="paso">Paso {paso[0]} de {paso[1]}: su documento</p>
       <Titulo alVolver={volver} lectura={`Su documento está listo. Qué hacer ahora: ${pasos.join(' ')}`}>Su documento está listo</Titulo>
       <section className="tarjeta clara">
-        <h2>Qué hacer ahora</h2>
+        <h2><Buho pose="documento" ancho={44} primera /> Qué hacer ahora</h2>
         <ol className="pasos">{pasos.map(x => <li key={x}>{x}</li>)}</ol>
         {datos.urgente === 'si' && <p className="texto"><b>{EXPLICA.urgente}</b></p>}
       </section>
@@ -424,7 +425,7 @@ function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
         <FormClave enTarjeta motivo="Para anotarlo en Mis casos, enviarlo por correo o recibir avisos del plazo, escriba su clave. Si no la escribe, no se guarda nada." />
       ) : guardado ? (
         <section className="tarjeta oliva" role="status">
-          <h2><CheckCircle2 size={22} aria-hidden /> Quedó guardado</h2>
+          <h2><Buho pose="corazon" ancho={44} /> Quedó guardado</h2>
           {guardado.venc && <p className="texto">{quien} a más tardar el <b>{fechaLarga(guardado.venc)}</b>.</p>}
           {guardado.venc && <ElegirAvisos caso={guardado} tarjeta={false} />}
           <button className="btn-secundario" onClick={() => ir('casos')}>Ver en Mis casos</button>

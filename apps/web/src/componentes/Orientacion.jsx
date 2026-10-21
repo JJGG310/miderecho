@@ -1,6 +1,7 @@
 import { FilePen, BookOpen, MapPin, TriangleAlert } from 'lucide-react';
 import { derechoInfo } from '@miderecho/nucleo/derechos';
 import { DichoDeOtraForma, LeyDesplegable, BotonVoz } from './comunes.jsx';
+import Buho from './Buho.jsx';
 import { ir, memoria } from '../lib/ruta.js';
 import { useAbierta } from '../lib/almacen.js';
 import { FormClave } from '../pantallas/Clave.jsx';
@@ -18,7 +19,7 @@ export default function Orientacion({ o, guardada = false }) {
   return (
     <div className="orientacion">
       <section className="tarjeta clara">
-        <div className="fila-titulo"><h2>{o.tema}</h2><BotonVoz texto={lectura} /></div>
+        <div className="fila-titulo"><h2><Buho pose="lupa" ancho={44} /> {o.tema}</h2><BotonVoz texto={lectura} /></div>
         {o.resumen && <p className="texto">{o.resumen}</p>}
       </section>
 

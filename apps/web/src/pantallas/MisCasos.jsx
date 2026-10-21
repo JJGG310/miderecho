@@ -3,6 +3,7 @@ import { Trash2, Clock, CheckCircle2 } from 'lucide-react';
 import { habilesEntre, deIso, iso, sumarHabiles, llenar, esc, TIPOS, EXPLICA } from '@miderecho/nucleo';
 import { Encabezado, BotonVoz, OpcionesRapidas, Confirmar, Aviso, ElegirFecha, fechaLarga } from '../componentes/comunes.jsx';
 import { EstadoAvisos, LlamadaAsistente } from '../componentes/Avisos.jsx';
+import Buho from '../componentes/Buho.jsx';
 import { Constancia } from '../componentes/EnvioCorreo.jsx';
 import { cancelarAvisos } from '../lib/avisos.js';
 import { almacen } from '../lib/almacen.js';
@@ -54,6 +55,7 @@ export default function MisCasos() {
 
       {casos.length === 0 ? (
         <div className="vacio">
+          <Buho pose="avatar-curioso" ancho={96} primera />
           <h2>Aún no tiene casos</h2>
           <p className="texto">Cuando entregue un documento, anote aquí el día: le recordamos el plazo y qué sigue.</p>
         </div>
@@ -122,7 +124,7 @@ function Siguiente({ c, hoy, recargar, cerrar }) {
 
   if (c.estado === 'ganada') return (
     <div className="siguiente">
-      <div className="texto" dangerouslySetInnerHTML={html(EXPLICA.ganada, c)} />
+      <div className="fila-buho"><Buho pose="corazon" ancho={48} /><div className="texto" dangerouslySetInnerHTML={html(EXPLICA.ganada, c)} /></div>
       <p className="texto"><b>¿Ya cumplió {c.entidad}?</b></p>
       <div className="botones-opcion">
         <button onClick={cerrar}>Sí, ya cumplió</button>
