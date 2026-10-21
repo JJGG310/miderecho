@@ -11,8 +11,9 @@
 //   (una voz grabada podría dejar el código del caso en el buzón de un celular compartido).
 // DELETE /api/llamar { token }: cancela la llamada agendada. Siempre responde igual, exista o no.
 // PUT /api/llamar { id }: solo para QStash, con su firma (Upstash-Signature).
-// GET /api/llamar?paso=&codigo=&vence= (lo pide Twilio; con la cuenta de prueba puede llegar como POST de formulario):
-//   menú de voz sin estado y con texto fijo. Nada del caso se dice antes de que alguien oprima una tecla (un buzón de voz
+// POST de formulario (o GET) /api/llamar?m=… (lo pide Twilio): menú de voz sin estado y con texto fijo. `m` lleva todo
+//   en un solo parámetro (paso, código, fecha, `l`, `s`): las URL del TwiML no tienen "&" ni method="GET", porque la
+//   cuenta de prueba de Twilio no siguió esas acciones ("An application error has occurred"). Solo teclas en el menú. Nada del caso se dice antes de que alguien oprima una tecla (un buzón de voz
 //   no oprime). Luego: código y fecha, "¿le respondieron?" (1 sí, 2 no, 3 repetir, 4 asistente, 9 peligro) y la respuesta fija.
 //   Con 4: aviso de IA, 1 para aceptar y conversación de hasta MAX_TURNOS (_ia-telefono.js). Solo si la llamada salió de
 //   este servidor (`l`, sellado en el POST, 15 minutos). El estado viaja cifrado en la URL (`s`); no se guarda nada.
@@ -29,6 +30,9 @@ const env = process.env;
 const ahora = () => Math.floor(Date.now() / 1000);
 const enHorario = seg => { const h = new Date((seg - 5 * 3600) * 1000).getUTCHours(); return h >= 8 && h < 19; };   // Colombia: UTC-5
 const destino = req => `https://${req.headers.host}/api/llamar`;
+// Una llamada ya en curso no se repite: 90 s por número. ponytail: por instancia de Vercel; el freno real entre
+// instancias es el tope diario de proteger(), que solo cuenta de verdad con Redis.
+const ENFRIAMIENTO_S = 90, recientes = new Map();
 
 export default async function handler(req, res) {
   // Twilio pide el TwiML por GET o, con la cuenta de prueba, por POST de formulario; la app siempre manda JSON.
@@ -42,9 +46,11 @@ export default async function handler(req, res) {
       const canal = simulado('agente') ? 'voz' : 'agente', real = !simulado(canal);
       if (!cuando && !enHorario(ahora())) throw falla(400, FUERA);
       if (cuando && real && !(env.QSTASH_TOKEN && redisListo())) throw falla(503, 'Para agendar llamadas faltan QSTASH_TOKEN y Redis en el servidor');
+      if (real && !cuando && ahora() - (recientes.get(tel) ?? 0) < ENFRIAMIENTO_S) throw falla(429, 'Ya lo estamos llamando. Si no entra la llamada, pídala de nuevo en un par de minutos.');
       await proteger(req, tel, canal);
       if (real) await kv(autorizacion(tel, aviso, canal));
-      if (!cuando) return llamar(tel, datos, req.headers.host);
+      if (real && !cuando) recientes.set(tel, ahora());
+      if (!cuando) return llamar(tel, datos, req.headers.host).catch(e => { recientes.delete(tel); throw e; });   // si no salió, se puede reintentar
 
       const token = randomBytes(16).toString('base64url'), id = hmac('llam:' + token);
       if (real) {
@@ -119,27 +125,29 @@ async function llamar(tel, { codigo, vence }, host) {
 // ---------- menú de voz (Twilio, sin agente) ----------
 // Textos fijos, los mismos de agente/prompt-telefono.md. Voz neural de español latino.
 const urlVoz = (host, { codigo, vence, l, s }, paso) => {
-  const q = new URLSearchParams(Object.entries({ paso, codigo, vence, l, s }).filter(([, v]) => v));
-  return `https://${host}/api/llamar${q.size ? '?' + q : ''}`;
+  const m = Object.fromEntries(Object.entries({ paso, codigo, vence, l, s }).filter(([, v]) => v));
+  return `https://${host}/api/llamar` + (Object.keys(m).length ? '?m=' + Buffer.from(JSON.stringify(m)).toString('base64url') : '');
 };
+const leerM = m => { try { return m ? JSON.parse(Buffer.from(String(m), 'base64url')) : {}; } catch { return {}; } };
 const decir = t => `<Say language="es-MX" voice="Polly.Mia-Neural">${xml(t)}</Say>`;
 // La asistente habla con la voz de ElevenLabs (audio sellado que pide Twilio) o, si no se pudo generar, con la de Twilio.
 const voz = async (t, host) => await vozA_tiempo(t)
   ? `<Play>${xml(`https://${host}/api/llamar?audio=${sellar({ t, e: ahora() + 300 })}`)}</Play>` : decir(t);
-const escuchar = (accion, dentro) => `<Gather input="speech" language="es-CO" speechTimeout="auto" timeout="7" action="${accion}" method="GET">${dentro}</Gather>`;
+const escuchar = (accion, dentro) => `<Gather input="speech" language="es-CO" speechTimeout="auto" timeout="7" action="${accion}">${dentro}</Gather>`;
+const teclas = (accion, dentro, espera = 8) => `<Gather input="dtmf" numDigits="1" timeout="${espera}" action="${accion}">${dentro}</Gather>`;
 // Versión del aviso de IA (avisoIA, avisoGoogle, avisoGratis y aceptar): si cambia el texto, cambia la versión.
 const VERSION_IA = 'ia-telefono-v1';
 const TEXTOS = {
   llave: 'Hola. Tiene un recordatorio de un servicio automático. Para escucharlo, oprima cualquier tecla.',
   nadie: 'No recibimos respuesta. Hasta luego.',
-  opciones: 'Si ya le respondieron, oprima 1 o diga sí. Si no le han respondido, oprima 2 o diga no. Para escuchar de nuevo, oprima 3. Si está en peligro, oprima 9.',
+  opciones: 'Si ya le respondieron, oprima 1. Si no le han respondido, oprima 2. Para escuchar de nuevo, oprima 3. Si está en peligro, oprima 9.',
   respondieron: 'Qué bien. Abra MiDerecho, entre a Mis casos y anote qué le respondieron. La app le dice qué sigue.',
   aTiempo: 'Todavía están a tiempo de responderle. Si llega esa fecha y no le han respondido, abra Mis casos en la app: ahí le ayuda con el siguiente paso.',
   vencido: 'Si ya pasó la fecha y no le respondieron, abra Mis casos en la app: le ayuda a preparar el siguiente documento, sin abogado. Esto es información general, no consejo de abogado.',
   sinFecha: 'Si no le han respondido, abra Mis casos en la app: ahí le ayuda con el siguiente paso.',
   orienta: 'Para saber qué documento le sirve, abra MiDerecho y cuéntele a la app qué pasa, o pídale ayuda a su líder o a la Personería.',
   noEntendi: 'No le entendí.',
-  conAsistente: 'Para hablar con la asistente, oprima 4 o diga asistente.',
+  conAsistente: 'Para hablar con la asistente, oprima 4.',
   avisoIA: 'Le habla la asistente de MiDerecho. Es un asistente automático con inteligencia artificial: no es una persona ni un abogado. No diga su nombre, su cédula ni datos de otras personas.',
   avisoGoogle: 'Lo que diga lo transcribe Twilio y lo procesa Google para responderle.',
   avisoGratis: 'Como es una versión gratuita, Google puede usar lo que diga para mejorar sus productos.',
@@ -151,14 +159,8 @@ const TEXTOS = {
   cierre: 'Recuerde que soy un asistente automático. Para una duda legal, acuda a la Personería o a un consultorio jurídico. Hasta luego.',
   error: 'No pudimos leer este recordatorio. Abra la app MiDerecho. Hasta luego.',
 };
-// Tecla o palabra → opción. La palabra solo cuenta después de la primera tecla (un buzón de voz también "habla").
-const opcion = (digito, dicho = '') => {
-  const d = dicho.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();   // "Sí." → "si."
-  return digito || (/peligro|amenaz/.test(d) ? '9' : /asistente|hablar/.test(d) ? '4' : /repet|otra vez/.test(d) ? '3' : /\bno\b/.test(d) ? '2' : /\b(si|ya)\b/.test(d) ? '1' : '');
-};
-
 export async function menuDeVoz(req, res) {
-  const q = { ...(req.query || {}), ...(req.body && typeof req.body === 'object' ? req.body : {}) };
+  const r0 = { ...(req.query || {}), ...(req.body && typeof req.body === 'object' ? req.body : {}) }, q = { ...r0, ...leerM(r0.m) };
   let cuerpo;
   try {
     const datos = { codigo: codigoDe(q.codigo), vence: venceDe(q.vence), l: q.l }, host = req.headers.host, hoy = hoyColombia();
@@ -166,19 +168,19 @@ export async function menuDeVoz(req, res) {
     const conIA = abrir(q.l)?.e > ahora();   // la llamada salió de este servidor hace menos de 15 minutos
     const riesgo = async () => await voz(TEXTOS.riesgo, host) + decir('Repito.') + decir(TEXTOS.riesgo) + decir('Cuídese. Hasta luego.');
     if (!q.paso) {
-      cuerpo = `<Pause length="1"/><Gather input="dtmf" numDigits="1" timeout="10" action="${a('1')}" method="GET">${decir(TEXTOS.llave)}</Gather>${decir(TEXTOS.nadie)}`;
+      cuerpo = `<Pause length="1"/>${teclas(a('1'), decir(TEXTOS.llave), 10)}${decir(TEXTOS.nadie)}`;
     } else if (q.paso === '1') {
-      const menu = t => `<Gather input="dtmf speech" numDigits="1" timeout="8" speechTimeout="auto" language="es-CO" hints="sí, no, repetir, asistente" action="${a('2')}" method="GET">${decir(t)}</Gather>`;
+      const menu = t => teclas(a('2'), decir(t));
       cuerpo = decir(presentacionVoz(datos.codigo, datos.vence, hoy)) + (datos.codigo
         ? menu(TEXTOS.opciones + (conIA ? ' ' + TEXTOS.conAsistente : '')) + decir(TEXTOS.cierre)
         : (conIA ? menu(TEXTOS.conAsistente) : '') + decir(TEXTOS.orienta) + decir(TEXTOS.cierre));
     } else if (q.paso === '2') {
-      const o = opcion(q.Digits, q.SpeechResult);
+      const o = String(q.Digits ?? '');
       cuerpo = o === '1' ? decir(TEXTOS.respondieron) + decir(TEXTOS.cierre)
         : o === '2' ? decir(!datos.vence ? TEXTOS.sinFecha : hoy > datos.vence ? TEXTOS.vencido : TEXTOS.aTiempo) + decir(TEXTOS.cierre)
         : o === '9' ? decir(TEXTOS.riesgo) + decir('Repito.') + decir(TEXTOS.riesgo) + decir('Cuídese. Hasta luego.')
-        : o === '4' && conIA ? `<Gather input="dtmf" numDigits="1" timeout="8" action="${a('ia')}" method="GET">${await voz(avisoIA(), host)}</Gather>${decir(TEXTOS.cierre)}`
-        : `${o === '3' ? '' : decir(TEXTOS.noEntendi)}<Redirect method="GET">${a('1')}</Redirect>`;
+        : o === '4' && conIA ? teclas(a('ia'), await voz(avisoIA(), host)) + decir(TEXTOS.cierre)
+        : `${o === '3' ? '' : decir(TEXTOS.noEntendi)}<Redirect>${a('1')}</Redirect>`;
     } else if (q.paso === 'ia' && conIA && q.Digits === '1') {
       // Aceptó hablar con la IA: prueba mínima de esa autorización (seudónimo del número que contestó, fecha y versión).
       try { await kv(autorizacion(celular(q.To || q.Called), VERSION_IA, 'ia')); } catch { /* sin número de Twilio: sigue */ }

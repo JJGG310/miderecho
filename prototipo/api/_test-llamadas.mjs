@@ -119,27 +119,34 @@ assert.equal(cifrarPush('When I grow up, I want to be a watermelon',
 
 // menú de voz (lo pide Twilio por GET): nada del caso antes de que alguien oprima una tecla (un buzón no oprime)
 const menu = (query, opciones) => api('llamar', 'GET', undefined, { query, ...opciones });
+// Las acciones del TwiML: POST (sin method), una URL sin "&" y todo en `m` (la cuenta de prueba de Twilio no siguió las otras).
+const destinoDe = twiml => { const u = new URL(twiml.match(/action="([^"]+)"/)?.[1] || twiml.match(/<Redirect>([^<]+)<\/Redirect>/)[1]); return { u, m: JSON.parse(Buffer.from(u.searchParams.get('m'), 'base64url')) }; };
 ir('2026-10-30T15:00:00Z');
 r = await menu({ codigo: 'ABCD', vence: '2026-11-03' });
 assert.deepEqual([r.status, r.cabeceras['content-type']], [200, 'text/xml; charset=utf-8']);
-assert.match(r.texto, /<Gather input="dtmf" numDigits="1" timeout="10" action="https:\/\/miderecho\.test\/api\/llamar\?paso=1&#38;codigo=ABCD&#38;vence=2026-11-03" method="GET">/);
+assert.match(r.texto, /<Gather input="dtmf" numDigits="1" timeout="10" action="https:\/\/miderecho\.test\/api\/llamar\?m=[\w-]+">/);
+assert.deepEqual(destinoDe(r.texto).m, { paso: '1', codigo: 'ABCD', vence: '2026-11-03' });
+assert.ok(!/method=|&amp;|&#38;|input="dtmf speech"|<Gather input="speech"/.test(r.texto));
 assert.match(r.texto, /oprima cualquier tecla/);
 assert.ok(!/A, B|noviembre|MiDerecho/.test(r.texto), 'antes de la tecla no se dice nada del caso');
 assert.match(r.texto, /<Hangup\/><\/Response>$/);
 r = await menu({ paso: '1', codigo: 'ABCD', vence: '2026-11-03' });
 assert.match(r.texto, /Le recordamos su caso A, B, C, D\. El plazo vence el martes, 3 de noviembre\./);
-assert.match(r.texto, /<Gather input="dtmf speech"[^>]*action="https:\/\/miderecho\.test\/api\/llamar\?paso=2&#38;codigo=ABCD/);
+assert.match(r.texto, /<Gather input="dtmf" numDigits="1" timeout="8" action="https:\/\/miderecho\.test\/api\/llamar\?m=[\w-]+">[^]*oprima 1\. Si no le han respondido, oprima 2/);
+assert.deepEqual(destinoDe(r.texto).m, { paso: '2', codigo: 'ABCD', vence: '2026-11-03' });
 r = await menu({ paso: '1' });   // llamada sin caso: solo orientación
 assert.match(r.texto, /qué documento le sirve/);
 assert.ok(!r.texto.includes('<Gather'));
 const paso2 = (extra, vence = '2026-11-03') => menu({ paso: '2', codigo: 'ABCD', vence, ...extra }).then(x => x.texto);
 assert.match(await paso2({ Digits: '1' }), /Qué bien/);
-assert.match(await paso2({ SpeechResult: 'Sí.' }), /Qué bien/);
 assert.match(await paso2({ Digits: '2' }), /Todavía están a tiempo/);
-assert.match(await paso2({ SpeechResult: 'No, todavía no.' }), /Todavía están a tiempo/);
 assert.match(await paso2({ Digits: '2' }, '2026-10-20'), /Si ya pasó la fecha[^<]*no consejo de abogado/);
 assert.match(await paso2({ Digits: '9' }), /uno, dos, tres[^]*Repito[^]*uno, dos, tres/);
-assert.match(await paso2({ SpeechResult: 'repetir' }), /^[^]*<Redirect method="GET">https:\/\/miderecho\.test\/api\/llamar\?paso=1&#38;codigo=ABCD/);
+r = { texto: await paso2({ Digits: '3' }) };
+assert.match(r.texto, /<Redirect>https:\/\/miderecho\.test\/api\/llamar\?m=[\w-]+<\/Redirect>/);
+assert.equal(destinoDe(r.texto).m.paso, '1');
+// todo en `m` o con los parámetros sueltos de antes (la URL del plan B por la consola de Twilio)
+assert.match((await menu({ m: Buffer.from(JSON.stringify({ paso: '2', codigo: 'ABCD', vence: '2026-11-03' })).toString('base64url'), Digits: '1' })).texto, /Qué bien/);
 assert.match(await paso2({ Digits: '7' }), /No le entendí\.[^]*<Redirect/);
 assert.match((await menu({ codigo: '<x>' })).texto, /No pudimos leer este recordatorio/);   // datos malos: igual responde TwiML
 // la cuenta de prueba de Twilio puede pedirlo por POST de formulario (no JSON)
@@ -147,7 +154,7 @@ r = await api('llamar', 'POST', { Digits: '1' }, { query: { paso: '2', codigo: '
 assert.match(r.texto, /Qué bien/);
 
 // ---------- conversación con IA en el menú (modo básico: sin Gemini ni ElevenLabs) ----------
-const accion = twiml => Object.fromEntries(new URL(twiml.match(/action="([^"]+)"/)[1].replace(/&#38;/g, '&')).searchParams);
+const accion = twiml => destinoDe(twiml).m;
 const seguir = (twiml, extra) => menu({ ...accion(twiml), ...extra });
 const l = sellar({ e: Math.floor(ahora / 1000) + 900 });
 // sin la prueba de que la llamada salió de aquí (`l`), no se ofrece la asistente
@@ -157,15 +164,17 @@ assert.match((await menu({ paso: '2', codigo: 'ABCD', vence: '2026-11-03', Digit
 assert.match((await menu({ paso: '2', codigo: 'ABCD', Digits: '4', l: l.slice(0, -2) + (l.at(-2) === 'A' ? 'B' : 'A') + l.at(-1) })).texto, /No le entendí/);   // alterada
 // con `l`: el menú la ofrece, avisa qué es antes de conversar y pide oprimir 1
 r = await menu({ paso: '1', codigo: 'ABCD', vence: '2026-11-03', l });
-assert.match(r.texto, /Si está en peligro, oprima 9\. Para hablar con la asistente, oprima 4 o diga asistente\./);
+assert.match(r.texto, /Si está en peligro, oprima 9\. Para hablar con la asistente, oprima 4\./);
 assert.match((await menu({ paso: '1', l })).texto, /<Gather[^>]*>[^]*oprima 4[^]*<\/Gather>[^]*qué documento le sirve/);   // también sin caso
-r = await seguir(r.texto, { SpeechResult: 'Quiero hablar con la asistente' });
-assert.match(r.texto, /<Gather input="dtmf" numDigits="1" timeout="8" action="[^"]*paso=ia/);
+r = await seguir(r.texto, { Digits: '4' });
+assert.match(r.texto, /<Gather input="dtmf" numDigits="1" timeout="8" action="https:\/\/miderecho\.test\/api\/llamar\?m=[\w-]+">/);
+assert.equal(accion(r.texto).paso, 'ia');
 assert.match(r.texto, /inteligencia artificial: no es una persona ni un abogado\. No diga su nombre, su cédula ni datos de otras personas\. Para aceptar/);
 assert.ok(!r.texto.includes('Google'), 'sin Gemini no se menciona a Google');
 assert.match((await seguir(r.texto, { Digits: '2' })).texto, /Recuerde que soy un asistente automático/);   // no aceptó
 r = await seguir(r.texto, { Digits: '1', To: '+573001112233' });
-assert.match(r.texto, /<Gather input="speech" language="es-CO" speechTimeout="auto" timeout="7" action="[^"]*paso=turno[^"]*s=/);
+assert.match(r.texto, /<Gather input="speech" language="es-CO" speechTimeout="auto" timeout="7" action="https:\/\/miderecho\.test\/api\/llamar\?m=[\w-]+">/);
+assert.deepEqual([accion(r.texto).paso, typeof accion(r.texto).s], ['turno', 'string']);
 assert.match(r.texto, /<Say[^>]*>Cuénteme en pocas palabras qué necesita, sin nombres ni números\.<\/Say>/);   // sin ElevenLabs: voz de Twilio
 // turno con el modo básico: trato de usted (sus preguntas vienen en tú) y frase fija del documento
 const t1 = await seguir(r.texto, { SpeechResult: 'La EPS no me da la cita, mi cédula es 1144555666' });
@@ -265,8 +274,13 @@ assert.deepEqual(d.conversation_initiation_client_data, { dynamic_variables: { c
 assert.equal(d.telephony_call_config.twilio_call_recording_enabled, false);
 assert.deepEqual(d.telephony_call_config.twilio_machine_detection.actions, [{ action: 'hang_up', answered_by: ['machine_start', 'fax'] }]);
 assert.ok(!('conversation_config_override' in d.conversation_initiation_client_data));   // nada de cambiar el prompt desde aquí
+// varios toques seguidos: la misma llamada no se repite en 90 s (por instancia) y no gasta del tope diario
+assert.match((await llamar()).error, /Ya lo estamos llamando/);
+assert.equal(llamadas.length, 1);
+ahora += 91e3;
 await llamar({ codigo: '', vence: '' });
 assert.deepEqual(llamadas.at(-1).datos.conversation_initiation_client_data.dynamic_variables, { codigo: 'ninguno', vence: 'ninguna' });
+ahora += 91e3;
 assert.match((await llamar()).error, /llamadas de hoy/);   // tope propio: 2 llamadas al día por número
 assert.equal(llamadas.length, 2);
 
@@ -287,6 +301,7 @@ assert.equal(llamadas.at(-1).datos.agent_id, 'agent_otro');
 delete env.ELEVENLABS_AGENT_ID;
 Object.assign(env, { TWILIO_ACCOUNT_SID: 'ACprueba', TWILIO_AUTH_TOKEN: 'token', TWILIO_FROM: '+15005550006' });
 fallaEleven = true;
+ahora += 91e3;
 assert.deepEqual([(r = await llamar()).status, r.error], [502, 'No se pudo hacer la llamada (código 422)']);
 assert.equal(twilio.length, 0, 'una voz grabada podría dejar el código en un buzón');
 fallaEleven = false;
@@ -364,12 +379,14 @@ delete env.ELEVENLABS_API_KEY;
 ir('2026-10-28T15:00:00Z');
 r = await llamar();
 assert.deepEqual([r.status, r.simulado, r.via], [200, false, 'voz']);
-const u = new URL(twilio.at(-1).Url);   // sin Method: la cuenta de prueba de Twilio solo acepta To, From y Url
-assert.deepEqual([Object.keys(twilio.at(-1)), twilio.at(-1).To, twilio.at(-1).From, u.origin + u.pathname, u.searchParams.get('codigo'), u.searchParams.get('vence')],
-  [['To', 'From', 'Url'], '+573001112233', '+15005550006', 'https://miderecho.test/api/llamar', 'ABCD', '2026-11-03']);
-assert.equal(abrirSello(u.searchParams.get('l')).e, Math.floor(ahora / 1000) + 900);   // la asistente con IA, solo 15 minutos
+const u = new URL(twilio.at(-1).Url), um = JSON.parse(Buffer.from(u.searchParams.get('m'), 'base64url'));   // sin Method: la prueba solo acepta To, From y Url
+assert.deepEqual([Object.keys(twilio.at(-1)), twilio.at(-1).To, twilio.at(-1).From, u.origin + u.pathname, [...u.searchParams.keys()], um.codigo, um.vence],
+  [['To', 'From', 'Url'], '+573001112233', '+15005550006', 'https://miderecho.test/api/llamar', ['m'], 'ABCD', '2026-11-03']);
+assert.equal(abrirSello(um.l).e, Math.floor(ahora / 1000) + 900);   // la asistente con IA, solo 15 minutos
+ahora += 91e3;
 assert.equal((await llamar({ codigo: '', vence: '' })).status, 200);
-assert.deepEqual([...new URL(twilio.at(-1).Url).searchParams.keys()], ['l']);
+assert.deepEqual(Object.keys(JSON.parse(Buffer.from(new URL(twilio.at(-1).Url).searchParams.get('m'), 'base64url'))), ['l']);
+ahora += 91e3;
 assert.match((await llamar()).error, /llamadas de hoy/);   // el mismo tope de 2 al día
 assert.ok(autorizaciones().some(([, v]) => v.canal === 'voz'));
 const demo = env.NUMEROS_DEMO;
@@ -470,7 +487,7 @@ Object.assign(env, { GEMINI_API_KEY: 'g-prueba', GEMINI_PLAN: 'gratis', ELEVENLA
 ir('2026-10-30T15:00:00Z');
 const l2 = sellar({ e: Math.floor(ahora / 1000) + 900 });
 r = await menu({ paso: '2', codigo: 'K7P2', vence: '2026-11-03', l: l2, Digits: '4' });
-const audioDe = twiml => new URL(twiml.match(/<Play>([^<]+)<\/Play>/)[1].replace(/&#38;/g, '&')).searchParams.get('audio');
+const audioDe = twiml => new URL(twiml.match(/<Play>([^<]+)<\/Play>/)[1]).searchParams.get('audio');
 assert.match(r.texto, /<Gather input="dtmf"[^>]*><Play>https:\/\/miderecho\.test\/api\/llamar\?audio=[\w-]+<\/Play><\/Gather>/);
 assert.match(abrirSello(audioDe(r.texto)).t, /inteligencia artificial[^]*Lo que diga lo transcribe Twilio y lo procesa Google[^]*versión gratuita, Google puede usar/);
 assert.deepEqual([voces.at(-1).url, voces.at(-1).headers['xi-api-key'], voces.at(-1).datos.model_id],
