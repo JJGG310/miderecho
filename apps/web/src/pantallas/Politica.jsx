@@ -95,8 +95,8 @@ const PASOS = [
     explica: 'Sus casos quedan en este celular. Póngale clave o bórrelos en Perfil.' },
   { titulo: 'El asistente y otras empresas', fondo: 'cielo', escena: asis(8, 52, 1.2) + mundo + micro(112, 14) + relato(184, 10, .7) + sobre(110, 124, .8) + campana(190, 120)
       + flecha('M236 128q-20-30-42-44', 194, 84, 220) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
-    ['a', 'Lo que me cuenta lo lee Claude, una inteligencia artificial.'],
-    ['a', 'Claude es de la empresa Anthropic, en Estados Unidos.'],
+    ['a', 'Lo que me cuenta lo lee una inteligencia artificial: Claude o Gemini.'],
+    ['a', 'Claude es de la empresa Anthropic y Gemini de Google, las dos en Estados Unidos.'],
     ['a', 'Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo.'],
     ['a', 'No escriba nombres, cédulas ni direcciones en el chat.'],
     ['r', '¿Y la voz, los mensajes y el correo?'],
@@ -285,7 +285,7 @@ const SECCIONES = [
       <li>Si usted lo pide {PRONTO}: enviar el documento por correo, recordarle el plazo por SMS, WhatsApp, llamada o aviso en el celular, o hablar con el asistente por voz. Cada una de estas funciones le pedirá un permiso aparte.</li></ol>
     <p>No vendemos ni prestamos sus datos, no los usamos para publicidad y no armamos perfiles de nadie.</p></>],
   ['3. Qué datos usamos, dónde quedan y cuánto tiempo', <ul>
-    <li><b>Lo que le cuenta al asistente</b> (escrito o dictado): sale de su celular hacia nuestro servidor y hacia Claude, la inteligencia artificial de Anthropic, en Estados Unidos. Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo y no quita nombres: no los escriba en el chat. Nuestro servidor no lo guarda, y la conversación se borra del celular al cerrar la app. Anthropic puede conservarlo por un tiempo limitado, según sus condiciones.</li>
+    <li><b>Lo que le cuenta al asistente</b> (escrito o dictado): sale de su celular hacia nuestro servidor y hacia la inteligencia artificial que esté activa: Claude (Anthropic) o Gemini (Google), las dos en Estados Unidos. Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo y no quita nombres: no los escriba en el chat. Nuestro servidor no lo guarda, y la conversación se borra del celular al cerrar la app. La empresa de la inteligencia artificial puede conservarlo por un tiempo limitado, según sus condiciones.</li>
     <li><b>Su nombre, su cédula, dónde recibir la respuesta y su celular</b>, que se piden al crear el documento: solo están en la memoria del celular mientras arma el documento, y van impresos en el papel. No van a la inteligencia artificial ni al servidor, y no se guardan. También puede dejarlos en blanco y llenarlos a mano.</li>
     <li><b>Lo que escribe en el formulario del documento</b>, como lo que pasó o lo de su salud: va en el documento. La app no guarda ese texto.</li>
     <li><b>En este celular:</b> Mis casos (el tipo de documento, la entidad, el municipio y la vereda, lo que pidió, las fechas del plazo y en qué va), Historial (el tema de cada consulta, aunque sea de salud, el derecho, el documento sugerido, los pasos y a dónde acudir; las últimas 30) y sus preferencias (leer en voz alta, modo sin conexión). Se quedan hasta que usted los borre. Si otras personas usan su celular, póngale clave o bórrelos en Perfil.</li>
@@ -298,7 +298,7 @@ const SECCIONES = [
     <p>Si guarda o imprime el documento en PDF, ese archivo es suyo y queda donde lo guarde: cuídelo.</p></>],
   ['5. Otras empresas y otros países', <>
     <p>Para algunas funciones usamos empresas que tratan datos por encargo nuestro. Varias están en Estados Unidos:</p>
-    <ul><li><b>Asistente:</b> Claude, de Anthropic (Estados Unidos). Recibe lo que usted le cuenta, después del filtro.</li>
+    <ul><li><b>Asistente:</b> Claude (Anthropic) o Gemini (Google), según el que esté activo; las dos en Estados Unidos. Recibe lo que usted le cuenta, después del filtro. Si en una prueba usamos la versión gratuita de Gemini, el asistente se lo avisa en cada respuesta: en ese caso Google puede usar lo que escriba para mejorar sus productos.</li>
       <li><b>Dictar con el micrófono:</b> el servicio de dictado de su navegador (en Android, Google). Recibe su voz mientras dicta.</li>
       <li><b>Alojamiento de la app y del servidor:</b> Vercel (Estados Unidos). Recibe la dirección IP y lo que pasa por el servidor.</li></ul>
     <p>Solo cuando usted lo pida {PRONTO}:</p>
@@ -312,7 +312,7 @@ const SECCIONES = [
     <p>La ley llama <b>datos sensibles</b> a los de salud, origen étnico, religión, ideas políticas, pertenencia a sindicatos u organizaciones sociales o de derechos humanos, vida sexual y los biométricos (como la huella o la cara). También tratamos con ese cuidado si usted es víctima.</p>
     <ul><li>Contarnos esos temas es <b>opcional</b>: no tiene que hacerlo y la app funciona igual.</li>
       <li>En la tutela de salud sí hay que contar el problema de salud: va en el documento. En Mis casos queda que es una tutela de salud y a qué EPS va.</li>
-      <li>Si le cuenta al asistente algo de su salud, le llega a Claude después del filtro. No guardamos la conversación, pero el tema de la consulta puede quedar en el Historial.</li>
+      <li>Si le cuenta al asistente algo de su salud, le llega a la inteligencia artificial (Claude o Gemini) después del filtro. No guardamos la conversación, pero el tema de la consulta puede quedar en el Historial.</li>
       <li>No usamos su voz para reconocerle ni para identificar a nadie.</li>
       <li>Si el caso es de un niño, niña o adolescente, la persona adulta escribe sus datos solo en el documento, y la app no los guarda.</li></ul></>],
   ['7. Sus derechos', <>

@@ -3,12 +3,29 @@ import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { limpiar, hayRiesgo, generarDocumento, TIPOS, sumarHabiles, habilesEntre, iso, deIso, AYUDA_RIESGO } from '@miderecho/nucleo';
 import { SISTEMA } from './prompt.js';
-import { HERRAMIENTA, armarRespuesta } from './orientacion.js';
+import { HERRAMIENTA, armarRespuesta, RESPUESTA_RIESGO } from './orientacion.js';
 import { responderSimulado } from './simulado.js';
+import { pedirGemini, MODELO_GEMINI } from './gemini.js';
 
+// Proveedor: Claude si hay ANTHROPIC_API_KEY; si no, Gemini si hay GEMINI_API_KEY y GEMINI_PLAN (pago o gratis);
+// si no, modo básico (docs/ia.md).
+const env = k => (process.env[k] || '').trim();
+const GEMINI = {
+  clave: env('GEMINI_API_KEY'), modelo: env('GEMINI_MODEL') || MODELO_GEMINI,
+  vertex: env('GEMINI_ENDPOINT').toLowerCase() === 'vertex', plan: env('GEMINI_PLAN').toLowerCase(),
+};
+export const IA = process.env.ANTHROPIC_API_KEY ? 'claude' : GEMINI.clave && ['pago', 'gratis'].includes(GEMINI.plan) ? 'gemini' : 'simulada';
 const MODELO = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
-const claude = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+// Sin reintentos y con tiempo límite, como Gemini: si no responde a tiempo, contesta el modo básico.
+const claude = IA === 'claude' ? new Anthropic({ timeout: 20_000, maxRetries: 0 }) : null;
+// En el plan gratis Google puede usar lo que se escriba: toda respuesta del asistente lo advierte.
+const AVISO_GRATIS = IA === 'gemini' && GEMINI.plan === 'gratis'
+  ? 'Modo de prueba: este asistente usa una versión gratuita de Gemini y Google puede usar lo que escriba para mejorar sus productos. No escriba datos reales de salud, nombres ni cédulas.'
+  : null;
+const enviar = (res, r) => res.json(AVISO_GRATIS ? { ...r, aviso: [r.aviso, AVISO_GRATIS].filter(Boolean).join(' ') } : r);
 const MAX_MENSAJES = 12, MAX_TEXTO = 2000;
+// La app manda la versión del aviso que la persona aceptó antes de usar la IA (la define apps/web).
+const CONSENTIMIENTO = /^ia-v\d{1,3}$/;
 
 export const app = express();
 app.disable('x-powered-by');
@@ -25,7 +42,11 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/salud', (req, res) => res.json({ ok: true, ia: claude ? 'claude' : 'simulada', modelo: claude ? MODELO : null }));
+app.get('/api/salud', (req, res) => res.json({
+  ok: true, ia: IA, modelo: { claude: MODELO, gemini: GEMINI.modelo }[IA] || null,
+  ...(IA === 'gemini' && { plan: GEMINI.plan }),
+  ...(IA === 'simulada' && GEMINI.clave && { aviso: 'Hay GEMINI_API_KEY pero falta GEMINI_PLAN (pago o gratis): Gemini no se usa.' }),
+}));
 
 // Conversación con el asistente. La app manda el historial (no se guarda en el servidor).
 app.post('/api/asistente', async (req, res) => {
@@ -39,12 +60,17 @@ app.post('/api/asistente', async (req, res) => {
 
   // El protocolo de riesgo no espera a la IA.
   if (hayRiesgo(mensajes.filter(m => m.rol === 'persona').map(m => m.texto).join(' '))) {
-    return res.json({ ...armarRespuesta({ accion: 'riesgo', mensaje: 'Lo que me cuentas es serio. No te voy a pedir más datos y no vamos a guardar nada de esto. Si hay peligro ahora mismo, llama al 123.' }), ayuda: AYUDA_RIESGO, fuente: 'reglas' });
+    return enviar(res, { ...armarRespuesta(RESPUESTA_RIESGO), ayuda: AYUDA_RIESGO, fuente: 'reglas' });
+  }
+
+  // Sin el aviso aceptado, el relato no va a ningún proveedor de IA: contesta el modo básico.
+  if (IA !== 'simulada' && !CONSENTIMIENTO.test(typeof req.body.consentimiento === 'string' ? req.body.consentimiento : '')) {
+    return enviar(res, { ...armarRespuesta(responderSimulado(mensajes)), fuente: 'simulada', aviso: 'Para usar la inteligencia artificial primero debe aceptar el aviso.' });
   }
 
   try {
-    let r, fuente = 'simulada';
-    if (claude) {
+    let r;
+    if (IA === 'claude') {
       const msg = await claude.messages.create({
         model: MODELO,
         max_tokens: 1500,
@@ -54,20 +80,21 @@ app.post('/api/asistente', async (req, res) => {
         messages: unirTurnos(mensajes),
       });
       r = msg.content.find(b => b.type === 'tool_use')?.input;
-      fuente = 'claude';
     }
-    if (!r?.accion) r = responderSimulado(mensajes);
+    if (IA === 'gemini') r = await pedirGemini(unirTurnos(mensajes), GEMINI);
+    if (IA === 'simulada') r = responderSimulado(mensajes);
     const out = armarRespuesta(r);
+    if (!out) throw new Error('respuesta fuera del contrato de "responder"');
     if (out.riesgo) out.ayuda = AYUDA_RIESGO;
-    res.json({ ...out, fuente });
+    enviar(res, { ...out, fuente: IA });
   } catch (e) {
-    console.error('asistente:', e.status || '', e.message);
-    // Si la IA falla (sin saldo, sin red), el demo sigue con el modo simulado.
-    res.json({ ...armarRespuesta(responderSimulado(mensajes)), fuente: 'simulada', aviso: 'La IA no respondió; se usó el modo básico.' });
+    console.error('asistente:', IA, e.status || '', e.message);
+    // Si la IA falla (sin saldo, sin red, respuesta inválida), el demo sigue con el modo simulado.
+    enviar(res, { ...armarRespuesta(responderSimulado(mensajes)), fuente: 'simulada', aviso: 'La IA no respondió; se usó el modo básico.' });
   }
 });
 
-// La API de Anthropic exige turnos alternados que empiecen por "user".
+// La API de Anthropic exige turnos alternados que empiecen por "user" (Gemini también los acepta así).
 function unirTurnos(mensajes) {
   const out = [];
   for (const m of mensajes) {

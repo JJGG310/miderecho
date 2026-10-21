@@ -111,6 +111,7 @@ export default function Asistente() {
       {!riesgo && !orientado && !voz && <button className="btn-secundario" disabled={!enLinea} onClick={() => setVoz(true)}><AudioLines size={18} aria-hidden /> Hablar en vez de escribir</button>}
       {voz && <ModoVoz mensajes={mensajes} respuesta={respuesta} responder={responder} marcarRiesgo={marcarRiesgo} alSalir={() => setVoz(false)} />}
       {respuesta?.fuente === 'simulada' && <p className="nota-modo">Modo básico (sin IA){respuesta.aviso ? `: ${respuesta.aviso}` : ''}</p>}
+      {respuesta?.aviso && respuesta.fuente !== 'simulada' && <p className="nota-modo" role="note">{respuesta.aviso}</p>}
       <div ref={fin} />
     </main>
   );

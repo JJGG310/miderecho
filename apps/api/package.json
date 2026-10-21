@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Backend de MiDerecho: asistente con IA (Claude), documentos y plazos.",
+  "description": "Backend de MiDerecho: asistente con IA (Claude o Gemini), documentos y plazos.",
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env src/server.js",

@@ -63,10 +63,39 @@ export function leyFija(documento, derecho) {
   return { texto: d.queDiceLaLey, normas: d.normas, fuente: d.fuente };
 }
 
-// Normaliza y completa la respuesta del modelo (o del modo simulado) antes de mandarla a la app.
-export function armarRespuesta(r) {
-  const out = { accion: r.accion, mensaje: r.mensaje, opciones: r.opciones?.slice(0, 3) || [] };
-  if (r.accion === 'orientar' && r.orientacion) {
+// Texto fijo del protocolo de riesgo (reglas del servidor, modo básico y bloqueos de seguridad de la IA).
+export const RESPUESTA_RIESGO = { accion: 'riesgo', mensaje: 'Lo que me cuentas es serio. No te voy a pedir más datos y no vamos a guardar nada de esto. Si hay peligro ahora mismo, llama al 123.' };
+
+const MAX_CAMPO = 600;
+// Ajusta un valor al esquema de la herramienta: descarta claves desconocidas y valores fuera del catálogo,
+// deja en las listas solo textos y recorta largos. undefined si no cumple el tipo, el catálogo o lo obligatorio.
+function ajustar(v, s) {
+  if (s.type === 'string') {
+    if (typeof v !== 'string' || !v.trim()) return;
+    return s.enum ? (s.enum.includes(v) ? v : undefined) : v.trim().slice(0, MAX_CAMPO);
+  }
+  if (s.type === 'boolean') return typeof v === 'boolean' ? v : undefined;
+  if (s.type === 'array') {
+    if (!Array.isArray(v)) return;
+    const l = v.map(x => ajustar(x, s.items)).filter(x => x !== undefined).slice(0, s.maxItems);
+    return l.length >= (s.minItems || 0) ? l : undefined;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return;
+  const o = {};
+  for (const [k, sk] of Object.entries(s.properties)) {
+    const x = ajustar(v[k], sk);
+    if (x !== undefined) o[k] = x;
+  }
+  return (s.required || []).every(k => k in o) ? o : undefined;
+}
+
+// Valida, normaliza y completa la respuesta del modelo (o del modo simulado) antes de mandarla a la app.
+// null si no cumple el contrato: quien llama usa el modo básico.
+export function armarRespuesta(entrada) {
+  const r = ajustar(entrada, HERRAMIENTA.input_schema);
+  if (!r || (r.accion === 'orientar' && !r.orientacion)) return null;
+  const out = { accion: r.accion, mensaje: r.mensaje, opciones: r.opciones || [] };
+  if (r.accion === 'orientar') {
     const o = r.orientacion;
     const ley = leyFija(o.documento, o.derecho);
     out.orientacion = {
