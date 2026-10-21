@@ -51,8 +51,10 @@ Para probarlo en el celular: `npm run dev:web -- --host` y abrir la IP del compu
 
 ## Desplegar
 
-- **Web:** proyecto de Vercel con raíz `apps/web` y la variable `VITE_API_URL` apuntando al backend.
-- **API:** proyecto de Vercel con raíz `apps/api` (usa `api/index.js`) y las variables `ANTHROPIC_API_KEY` y `CORS_ORIGINS` (el dominio de la web).
+El proyecto de Vercel existente (https://miderecho-two.vercel.app) tiene como raíz `prototipo/`. `prototipo/vercel.json` instala el monorepo, construye `apps/web` y publica ese resultado; las funciones `prototipo/api/asistente.js`, `documento.js`, `plazo.js` y `salud.js` sirven el backend de `apps/api`. Las funciones de Gallego (SMS, WhatsApp, llamadas, recordatorios, ElevenLabs) siguen en la misma carpeta.
+
+- Variable en Vercel: `ANTHROPIC_API_KEY` (sin ella, el asistente usa el modo básico).
+- `prototipo/package.json` (`"type": "module"`) es necesario: sin él, Vercel compila las funciones a CommonJS y fallan al cargar.
 
 ## Pendientes
 

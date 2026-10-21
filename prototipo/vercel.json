@@ -1,4 +1,7 @@
 {
+  "installCommand": "cd .. && npm ci",
+  "buildCommand": "cd .. && npm run build && rm -rf prototipo/dist && cp -r apps/web/dist prototipo/dist",
+  "outputDirectory": "dist",
   "crons": [{ "path": "/api/cron-recordatorios", "schedule": "0 13 * * *" }],
-  "functions": { "api/cron-recordatorios.js": { "maxDuration": 60 } }
+  "functions": { "api/cron-recordatorios.js": { "maxDuration": 60 }, "api/asistente.js": { "maxDuration": 30 } }
 }
