@@ -8,6 +8,7 @@ import { FormClave } from './Clave.jsx';
 import { cancelarAvisos } from '../lib/avisos.js';
 import { almacen, useAbierta } from '../lib/almacen.js';
 import { ir, memoria } from '../lib/ruta.js';
+import { Droplet, Route, Hospital, Handshake, Sprout, School, PencilLine, Soup, ClipboardList, Pill, Microscope, Bus, Flame, Trash2, Receipt, Scissors, Wrench } from 'lucide-react';
 
 const DESDE = ['hace una semana', 'hace un mes', 'hace tres meses', 'hace seis meses', 'hace más de un año'];
 // Título en lenguaje común; el nombre legal, en pequeño.
@@ -78,6 +79,13 @@ const enfocar = k => {
   el?.scrollIntoView({ block: 'center' });
   el?.querySelector('input, textarea, select, button')?.focus({ preventScroll: true });
 };
+// Las opciones del núcleo (que también usa la API) traen emojis; aquí se dibujan con los íconos de línea del resto de la app.
+// Si llega un emoji que no está en la lista, se muestra el emoji.
+const ICONOS = {
+  '💧': Droplet, '🛤️': Route, '🏥': Hospital, '🤝': Handshake, '🌱': Sprout, '🏫': School, '📝': PencilLine, '🍲': Soup,
+  '📋': ClipboardList, '📄': FileText, '⚖️': Scale, '🩺': Stethoscope, '💊': Pill, '🔬': Microscope, '🚌': Bus,
+  '💡': Bombillo, '🔥': Flame, '🗑️': Trash2, '🧾': Receipt, '✂️': Scissors, '🔧': Wrench,
+};
 const Relato = () => <span className="de-relato">✓ nos lo contó</span>;
 const Falta = () => <p className="falta">Falta responder esto</p>;
 
@@ -88,12 +96,15 @@ function Opciones({ k, etiqueta, opciones, valor, elegir, lista, relato, falta, 
       <legend className="etiqueta">{etiqueta}{relato && <Relato />}</legend>
       {falta && <Falta />}
       <div className={lista ? 'opciones-lista' : 'botones-opcion'}>
-        {opciones.map(o => (
-          <button type="button" key={o.id} className={valor === o.id ? 'sel' : ''} aria-pressed={valor === o.id} onClick={() => elegir(o.id)}>
-            {o.icono && <span className="emoji" aria-hidden>{o.icono}</span>}
-            {o.sub ? <span><b>{o.titulo}</b><small>{o.sub}</small></span> : o.titulo}
-          </button>
-        ))}
+        {opciones.map(o => {
+          const Icono = ICONOS[o.icono];
+          return (
+            <button type="button" key={o.id} className={valor === o.id ? 'sel' : ''} aria-pressed={valor === o.id} onClick={() => elegir(o.id)}>
+              {Icono ? <Icono className="opcion-icono" size={lista ? 28 : 22} aria-hidden /> : o.icono && <span className="emoji" aria-hidden>{o.icono}</span>}
+              {o.sub ? <span><b>{o.titulo}</b><small>{o.sub}</small></span> : o.titulo}
+            </button>
+          );
+        })}
       </div>
       {children}
     </fieldset>

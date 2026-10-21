@@ -57,13 +57,11 @@ Revisión de la versión actual ([captura](capturas/antes-politica-movil.jpg)):
 | ¿En peligro?, Perfil y Asistente ([antes](capturas/antes-peligro-movil.jpg), [después](capturas/despues-peligro-movil.jpg)) | El correo de Somos Defensores se partía con una «g» sola en la última línea | `<wbr>` después de la «@» en `AYUDA_RIESGO` (`packages/nucleo/src/contenido.js`) |
 | Aviso antes de usar el asistente (`Consentimiento.jsx`) | El enlace llevaba a la política en texto legal | Ahora lleva a la **historieta**, que es la versión en lenguaje claro. Desde ahí se puede ver la completa, y «Salir» devuelve al aviso. |
 | `README.md`, `derechos.js`, `vite.config.js` | Comentarios que hablaban de los cuadros del Figma | Actualizados |
+| Crear un documento ([antes](capturas/antes-peticion-temas-movil.jpg), [después](capturas/despues-peticion-temas-movil.jpg), [servicios](capturas/despues-servicios-movil.jpg)) | Las opciones (temas de la petición, servicio y motivo del reclamo, qué niega la EPS, derechos de la tutela) usaban emojis, mientras el resto de la app usa íconos de línea. En Android viejos algunos emojis salen como cuadritos | En `Opciones` (`Documento.jsx`), un mapa emoji → ícono Lucide (💧 gota, 🏥 hospital, ⚖️ balanza, ✂️ tijeras…). Son verdes y se vuelven blancos al seleccionar. Si el núcleo trae un emoji nuevo que no está en el mapa, se muestra el emoji. No se tocó el núcleo, porque la API también usa esas listas. |
 
 ## 4. Propuestas (no implementadas: más grandes o dudosas)
 
-1. **Emojis en «Crear un documento».** Los temas de la petición (💧 🛤️ 🏥 …), la tutela y la salud usan emojis (`packages/nucleo/src/contenido.js`), y el resto de la app usa íconos de línea (Lucide).
-   - Problema: la imagen no es consistente y en Android viejos algunos emojis salen como cuadritos.
-   - Propuesta: un mapa `id → ícono Lucide` en `Documento.jsx`, como `ICONOS_DERECHO`.
-   - No se hizo porque `Documento.jsx` lo está cambiando buho-app y los emojis también se usan en el prototipo y en Mis casos.
+1. **Emojis en Mis casos.** «Crear un documento» ya usa íconos (sección 3), pero en Mis casos siguen los emojis: el tipo de cada caso (📄 ⚖️ 🏥 …, guardado en el celular), el estado (✅ ⚠️ ⏳ ⛔) y «A mi favor / En contra» (🎉 ✋). Se puede reusar el mismo mapa. No se hizo porque `MisCasos.jsx` lo cambia buho-app y no estaba en el pedido.
 2. **«Su documento está listo».** El documento queda plegado al final, debajo de la clave («Ver el documento»). Proponemos mostrar una vista previa corta arriba o dejarlo abierto, para que la persona vea su papel antes de guardarlo.
 3. **Aviso antes de usar el asistente.** Son 5 puntos y unas 120 palabras seguidas.
    - Propuesta: el búho (pose `computador`) con 3 frases cortas, y lo demás plegado en «Ver más».
@@ -77,11 +75,12 @@ Archivos de esta rama que también toca buho-app, y cómo quedan:
 
 - `apps/web/src/estilos.css`: esta rama cambia el bloque «Historieta» (unas 25 líneas) y `.fila-2`. buho-app agrega el bloque `.buho` y cambia `.burbuja.cargando`. Son zonas separadas por más de 15 líneas, así que la unión no debería chocar.
 - `apps/web/public/buho/{lupa,pensando,ley,documento}.webp`: son copias exactas, byte a byte, de los archivos de buho-app (incluido su `pensando.webp` recortado). Si buho-app los vuelve a editar antes de unir, hay que quedarse con su versión.
+- `Documento.jsx`: buho-app ya hizo commit (`a7516e5`) y cambia los imports, el menú y «Su documento está listo». Esta rama solo agrega una línea de import aparte y cambia `Opciones`. Con `git merge-file` contra ese commit, `Documento.jsx` y `estilos.css` se unen sin conflictos.
 - `Derecho.jsx`, `Consentimiento.jsx`, `App.jsx` y `contenido.js`: buho-app no los toca. Se le avisó por mensaje que esta rama se encarga de `Derecho.jsx`.
 
 ## 6. Verificación
 
 - `npm test` (raíz): todo pasa (núcleo, api, correo, avisos, llamadas, almacén y avisos web).
-- `npm run build -w apps/web`: pasa; el precache queda en 16 archivos, 592 KB.
+- `npm run build -w apps/web`: pasa; el precache queda en 16 archivos, 598 KB.
 - En el navegador integrado, con la app local en 375 px y en escritorio, se revisaron los 6 temas de derechos, el formulario del derecho de petición hasta «Su documento está listo», «¿En peligro?» y el aviso de la IA con su enlace a la historieta. También se vio el mensaje de carga de la política. La consola quedó sin errores.
 - Para correr la app local con `preview_start` se agregó la configuración `web` (puerto 5181) en `.claude/launch.json`. Ese archivo está en `.gitignore`, así que no va en el commit.
