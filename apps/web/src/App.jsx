@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { ProveedorConexion } from './lib/conexion.jsx';
 import { useRuta } from './lib/ruta.js';
 import Inicio from './pantallas/Inicio.jsx';
@@ -9,6 +9,8 @@ import Documento from './pantallas/Documento.jsx';
 import MisCasos from './pantallas/MisCasos.jsx';
 import Historial from './pantallas/Historial.jsx';
 import Perfil from './pantallas/Perfil.jsx';
+// La política de datos se descarga solo cuando se abre (el service worker igual la guarda para usarla sin internet).
+const Politica = lazy(() => import('./pantallas/Politica.jsx'));
 
 // Pantalla de carga del Figma ("Bandeja de Entrada App").
 function Carga() {
@@ -31,6 +33,7 @@ function Pantallas() {
     case 'casos': return <MisCasos />;
     case 'historial': return <Historial />;
     case 'perfil': return <Perfil />;
+    case 'politica': return <Suspense fallback={null}><Politica completa={a === 'completa'} key={a || 'historieta'} /></Suspense>;
     default: return <Inicio />;
   }
 }

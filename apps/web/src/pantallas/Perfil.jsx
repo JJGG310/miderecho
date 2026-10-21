@@ -3,6 +3,7 @@ import { Trash2, ShieldCheck } from 'lucide-react';
 import { AVISO, AYUDA_RIESGO } from '@miderecho/nucleo';
 import { Encabezado, BarraNav } from '../componentes/comunes.jsx';
 import { almacen } from '../lib/almacen.js';
+import { ir } from '../lib/ruta.js';
 
 export default function Perfil() {
   const [modoVoz, setModoVoz] = useState(() => almacen.pref('modoVoz', false));
@@ -21,6 +22,7 @@ export default function Perfil() {
         <ShieldCheck size={20} aria-hidden />
         <h2>Tu privacidad</h2>
         <div className="suave aviso" dangerouslySetInnerHTML={{ __html: AVISO }} />
+        <button className="btn-secundario" onClick={() => ir('politica')}>Ver la política de datos en historieta</button>
       </section>
 
       <section className="tarjeta tierra">
