@@ -2,6 +2,7 @@ import { NOMBRE, AVISO, AYUDA_RIESGO, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZO
 import { sumarHabiles, habilesEntre, iso, deIso } from './plazos.js';
 import { TIPOS, generarDocumento, plantillaHecho, valor, llenar, esc } from './plantillas.js';
 import { programarRecordatorios, cancelarRecordatorios } from './comunicaciones.js';
+import { DIRECTORIO, paraJuzgado, juzgadosDe } from './directorio.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#app');
@@ -155,7 +156,7 @@ formularios.pin = async ({ pin, pin2 }) => {
 };
 acciones.pin = () => pantallaPin();
 // Descarta el borrador y el documento, que pueden tener nombre, cédula o datos de salud.
-const olvidar = () => { caso = null; docActual = ''; $('#imprimir').innerHTML = ''; };
+const olvidar = () => { caso = null; docActual = ''; seguimiento = ultimoJudicial = null; $('#imprimir').innerHTML = ''; };
 addEventListener('afterprint', () => { $('#imprimir').innerHTML = ''; });
 acciones.bloquear = () => {
   clave = null; casos = []; olvidar();
@@ -164,7 +165,7 @@ acciones.bloquear = () => {
 };
 
 // ---------- inicio ----------
-const necesitaAtencion = (c, h) => (c.venc && deIso(c.venc) < h) || !!c.limite || c.estado === 'negada' || c.estado === 'por_recurrir';
+const necesitaAtencion = (c, h) => (c.venc && deIso(c.venc) < h) || !!c.limite || c.estado === 'negada' || c.estado === 'por_recurrir' || (c.estado === 'en_cola' && !pendientes.has(c.codigo));
 function inicio() {
   olvidar();
   const abiertos = casos.filter(c => c.estado !== 'cerrado');
@@ -410,33 +411,60 @@ function plazoDe(c) {
   return tipos.length === 1 ? PLAZOS[tipos[0]] : PLAZOS.general;
 }
 
+// A dónde va el documento: una clave de directorio.js o, a una entidad que no está ahí, el correo que escribió la persona (sin verificar).
+// El servidor solo envía a correos escritos a mano si están autorizados (docs/correo.md).
+function destinoDe(c) {
+  const clave = paraJuzgado(c.tipo) ? c.juzgado || `juzgado:${c.municipio}`
+    : c.entidad === `Alcaldía de ${c.municipio}` ? `alcaldia:${c.municipio}` : /Agencia Nacional de Tierras/i.test(c.entidad || '') ? 'ant' : '';
+  if (Object.hasOwn(DIRECTORIO, clave)) return { clave, ...DIRECTORIO[clave] };
+  return !paraJuzgado(c.tipo) && c.correo ? { clave: c.correo, nombre: c.entidad, correo: c.correo, verificado: false } : null;
+}
+const aQuien = d => `${esc(d.nombre)} (${esc(d.correo)})${d.verificado ? '' : '. <b>Ojo:</b> este correo no lo hemos verificado con una fuente oficial. Revise que sea el de la entidad antes de enviar'}`;
+
 function pasoEntrega() {
-  const l = lo(caso);
+  const l = lo(caso), d = destinoDe(caso);
   pantalla(`¿Cómo quiere entregar${l}?`, '', [
-    { txt: `Envíen${l} por mí`, sub: caso.correo ? 'Se envía al correo de la entidad, sin viajar. Necesita su nombre y cédula, que se borran al enviar.' : 'No disponible: falta el correo de la entidad', icono: '📨', accion: 'entrega', val: 'envio', off: !caso.correo },
+    { txt: `Envíen${l} por mí`, sub: d ? `Se envía por correo a ${d.correo}${d.verificado ? '' : ' (correo sin verificar)'}, sin viajar. Necesita su nombre y cédula, que se borran al enviar.` : 'No disponible: falta el correo de la entidad', icono: '📨', accion: 'entrega', val: 'envio', off: !d },
     { txt: `${l === 'la' ? 'La' : 'Lo'} entrego yo`, sub: 'Sale con espacios en blanco para llenar a mano y firmar. No pedimos ningún dato.', icono: '✍️', accion: 'entrega', val: 'mano' },
   ]);
 }
-acciones.entrega = v => { caso.modo = v; siguiente(); };
-const pasoDatos = () => pantalla('Datos para enviar el documento', `<form data-form="datos" class="form">
-    <label>Nombre completo<input name="nombre" required autocomplete="off"></label>
+acciones.entrega = v => {
+  caso.modo = v;
+  const d = v === 'envio' && !paraJuzgado(caso.tipo) && destinoDe(caso);
+  if (d) Object.assign(caso, { entidad: d.nombre, correo: d.correo });   // el documento muestra el correo al que de verdad va
+  siguiente();
+};
+// Nombre, cédula, correo para la copia y autorización expresa: lo comparten el envío de un caso nuevo y el de Mis casos.
+const camposEnvio = tipo => `<label>Nombre completo<input name="nombre" required autocomplete="off"></label>
     <label>Número de cédula<input name="cedula" required inputmode="numeric" pattern="[0-9.]{5,15}" autocomplete="off"></label>
+    <label>Su correo, si quiere una copia (opcional)<input name="copia" type="email" autocomplete="off"></label>
+    <label class="check"><input type="checkbox" name="autorizaCopia"> Autorizo que me envíen una copia del documento a ese correo.</label>
+    <label class="check"><input type="checkbox" required> Autorizo a ${NOMBRE} a enviar ${paraJuzgado(tipo) ? `este documento en mi nombre al juzgado y a recibir sus notificaciones para reenviármelas` : 'este documento en mi nombre y a recibir la respuesta para reenviármela'}.</label>`;
+const pasoDatos = () => pantalla('Datos para enviar el documento', `<form data-form="datos" class="form">
+    ${camposEnvio(caso.tipo)}
     <label>Celular para recordatorios por SMS (opcional)<input name="telefono" inputmode="tel" autocomplete="off" placeholder="3001234567"></label>
     <label class="check"><input type="checkbox" name="recordar"> Autorizo que me envíen por SMS, a ese celular, los recordatorios del plazo. Solo llevan el código del caso y la fecha.</label>
-    <label class="check"><input type="checkbox" required> Autorizo a ${NOMBRE} a enviar este documento en mi nombre y a recibir la respuesta para reenviármela.</label>
     <p class="nota">Estos datos solo están en este celular mientras se envía. Al enviar, se borran.</p>
     <button class="principal">Ver el documento</button></form>`);
-formularios.datos = ({ nombre, cedula, telefono, recordar }) => { Object.assign(caso, { nombre: nombre.trim(), cedula: cedula.trim(), telefono: telefono.trim(), recordar: !!recordar }); siguiente(); };
+const copiaDe = ({ copia, autorizaCopia }) => autorizaCopia && copia.trim() || undefined;
+formularios.datos = v => { Object.assign(caso, { nombre: v.nombre.trim(), cedula: v.cedula.trim(), telefono: v.telefono.trim(), recordar: !!v.recordar, copia: copiaDe(v) }); siguiente(); };
 
 function pasoVista() {
   caso.codigo ||= nuevoCodigo();
   caso.plazo = plazoDe(caso);
   docActual = generarDocumento(caso.tipo, caso, hoy());
+  const d = destinoDe(caso);
+  // [validar] La tutela se puede presentar por correo, sin abogado y sin firma a mano: Decreto 2591 de 1991, art. 14, y Ley 2213 de 2022.
+  if (esTutela(caso) && caso.modo === 'envio') return pantalla('Su tutela', `<p class="nota">Va al ${aQuien(d)}. La tutela se puede presentar por correo, sin abogado y sin firma a mano (Decreto 2591 de 1991, artículo 14, y Ley 2213 de 2022). El juzgado le escribe al correo de ${NOMBRE} y se lo reenviamos.</p>${docActual}`, [
+    { txt: 'Enviar la tutela al juzgado', icono: '📨', accion: 'enviar', clase: 'principal' },
+    { txt: 'Mejor la imprimo y la llevo yo', icono: '🖨️', accion: 'entregoYo' },
+    { txt: 'Cambiar algo', icono: '✏️', accion: 'cambiar' }]);
   if (esTutela(caso)) return pantalla('Su tutela', `<p class="nota">${EXPLICA.presentarTutela}${caso.urgente === 'si' ? ' ' + EXPLICA.urgente : ''}</p>${docActual}`, [
     { txt: 'Imprimir o guardar en PDF', icono: '🖨️', accion: 'imprimir', clase: 'principal' },
+    ...(d ? [{ txt: 'Envíenla al juzgado por correo', sub: `${d.nombre} · ${d.correo}. Necesita su nombre y cédula, que se borran al enviar.`, icono: '📨', accion: 'entrega', val: 'envio' }] : []),
     { txt: 'Anotar cuándo la presenté', sub: 'Le avisamos cuándo debe decidir el juez', icono: '📅', accion: 'pasoEntregada' },
     { txt: 'Cambiar algo', icono: '✏️', accion: 'cambiar' }]);
-  pantalla('Su documento', `<p class="nota">Revíselo. Toque 🔊 arriba para escucharlo completo.</p>${docActual}`, caso.modo === 'envio'
+  pantalla('Su documento', `<p class="nota">${caso.modo === 'envio' ? `Se enviará a ${aQuien(d)}. ` : ''}Revíselo. Toque 🔊 arriba para escucharlo completo.</p>${docActual}`, caso.modo === 'envio'
     ? [{ txt: `Enviar ${TIPOS[caso.tipo].corto}`, icono: '📨', accion: 'enviar', clase: 'principal' },
        { txt: 'Guardar una copia en PDF', icono: '🖨️', accion: 'imprimir' },
        { txt: 'Cambiar algo', icono: '✏️', accion: 'cambiar' }]
@@ -452,12 +480,12 @@ acciones.cambiar = () => {
 acciones.imprimir = () => { $('#imprimir').innerHTML = docActual; window.print(); };
 
 // Guarda solo lo necesario para el seguimiento: sin nombre, cédula, vereda, hechos ni datos de salud.
-function guardarCaso(estado, rad) {
-  const t = caso.tipo;
+function guardarCaso(estado, rad, constancia) {
+  const t = caso.tipo, envios = [...(buscar(caso.codigo)?.envios || []), constancia].filter(Boolean);   // el recurso conserva la prueba del reclamo
   const c = { codigo: caso.codigo ||= nuevoCodigo(), tipo: t, temaId: caso.temaId, servicio: caso.servicio, motivo: caso.motivo, derecho: caso.derecho,
     entidad: caso.entidad, correo: caso.correo, municipio: caso.municipio, modo: caso.modo, plazo: caso.plazo || TIPOS[t].plazo,
     peticiones: t === 'peticion' || t === 'servicios_publicos' ? caso.peticiones?.map(p => p.texto) : undefined,   // en tutelas pueden traer datos de salud
-    limite: caso.limite, sms: !!(caso.telefono && caso.recordar), estado };
+    limite: caso.limite, sms: !!(caso.telefono && caso.recordar), estado, envios: envios.length ? envios : undefined };
   const tel = c.sms && caso.telefono;
   if (rad) fijarPlazo(c, rad);
   casos = casos.filter(x => x.codigo !== c.codigo);   // el recurso reemplaza al reclamo del que viene
@@ -468,7 +496,7 @@ function guardarCaso(estado, rad) {
   return c;
 }
 // El número va al servidor (cifrado allá) y no se guarda en el celular: aquí solo queda el token para cancelar.
-// ponytail: si el caso quedó en cola sin internet, no se programan recordatorios (el número ya se borró).
+// Si el caso quedó en cola sin internet, se programan al enviarse (el número espera en memoria con el envío).
 const fechasRecordatorio = c => [sumarHabiles(deIso(c.rad), c.plazo - 3), deIso(c.venc), sumarHabiles(deIso(c.rad), c.plazo + 1)];
 async function programar(c, telefono) {
   const fechas = fechasRecordatorio(c).map(iso).filter(f => f > iso(hoy()));
@@ -489,16 +517,58 @@ function resumenPlazo(c) {
     ${c.sms ? `<p class="nota" id="nota-sms">Esos recordatorios también le llegan por SMS al celular que nos dio, por ejemplo: "Caso ${c.codigo} vence el ${fechaSms(venc)}".</p>` : ''}`;
 }
 
-acciones.enviar = () => {
-  const sinRed = !navigator.onLine, T = TIPOS[caso.tipo];
-  // ponytail: en producción el correo sale de un servidor; si no hay red, el borrador con nombre y cédula espera cifrado hasta enviarse
-  const c = guardarCaso(sinRed ? 'en_cola' : 'abierto', sinRed ? null : hoy());
-  pantalla(sinRed ? 'Quedó en cola para enviar' : `${T.titulo}: enviado`, `
-    ${sinRed ? '<p>No hay internet. Queda en cola y se envía apenas haya señal. El plazo empieza a contar ese día.</p>' : ''}
-    <div class="simulado"><b>Simulado en el prototipo.</b> Se enviaría así:<br>Para: ${esc(c.correo)}<br>Asunto: ${T.titulo} ${c.codigo}<br>Adjunto: ${c.tipo}-${c.codigo}.pdf</div>
-    ${sinRed ? '' : resumenPlazo(c)}
-    <p class="nota">Su nombre y su cédula ya se borraron de este celular.</p>`,
+// ---------- envío por correo (api/correo.js) ----------
+// El servidor arma el documento con plantillas.js y lo envía a una entidad de directorio.js. Devuelve una constancia (id, fecha y destinatario)
+// que se guarda con el caso en envios (la petición y, después, la tutela): no es un dato sensible y sirve de prueba de entrega.
+async function enviarCorreo(cuerpo) {
+  try {
+    const r = await fetch('api/correo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo), signal: AbortSignal.timeout?.(20000) });
+    const j = await r.json().catch(() => ({}));
+    return r.ok && j.ok ? j : { ok: false, error: j.error || `El servidor respondió ${r.status}` };
+  } catch { return { ok: false, error: 'No se pudo conectar con el servidor' }; }
+}
+// Envíos que esperan señal, solo en memoria: llevan nombre y cédula, así que no se guardan en el celular.
+// Si la app se cierra antes de tener internet, se pierden y el caso queda como "no se envió".
+const pendientes = new Map();   // código → { cuerpo, telefono }
+const cuerpoDe = (tipo, datos, destino) => ({ tipo, datos, destino, copia: datos.copia });
+
+const fechaHora = s => new Date(s).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+const constanciaHtml = k => `<div class="${k.simulado || k.prueba ? 'simulado' : 'plazo'}"><b>${k.simulado ? 'Modo de prueba: no salió ningún correo.' : 'Constancia de envío'}</b>
+  <br>Para: ${esc(k.entidad || '')} (${esc(k.para)})<br>Fecha: ${fechaHora(k.fecha)}${k.id ? `<br>Número de envío: ${esc(k.id)}` : ''}
+  ${k.prueba ? '<br>Prueba del equipo: llegó al correo del equipo, no a la entidad.' : ''}</div>`;
+
+acciones.enviar = async () => {
+  const d = destinoDe(caso), tipo = caso.tipo, cuerpo = cuerpoDe(tipo, caso, d.clave), telefono = caso.recordar && caso.telefono;
+  if (!navigator.onLine) {
+    const c = guardarCaso('en_cola', null);   // borra el borrador; sus datos quedan solo en la memoria del envío pendiente
+    pendientes.set(c.codigo, { cuerpo, telefono });
+    return pantalla('Quedó en cola para enviar', `<p>No hay internet. Se envía apenas haya señal, <b>si no cierra la app</b>. El plazo empieza a contar ese día.</p>
+      <p class="nota">Por seguridad, su nombre y su cédula no se guardan en el celular: esperan solo en la memoria. Si cierra la app antes de tener señal, tendrá que hacer el documento de nuevo o entregarlo usted.</p>`,
+      [{ txt: 'Ver mis casos', icono: '⏰', accion: 'casos' }, { txt: 'Volver al inicio', accion: 'inicio' }]);
+  }
+  pantalla('Enviando…', '<p>Un momento. No cierre la app.</p>');
+  const r = await enviarCorreo(cuerpo);
+  if (!r.ok) return pantallaError(r.error, 'enviar');
+  pantallaEnviado(guardarCaso(esTutela(caso) ? 'presentada' : 'abierto', hoy(), r.constancia), tipo, r, cuerpo);
+};
+function pantallaEnviado(c, tipo, r, cuerpo) {
+  pantalla(`Listo: se envió ${TIPOS[tipo].corto}`, `${constanciaHtml(r.constancia)}
+    ${cuerpo.copia ? `<p class="nota">${r.copia ? (r.simulado ? 'En uso real, también le llegaría una copia a su correo.' : 'También le llegó una copia a su correo.') :'La copia a su correo no se envió: en el prototipo solo llega a correos autorizados.'}</p>` : ''}
+    ${c.venc ? resumenPlazo(c) : EXPLICA.desacatoAnotado}
+    <p class="nota">Su nombre y su cédula ya se borraron de este celular. Guarde el código ${c.codigo}: es el de su caso.</p>`,
   [{ txt: 'Ver mis casos', icono: '⏰', accion: 'casos' }, { txt: 'Volver al inicio', accion: 'inicio' }], 'exito');
+}
+// Si falla, nada se guarda y los datos siguen en memoria mientras la persona decide. "Enviar de nuevo" es seguro: el servidor no repite un envío idéntico.
+const pantallaError = (error, reintentar) => pantalla('No se pudo enviar', `<p>${esc(error)}.</p><p>Puede intentarlo otra vez o entregar el documento usted.</p>`, [
+  { txt: 'Enviar de nuevo', icono: '🔁', accion: reintentar, clase: 'principal' },
+  { txt: 'Mejor lo entrego yo', icono: '✍️', accion: 'entregoYo' },
+  { txt: 'Volver al inicio', accion: 'inicio' },
+], 'alerta');
+acciones.entregoYo = () => {
+  if (!caso) return pantalla('Su documento', `<p class="nota">Imprímalo, llene a mano sus datos, fírmelo y entréguelo en el juzgado.</p>${docActual}`, [
+    { txt: 'Imprimir o guardar en PDF', icono: '🖨️', accion: 'imprimir', clase: 'principal' }, { txt: 'Volver a mis casos', accion: 'casos' }]);
+  caso.modo = esTutela(caso) ? undefined : 'mano';
+  siguiente();
 };
 
 acciones.pasoEntregada = () => {
@@ -508,10 +578,18 @@ acciones.pasoEntregada = () => {
     entregada,
     caso ? [{ txt: esTutela(c) ? 'Todavía no la he presentado' : `Todavía no ${l} he entregado`, sub: 'Le recordamos el caso, pero el documento no se guarda', icono: '⏳', accion: 'porEntregar' }] : []);
 };
+// El caso guardado avanza con la fecha en que se entregó (a mano o por correo).
+function avanzar(c, tipo, f) {
+  if (tipo === 'desacato') { Object.assign(c, { estado: 'desacato', rad: iso(f) }); delete c.venc; return; }
+  if (tipo === 'impugnacion') Object.assign(c, { estado: 'impugnada', plazo: TIPOS.impugnacion.plazo });
+  else if (tipo === 'tutela_peticion') Object.assign(c, { tipo, derecho: 'peticion', plazo: TIPOS.tutela_peticion.plazo, estado: 'presentada' });
+  else c.estado = esTutela(c) ? 'presentada' : 'abierto';
+  fijarPlazo(c, f);
+}
 async function entregada(rad) {
   let c;
   if (caso) c = guardarCaso(esTutela(caso) ? 'presentada' : 'abierto', rad);
-  else { c = buscar(sel); c.estado = esTutela(c) ? 'presentada' : 'abierto'; fijarPlazo(c, rad); await guardar(); }
+  else { c = buscar(sel); avanzar(c, c.tipo, rad); await guardar(); }
   pantalla('Listo, quedó anotado', resumenPlazo(c), [{ txt: 'Ver mis casos', icono: '⏰', accion: 'casos' }, { txt: 'Volver al inicio', accion: 'inicio' }]);
 }
 acciones.porEntregar = () => {
@@ -527,7 +605,8 @@ acciones.porEntregar = () => {
 function estadoCaso(c, h) {
   const venc = c.venc && deIso(c.venc), vencido = venc && venc < h, faltan = venc && habilesEntre(h, venc);
   switch (c.estado) {
-    case 'en_cola': return ['En cola: se envía cuando haya internet'];
+    case 'en_cola': return pendientes.has(c.codigo) ? ['En cola: se envía cuando haya internet (no cierre la app)']
+      : [`No se envió: la app se cerró antes de tener señal. Hága${lo(c)} de nuevo o entrégue${lo(c)} usted`, esTutela(c) ? 'Ya la presenté' : `Ya ${lo(c)} entregué`, 'yaEntregue'];
     case 'por_entregar': return esTutela(c) ? ['Falta presentarla', 'Ya la presenté', 'yaEntregue']
       : [c.limite ? (deIso(c.limite) < h ? `Se venció el plazo para entregar${lo(c)} (${fechaCorta(deIso(c.limite))})` : `Urgente: entrégue${lo(c)} a más tardar el ${fechaLarga(deIso(c.limite))}`) : `Falta entregar${lo(c)}`,
         `Ya ${lo(c)} entregué`, 'yaEntregue'];
@@ -547,7 +626,7 @@ acciones.casos = () => {
   const items = casos.map(c => {
     const t = c.tipo === 'peticion' ? tema(c.temaId) : TIPOS[c.tipo], [estado, boton, accion] = estadoCaso(c, h), atencion = necesitaAtencion(c, h);
     return `<li class="caso ${atencion ? 'vencido' : ''}"><span class="ico" aria-hidden="true">${t.icono}</span><div>
-      <b>${esc(t.titulo)} · ${esc(c.entidad)}</b><small>Código ${c.codigo}</small><span>${estado}</span>
+      <b>${esc(t.titulo)} · ${esc(c.entidad)}</b><small>Código ${c.codigo}${c.envios ? ` · enviado por correo el ${fechaCorta(new Date(c.envios.at(-1).fecha))}${c.envios.at(-1).simulado ? ' (prueba)' : ''}` : ''}</small><span>${estado}</span>
       ${boton ? `<button class="${atencion ? 'principal' : 'secundario'}" data-accion="${accion}" data-val="${c.codigo}">${boton}</button>` : ''}</div></li>`;
   }).join('');
   pantalla('Mis casos', (items ? `<ul class="casos">${items}</ul>` : '<p>Todavía no tiene casos guardados.</p>') +
@@ -600,7 +679,7 @@ acciones.sinPrueba = () => pantalla('Primero, consiga la prueba',
 
 function siguientesPasos() {
   const c = buscar(sel);
-  pantalla('Qué puede hacer ahora', `<p>${c.modo === 'envio' ? 'Su prueba de entrega es el correo que enviamos. ' : ''}Tiene caminos gratuitos y puede usarlos al tiempo:</p>`, [
+  pantalla('Qué puede hacer ahora', `${c.envios ? `<p>Su prueba de entrega es el correo que enviamos:</p>${constanciaHtml(c.envios.at(-1))}` : ''}<p>Tiene caminos gratuitos y puede usarlos al tiempo:</p>`, [
     { txt: 'Preparar una tutela', sub: 'Obliga a la entidad a responder. Sin abogado. El juez decide en 10 días.', icono: '⚖️', accion: 'tutela', clase: 'principal' },
     { txt: 'Pedir ayuda a la Personería', sub: 'Le exigen a la entidad que responda', icono: '🏛️', accion: 'personeria' },
     { txt: 'Hablar con un consultorio jurídico', sub: 'Orientación gratuita de una universidad', icono: '🎓', accion: 'consultorio' },
@@ -618,17 +697,63 @@ acciones.consultorio = () => pantalla('Consultorios jurídicos',
 
 acciones.tutela = () => {
   docActual = generarDocumento('tutela_peticion', buscar(sel), hoy());
+  seguimiento = { tipo: 'tutela_peticion', datos: buscar(sel) };
   pantalla('Su tutela', `<p class="nota">Llene a mano sus datos, fírmela y llévela al juzgado de su municipio, o pídale a la Personería que la presente por usted. No necesita abogado. Lleve copia de la petición y la prueba de entrega.</p>${docActual}`, [
     { txt: 'Imprimir o guardar en PDF', icono: '🖨️', accion: 'imprimir', clase: 'principal' },
+    ...opcionJuzgado(),
     { txt: 'Anotar cuándo la presenté', sub: 'Le avisamos cuándo debe decidir el juez', icono: '📅', accion: 'anotarTutela' },
     { txt: 'Volver a mis casos', accion: 'casos' },
   ]);
 };
 // La petición no respondida pasa a ser una tutela en seguimiento, con el mismo código.
-acciones.anotarTutela = () => pedirFecha('¿Cuándo presentó la tutela?', 'Guarde la constancia de recibido o el número del proceso: es su prueba.', rad => {
-  Object.assign(buscar(sel), { tipo: 'tutela_peticion', derecho: 'peticion', plazo: TIPOS.tutela_peticion.plazo });
-  entregada(rad);
+acciones.anotarTutela = () => pedirFecha('¿Cuándo presentó la tutela?', 'Guarde la constancia de recibido o el número del proceso: es su prueba.', async rad => {
+  const c = buscar(sel);
+  avanzar(c, 'tutela_peticion', rad);
+  await guardar();
+  pantalla('Listo, quedó anotado', resumenPlazo(c), [{ txt: 'Ver mis casos', icono: '⏰', accion: 'casos' }, { txt: 'Volver al inicio', accion: 'inicio' }]);
 });
+
+// ---------- enviar al juzgado lo que sale de Mis casos: tutela por petición no respondida, impugnación y desacato ----------
+// El documento ya está armado (docActual); seguimiento guarda en memoria con qué datos, para que el servidor arme el mismo.
+let seguimiento = null;   // { tipo, datos }
+// La tutela nueva va al juzgado que recibe tutelas; la impugnación y el desacato, al que decidió (si hay varios, la persona lo escoge).
+function juzgadosPara(tipo, municipio) {
+  const k = `juzgado:${municipio}`;
+  return tipo !== 'tutela_peticion' ? juzgadosDe(municipio) : Object.hasOwn(DIRECTORIO, k) ? [[k, DIRECTORIO[k]]] : [];
+}
+const opcionJuzgado = () => {
+  const js = juzgadosPara(seguimiento.tipo, buscar(sel).municipio);
+  return js.length ? [{ txt: 'Envíenla al juzgado por correo', sub: js.length === 1 ? `${js[0][1].nombre} · ${js[0][1].correo}` : `A uno de los ${js.length} juzgados de ${buscar(sel).municipio}: usted escoge cuál`, icono: '📨', accion: 'alJuzgado' }] : [];
+};
+acciones.alJuzgado = () => {
+  const { tipo } = seguimiento, { municipio } = buscar(sel), js = juzgadosPara(tipo, municipio);
+  pantalla('Enviarla al juzgado por correo', `<form data-form="alJuzgado" class="form">
+    ${js.length > 1 ? `<label>¿Qué juzgado decidió su tutela? Está en el fallo<select name="juzgado">${js.map(([k, j]) => `<option value="${esc(k)}">${esc(j.nombre.replace(` de ${municipio}`, ''))}</option>`).join('')}</select></label>`
+      : `<p>Va al ${aQuien(js[0][1])}.</p>`}
+    ${camposEnvio(tipo)}
+    <p class="nota">Se puede presentar por correo, sin abogado y sin firma a mano (Decreto 2591 de 1991, artículo 14, y Ley 2213 de 2022). Sus datos solo están en este celular mientras se envía; al enviar, se borran.</p>
+    <button class="principal">Enviar al juzgado</button></form>`);
+};
+formularios.alJuzgado = async v => {
+  const { tipo, datos } = seguimiento, c = buscar(sel);
+  const cuerpo = cuerpoDe(tipo, { ...datos, nombre: v.nombre.trim(), cedula: v.cedula.trim(), copia: copiaDe(v) }, v.juzgado || juzgadosPara(tipo, c.municipio)[0][0]);
+  ultimoJudicial = cuerpo;
+  enviarAlJuzgado();
+};
+let ultimoJudicial = null;   // para "Enviar de nuevo"; lo borra olvidar()
+acciones.enviarJudicial = () => enviarAlJuzgado();
+async function enviarAlJuzgado() {
+  if (!navigator.onLine) return pantallaError('No hay internet. Para enviarla necesita señal', 'enviarJudicial');
+  pantalla('Enviando…', '<p>Un momento. No cierre la app.</p>');
+  const cuerpo = ultimoJudicial, r = await enviarCorreo(cuerpo);
+  if (!r.ok) return pantallaError(r.error, 'enviarJudicial');
+  const c = buscar(sel);
+  (c.envios ||= []).push(r.constancia);
+  avanzar(c, cuerpo.tipo, hoy());
+  await guardar();
+  olvidar();
+  pantallaEnviado(c, cuerpo.tipo, r, cuerpo);
+}
 
 // ---------- seguimiento de la tutela: fallo, impugnación y desacato ----------
 acciones.fallo = cod => {
@@ -680,9 +805,11 @@ acciones.impugnar = cod => {
     ${botonDictar('palabras')}<button class="principal">Ver la impugnación</button></form>`);
 };
 formularios.impugnacion = ({ palabras }, fd) => {
-  docActual = generarDocumento('impugnacion', { ...buscar(sel), razones: fd.getAll('razon').map(i => RAZONES_IMPUGNACION[i]), palabras: palabras.trim() }, hoy());
+  seguimiento = { tipo: 'impugnacion', datos: { ...buscar(sel), razones: fd.getAll('razon').map(i => RAZONES_IMPUGNACION[i]), palabras: palabras.trim() } };
+  docActual = generarDocumento('impugnacion', seguimiento.datos, hoy());
   pantalla('Su impugnación', `<p class="nota">${EXPLICA.presentarImpugnacion}</p>${docActual}`, [
     { txt: 'Imprimir o guardar en PDF', icono: '🖨️', accion: 'imprimir', clase: 'principal' },
+    ...opcionJuzgado(),
     { txt: 'Anotar cuándo la presenté', icono: '📅', accion: 'anotar', val: 'impugnada' },
     { txt: 'Volver a mis casos', accion: 'casos' },
   ]);
@@ -701,9 +828,11 @@ acciones.desacato = () => pantalla('¿Qué le ordenó el juez?', `<form data-for
     <label>Lo que ordenó el juez (opcional)<textarea name="orden" rows="3" maxlength="400" placeholder="Ej.: entregar el medicamento en 48 horas"></textarea></label>
     ${botonDictar('orden')}<button class="principal">Ver la solicitud</button></form>`);
 formularios.desacato = ({ orden }) => {
-  docActual = generarDocumento('desacato', { ...buscar(sel), orden: orden.trim() }, hoy());
+  seguimiento = { tipo: 'desacato', datos: { ...buscar(sel), orden: orden.trim() } };
+  docActual = generarDocumento('desacato', seguimiento.datos, hoy());
   pantalla('Su solicitud de desacato', `<p class="nota">${EXPLICA.presentarDesacato}</p>${docActual}`, [
     { txt: 'Imprimir o guardar en PDF', icono: '🖨️', accion: 'imprimir', clase: 'principal' },
+    ...opcionJuzgado(),
     { txt: 'Anotar cuándo lo pedí', icono: '📅', accion: 'anotar', val: 'desacato' },
     { txt: 'Volver a mis casos', accion: 'casos' },
   ]);
@@ -712,8 +841,7 @@ acciones.desacatoYa = () => pantalla('Ya pidió el desacato', EXPLICA.desacatoYa
   [{ txt: 'Cerrar y borrar el caso', accion: 'cerrar' }, { txt: 'Volver a mis casos', accion: 'casos' }]);
 acciones.anotar = estado => pedirFecha(estado === 'impugnada' ? '¿Cuándo presentó la impugnación?' : '¿Cuándo pidió el desacato?', 'Guarde la constancia de recibido: es su prueba.', async f => {
   const c = buscar(sel);
-  c.estado = estado;
-  if (estado === 'impugnada') { c.plazo = TIPOS.impugnacion.plazo; fijarPlazo(c, f); } else { c.rad = iso(f); delete c.venc; }
+  avanzar(c, estado === 'impugnada' ? 'impugnacion' : 'desacato', f);
   await guardar();
   pantalla('Listo, quedó anotado', estado === 'impugnada' ? resumenPlazo(c) : EXPLICA.desacatoAnotado,
     [{ txt: 'Ver mis casos', icono: '⏰', accion: 'casos' }, { txt: 'Volver al inicio', accion: 'inicio' }]);
@@ -788,6 +916,7 @@ acciones.borrar = () => pantalla('¿Borrar todo?', '<p>Se borran todos los casos
 ]);
 acciones.borrarSi = () => {
   casos.forEach(cancelarSms);
+  pendientes.clear();
   localStorage.removeItem(KEY);
   clave = null; casos = []; olvidar();
   pantalla('Se borró todo', '<p>Ya no queda ningún caso en este celular. Si usó WhatsApp o SMS para este caso, borre también esos mensajes.</p>', [{ txt: 'Empezar de nuevo', accion: 'pin' }]);
@@ -835,14 +964,27 @@ window.miderecho = {
 };
 
 // ---------- sin internet ----------
+// Envía lo que quedó en cola (en memoria). Lo que falle sigue en cola para la próxima señal.
 async function procesarCola() {
-  if (!clave || !navigator.onLine) return;
-  const cola = casos.filter(c => c.estado === 'en_cola');
-  if (!cola.length) return;
-  cola.forEach(c => { c.estado = 'abierto'; fijarPlazo(c, hoy()); });
+  if (!clave || !navigator.onLine || procesarCola.activa) return;
+  procesarCola.activa = true;
+  const enviados = [];
+  for (const [codigo, p] of pendientes) {
+    const c = buscar(codigo);
+    if (!c) { pendientes.delete(codigo); continue; }
+    const r = await enviarCorreo(p.cuerpo);
+    if (!r.ok) { aviso(`No se pudo enviar el documento ${codigo}: ${r.error}`); continue; }
+    pendientes.delete(codigo);
+    (c.envios ||= []).push(r.constancia);
+    avanzar(c, p.cuerpo.tipo, hoy());
+    enviados.push([c, p.telefono]);
+  }
+  procesarCola.activa = false;
+  if (!enviados.length) return;
   await guardar();
+  enviados.forEach(([c, tel]) => tel && programar(c, tel));
   if (main.querySelector('h1').innerText === 'Mis casos') acciones.casos();
-  aviso(cola.length === 1 ? 'Se envió el documento que estaba en cola (simulado)' : `Se enviaron ${cola.length} documentos que estaban en cola (simulado)`);
+  aviso(enviados.length === 1 ? 'Se envió el documento que estaba en cola' : `Se enviaron ${enviados.length} documentos que estaban en cola`);
 }
 const pintarRed = () => { $('#estado-red').textContent = navigator.onLine ? 'Con internet' : 'Sin internet: la app sigue funcionando'; };
 addEventListener('online', () => { pintarRed(); procesarCola(); });
