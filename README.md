@@ -58,7 +58,7 @@ El proyecto de Vercel existente (https://miderecho-two.vercel.app) tiene como ra
 
 ## Pendientes
 
-- **Historietas en alta resolución:** `apps/web/public/figma/comic-{tema}-{1..4}.webp` son los 4 cuadros de cada historieta, cortados de capturas a 1x (~185 px de ancho). Valentina: exportar cada cuadro a 2x (unos 700 px, WebP de 50 KB o menos) con el mismo nombre. El texto de cada cuadro está en `packages/nucleo/src/derechos.js` (`cuadros`).
+- **Historietas de los derechos:** desde la revisión de calidad (docs/revision-calidad.md) cada cuadro es una viñeta con el búho y globos de texto real (`Derecho.jsx`, textos en `packages/nucleo/src/derechos.js`, `cuadros`). Los dibujos del Figma eran capturas a 1x y se veían borrosos; si Valentina los exporta a 2x o más, pueden volver como escena de cada viñeta.
 - Íconos: se usan los de Lucide (los mismos trazos del Figma) en lugar de las imágenes, para que se vean nítidos.
 - Validación jurídica de plantillas, plazos y textos (lista en `investigacion/00`, sección 12.5).
 - La app usa "usted". Falta pasar a "usted" los mensajes del asistente (`apps/api`: prompt y modo básico).

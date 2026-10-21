@@ -2,8 +2,8 @@
 // Textos tomados del Figma de Valentina (MI-DERECHO, oct-2026), pasados a "usted". Funciona sin internet: todo vive en el paquete.
 // BORRADOR: lo debe validar un consultorio jurídico antes de usarse con personas reales.
 //
-// cuadros: el texto de cada cuadro de la historieta (imágenes figma/comic-{id}-{1..4}.webp), para mostrarlo como texto real
-// y leerlo en voz alta. Los diálogos se copian como están dibujados (los personajes se tratan de "tú").
+// cuadros: el texto de cada viñeta de la historieta (apps/web: el búho cuenta y los personajes hablan en globos), también
+// para leerlo en voz alta. Los diálogos son los del Figma (los personajes se tratan de "tú").
 // consulta: lo que se le manda al asistente cuando la persona toca "¿Le está pasando algo así?".
 // Fichas sin historieta (todavía): en vez de cuadros traen pasos ("Qué puede hacer").
 // accion: 'peticion' o 'servicios_publicos' abren ese documento; 'carta' abre la ruta "¿Su carta venta lo hace dueño?".

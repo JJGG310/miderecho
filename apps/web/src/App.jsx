@@ -37,7 +37,7 @@ function Pantallas({ p, a }) {
     case 'perfil': return <Perfil />;
     case 'peligro': return <Peligro />;
     case 'carta': return <Carta paso={a} />;
-    case 'politica': return <Suspense fallback={null}><Politica completa={a === 'completa'} key={a || 'historieta'} /></Suspense>;
+    case 'politica': return <Suspense fallback={<p className="pantalla texto">Cargando la política de datos…</p>}><Politica completa={a === 'completa'} key={a || 'historieta'} /></Suspense>;
     default: return <Inicio />;
   }
 }
