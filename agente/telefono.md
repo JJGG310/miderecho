@@ -55,3 +55,46 @@ Webhook `POST /api/voz/documento` en `prototipo/api/`:
 - Confirmar con un abogado si aceptar con una tecla basta como autorización (informe 11, §3.3).
 - Verificar con los aliados los números de ayuda del protocolo de riesgo antes de grabarlos.
 - No prometer "llamada gratis" hasta tener devolución de llamada o 01-8000 confirmado con operadores.
+
+## 5. Herramientas de servidor del agente telefónico (listas, sin registrar)
+
+Estado al 21-oct-2026: el código está en `prototipo/api/_herramientas.js` y responde en la función que ya existe `/api/elevenlabs-sesion` (para no sumar otra función al límite del plan de Vercel; la integración puede enrutar `herramienta(req, res)` desde un despachador). **No están registradas en ningún agente** y no se ha llamado a nadie. Reemplazan la propuesta de "Herramienta de servidor nueva" de la §2.
+
+En el teléfono no hay app: el agente escoge valores de listas cerradas y el servidor pone lo jurídico (plantillas, plazos con festivos, ley y frases fijas). Ninguna recibe ni guarda nombre, cédula, dirección o relato.
+
+| Herramienta | URL (POST, JSON) | Qué recibe | Qué devuelve |
+|---|---|---|---|
+| `orientar` | `/api/elevenlabs-sesion?herramienta=orientar` | `documento` (`peticion`, `tutela_salud`, `tutela`, `servicios_publicos`, `ninguno`), `urgente` (sí/no), `derecho` opcional (`salud`, `trabajo`, `vivienda`, `peticion`, `igualdad`, `otros`) | `documento`, `titulo`, `frase` fija, `plazo_dias_habiles`, `ley` (texto fijo), `aviso`. Sin urgencia, la tutela de salud pasa a petición a la EPS |
+| `documento` | `…?herramienta=documento` | `conversacion` (**variable de sistema**), `tipo`, `municipio` (uno de los 15 de la lista del núcleo; sin tildes ni mayúsculas también vale), `desde` (`hace una semana` … `hace más de un año`) y según el tipo: `temaId` (`agua`, `vias`, `salud`, `ayudas`, `tierras`, `educacion`), `servicio` (`acueducto`, `energia`, `gas`, `aseo`) y `motivo` (`cobro`, `corte`, `dano`, `otro`), `que` (`cita`, `medicamento`, `cirugia`, `examen`, `transporte`, `otra_cosa`) y `urgente`, o `derecho` (`salud`, `minimo_vital`, `educacion`, `debido_proceso`, `peticion`, `otro_derecho`) | `codigo` de 4 caracteres y `deletreado`, `titulo`, `pide` (textos de plantilla), `para`, `plazo_dias_habiles`, `codigo_sirve_dias` (3). Arma el documento con `generarDocumento` del núcleo y guarda solo esas variables, cifradas, 72 horas, **atadas a la conversación** |
+| `plazo` | `…?herramienta=plazo` | `tipo`, `desde` (AAAA-MM-DD, opcional: hoy) | `dias_habiles`, `vence` (AAAA-MM-DD), `vence_en_palabras` ("lunes, 3 de noviembre") |
+| `aviso` | `…?herramienta=aviso` | `conversacion` (**variable de sistema**), `canal` (`sms` o `whatsapp`), `plantilla` (`documento_listo` o `plazo`), `codigo` (de un documento de **esta** llamada), `desde` opcional (día de entrega, solo `plazo`) y `telefono` (**variable de sistema**) | `{ ok, simulado }`. Texto fijo de `_avisos.js`. **La fecha del plazo la calcula el servidor** con el tipo guardado y `desde`; el modelo no puede mandar una fecha. Mismas protecciones que `/api/sms` y además exige `NUMEROS_DEMO` (ver abajo) |
+| `riesgo` | `…?herramienta=riesgo` | `conversacion` (**variable de sistema**) | `{ ok, indicacion }`. Desde ahí `documento` y `aviso` responden 403 en esa llamada (24 h) |
+
+### Seguridad
+
+- Variable de entorno en Vercel: `AGENTE_HERRAMIENTAS_SECRETO`, 32 caracteres o más (por ejemplo, `openssl rand -base64 32`). Sin ella, o si es más corta, todas responden 503.
+- ElevenLabs la manda en la cabecera `x-miderecho-secreto` de cada llamada. El servidor la compara en tiempo constante; si falta o no coincide, 401. **Nunca va al repositorio ni al prompt.**
+- **Campos que no llena el modelo** (en ElevenLabs se configuran como *dynamic variable*, no con descripción): `conversacion` ← `system__conversation_id` (en las tres que la usan) y, en `aviso`, `telefono` ← `system__caller_id` si la llamada es **entrante** o `system__called_number` si es **saliente** (`/api/llamar` de la sesión de llamadas).
+- **Código atado a la llamada:** `aviso` solo manda códigos que creó `documento` en la misma conversación (se guarda el HMAC del id de la conversación) y que no han vencido. Un código inventado o de otra llamada da 404.
+- **Número atado a la llamada (pendiente):** el servidor todavía no comprueba que `telefono` sea el de quien llama; solo confía en que ElevenLabs lo llena con la variable de sistema. Por eso, con Twilio real, `aviso` **exige `NUMEROS_DEMO`** aunque `PERMITIR_ENVIO_ABIERTO` esté puesto. Para abrirlo: (1) configurar `telefono` como variable de sistema, como arriba; y (2) que el servidor lo verifique, por ejemplo pidiendo a ElevenLabs `GET /v1/convai/conversations/{conversacion}` con `ELEVENLABS_API_KEY` y comparando el número de la llamada en `metadata` (verificar qué queda visible con retención cero) o, sin depender de eso, firmando el número al iniciar la llamada saliente en `/api/llamar` y pasándolo como variable propia. Hasta entonces, solo `NUMEROS_DEMO`.
+- Los logs solo dicen el canal y los dos últimos dígitos; nunca el código, el texto ni el número.
+- El límite por IP de `_comun.js` (60 por hora) cuenta todas las llamadas de ElevenLabs juntas, porque llegan desde sus servidores. El freno real para el teléfono es el tope por número y el diario.
+
+### Registrarlas en el agente "MiDerecho teléfono" (`agent_3901m5fd72hyedssc8h6r4gznevn`)
+
+1. Generar el secreto y ponerlo en Vercel (Production y Preview) como `AGENTE_HERRAMIENTAS_SECRETO`. Volver a desplegar.
+2. En elevenlabs.io → Agents → **Secrets**, crear el secreto `miderecho_herramientas` con el mismo valor.
+3. Crear cinco herramientas tipo **Webhook** (en el panel o con el conector: `agents_create_tool` con `type: "webhook"`):
+   - Método `POST`, URL `https://miderecho-two.vercel.app/api/elevenlabs-sesion?herramienta=<nombre>` (o el alias fijo del preview para probar).
+   - Cabecera `x-miderecho-secreto` → tipo **Secret** → `miderecho_herramientas` (en la API: `request_headers: { "x-miderecho-secreto": { "secret_id": "<id>" } }`).
+   - Cuerpo con los campos de la tabla, como `enum` cuando son listas cerradas. `conversacion` y `telefono` con **dynamic variable** (ver Seguridad), nunca con descripción para el modelo.
+   - Tiempo máximo 20 s; `orientar` y `plazo` con "pre_tool_speech" apagado (responden al instante).
+4. Agregar los cinco `tool_id` al agente de teléfono (`agents_update_prompt_settings` con `tool_ids`, que reemplaza la lista completa: incluir las que ya tenga) y en su prompt indicar: confirmar el tema; `orientar` y leer textual `frase` y `ley`; si la persona quiere el documento, preguntar el municipio y desde cuándo, llamar `documento` y deletrear el código; `plazo` si pregunta cuándo le deben responder; `aviso` solo si la persona acepta de palabra que le manden el código por SMS o WhatsApp; ante amenazas o peligro, `riesgo` y el texto fijo del protocolo, sin más herramientas.
+5. Probar primero con el preview y `NUMEROS_DEMO` del equipo. Las pruebas sin red están en `node prototipo/api/_test-agente-avisos.mjs`.
+
+### Lo que falta para usarlas en vivo
+
+- **Atar el número a la llamada** en el servidor (arriba). Mientras tanto, solo `NUMEROS_DEMO`.
+- **Canje del código:** hoy el código guarda las variables del documento 72 horas, pero todavía no hay pantalla para que el líder o la Personería lo escriban y vuelvan a generar el documento. Es lo siguiente para cerrar el flujo telefónico (con límite de intentos por IP: 4 caracteres son pocos para adivinar).
+- **Riesgo por regla en el teléfono:** en la web la app aplica `hayRiesgo()` a la transcripción; en el teléfono no hay cliente, así que depende de que el agente llame `riesgo`. Si se quiere regla fija también ahí, usar el webhook de transcripción de ElevenLabs (verificar que funcione con retención cero).
+- Autorización por voz del aviso: validar con abogado si basta que la persona acepte de palabra (informe 11, §3.3).

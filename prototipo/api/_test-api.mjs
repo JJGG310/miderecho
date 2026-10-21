@@ -23,7 +23,9 @@ async function api(ruta, method, body, { ip = '10.0.0.1', headers = {} } = {}) {
     { status(s) { r.status = s; return this; }, json(j) { Object.assign(r, j); return this; } });
   return r;
 }
-const sms = (telefono, ip, texto = 'Peticion ABCD vence el 1-dic.') => api('sms', 'POST', { telefono, texto }, { ip });
+// sms.js y whatsapp.js solo aceptan plantillas cerradas (_avisos.js; sus pruebas están en _test-agente-avisos.mjs).
+const listo = telefono => ({ plantilla: 'documento_listo', telefono, datos: { codigo: 'ABCD' } });
+const sms = (telefono, ip) => api('sms', 'POST', listo(telefono), { ip });
 const cron = () => api('cron-recordatorios', 'GET', null, { headers: { authorization: 'Bearer secreto-de-prueba' } });
 const rec = { codigo: 'K7P2', telefono: '3125550000', canal: 'sms', fechas: ['2026-10-20', '2026-10-30'] };
 const programar = (cambios, ip) => api('recordatorios', 'POST', { ...rec, ...cambios }, { ip });
@@ -35,12 +37,12 @@ let r;
 // ---------- parte 1: modo simulado ----------
 r = await sms('300 111 2233');
 assert.deepEqual([r.status, r.ok, r.simulado], [200, true, true]);
-assert.equal((await api('whatsapp', 'POST', { telefono: '+57 300 111 2233', texto: 'Su documento está listo.' })).simulado, true);
+assert.equal((await api('whatsapp', 'POST', listo('+57 300 111 2233'))).simulado, true);
 assert.equal((await api('llamada', 'POST', { telefono: '573001112233', mensaje: 'Su petición vence mañana.' })).simulado, true);
 assert.equal((await api('sms', 'GET')).status, 405);
 
 // (3) solo JSON y solo desde la propia app
-const conCabeceras = headers => api('sms', 'POST', { telefono: '3001112233', texto: 'hola' }, { headers });
+const conCabeceras = headers => api('sms', 'POST', listo('3001112233'), { headers });
 assert.equal((await conCabeceras({ 'content-type': 'application/x-www-form-urlencoded' })).status, 415);
 assert.equal((await conCabeceras({ 'content-type': 'text/plain' })).status, 415);
 assert.equal((await conCabeceras({ 'sec-fetch-site': 'cross-site' })).status, 403);
@@ -53,10 +55,6 @@ for (const tel of ['12345', '+1 415 555 0100', '601 234 5678', '+57 300 111 223'
   assert.equal((await sms(tel)).status, 400, `debió rechazar ${tel}`);
 
 // topes de texto, (11) GSM-7 y (12) TwiML de 4000
-assert.equal((await sms('3001112233', undefined, 'x'.repeat(161))).status, 400);
-assert.equal((await sms('3001112233', undefined, 'x'.repeat(159) + '{')).status, 400);   // la tabla extendida ocupa dos
-assert.equal((await sms('3001112233', undefined, '  ')).status, 400);
-assert.equal((await api('whatsapp', 'POST', { telefono: '3001112233', texto: 'x'.repeat(1001) })).status, 400);
 assert.equal((await api('llamada', 'POST', { telefono: '3001112233', mensaje: 'x'.repeat(401) })).status, 400);
 assert.equal((await api('llamada', 'POST', { telefono: '3001112233', mensaje: '&'.repeat(400) })).status, 400);
 assert.equal(gsm('Petición está: mañana ¿qué? ¡Ü! `x` 👍 Ça ça'), 'Peticion esta: mañana ¿qué? ¡Ü! x  Ça ca');
@@ -65,12 +63,6 @@ assert.ok(twiml('A & B <x>').includes('A &#38; B &#60;x&#62;'));
 
 // (4) en modo simulado no hay límites: más de POR_IP_HORA desde la misma IP al mismo número
 for (let i = 0; i <= POR_IP_HORA; i++) assert.equal((await sms('3001112233', '10.0.0.5')).status, 200);
-
-// PDF solo del mismo sitio
-const wa = pdfUrl => api('whatsapp', 'POST', { telefono: '3001112233', texto: 'Su documento', pdfUrl });
-assert.equal((await wa('https://otro.com/x.pdf')).status, 400);
-assert.equal((await wa('http://miderecho.test/x.pdf')).status, 400);
-assert.equal((await wa('https://miderecho.test/doc/ABCD.pdf')).status, 200);
 
 // recordatorios: validación
 assert.equal((await programar({ fechas: ['2026-10-18'] })).status, 400);   // pasada
@@ -155,13 +147,14 @@ assert.equal((await sms('3001112233')).status, 503);   // con Redis y clave, per
 env.PERMITIR_ENVIO_ABIERTO = '1';
 
 // formato real de cada envío
-r = await sms('3001112233', undefined, 'Petición lista, señor');
+r = await sms('3001112233');
 assert.deepEqual([r.ok, r.simulado], [true, false]);
 assert.match(salidas.at(-1).url, /Accounts\/ACprueba\/Messages\.json$/);
 assert.equal(salidas.at(-1).auth, 'Basic ' + Buffer.from('ACprueba:token').toString('base64'));
-assert.deepEqual(salidas.at(-1).datos, { To: '+573001112233', From: '+15005550006', Body: 'Peticion lista, señor' });
-await wa('https://miderecho.test/a.pdf');
-assert.deepEqual(salidas.at(-1).datos, { To: 'whatsapp:+573001112233', From: 'whatsapp:+14155238886', Body: 'Su documento', MediaUrl: 'https://miderecho.test/a.pdf' });
+const textoListo = 'Su documento ABCD quedo listo. Si necesita ayuda, vaya con su lider o a la Personeria.';
+assert.deepEqual(salidas.at(-1).datos, { To: '+573001112233', From: '+15005550006', Body: textoListo });
+await api('whatsapp', 'POST', listo('3001112233'));
+assert.deepEqual(salidas.at(-1).datos, { To: 'whatsapp:+573001112233', From: 'whatsapp:+14155238886', Body: textoListo });
 await api('llamada', 'POST', { telefono: '3001112233', mensaje: 'Su petición vence el lunes.' });
 assert.match(salidas.at(-1).url, /Calls\.json$/);
 assert.ok(salidas.at(-1).datos.Twiml.includes('<Say language="es-MX" voice="Polly.Mia-Neural">Su petición vence el lunes.</Say>'));
