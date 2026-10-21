@@ -6,16 +6,16 @@ Estado (20-oct-2026): el código está listo y **funciona en modo simulado**. No
 
 | Ruta | Qué hace | Tope de texto |
 |---|---|---|
-| `POST /api/sms` `{ telefono, texto }` | Un SMS. Quita tildes, eñes y emojis (GSM-7) para que quepa en un solo mensaje | 160 caracteres |
+| `POST /api/sms` `{ telefono, texto }` | Un SMS en GSM-7: conserva ñ, é, ü, ¿ y ¡, cambia á, í, ó, ú por la vocal sola y quita emojis y la comilla invertida, para que quepa en un solo mensaje | 160 posiciones (`^{}[]~\|€` ocupan dos) |
 | `POST /api/whatsapp` `{ telefono, texto, pdfUrl? }` | Aviso o documento por WhatsApp (sandbox de Twilio para el demo). El PDF debe estar en el mismo sitio, con https | 1.000 |
-| `POST /api/llamada` `{ telefono, mensaje }` | Llamada que lee el mensaje con voz neural de español latino (`Polly.Mia-Neural`, es-MX), con una pausa al inicio y el mensaje dos veces | 400 |
-| `POST /api/recordatorios` `{ codigo, telefono, canal, fechas, mensaje }` | Programa de 1 a 6 recordatorios (`canal`: `sms`, `whatsapp` o `llamada`; `fechas`: `AAAA-MM-DD`, desde hoy y dentro de un año) | 160 |
-| `DELETE /api/recordatorios?codigo=ABCD` | Cancela y borra los recordatorios de ese caso | |
-| `GET /api/cron-recordatorios` | La llama Vercel Cron todos los días a las 13:00 UTC (8 a. m. en Colombia). Envía los recordatorios del día y borra los que ya no tienen fechas. Exige `Authorization: Bearer <CRON_SECRET>` | |
+| `POST /api/llamada` `{ telefono, mensaje }` | Llamada que lee el mensaje con voz neural de español latino (`Polly.Mia-Neural`, es-MX), con una pausa al inicio y el mensaje dos veces | 400 (y TwiML de máximo 4.000) |
+| `POST /api/recordatorios` `{ codigo, telefono, canal, fechas }` → `{ ok, simulado, token }` | Programa de 1 a 6 recordatorios (`canal`: `sms`, `whatsapp` o `llamada`; `fechas`: `AAAA-MM-DD`, desde hoy y dentro de un año; hoy solo antes de las 8 a. m.). El texto lo arma el servidor con una plantilla fija; `mensaje` se ignora. Devuelve un `token` secreto que la app debe guardar con el caso | Fijo |
+| `DELETE /api/recordatorios` `{ codigo, token }` | Cancela y borra los recordatorios de ese caso. Siempre responde igual, exista o no | |
+| `GET /api/cron-recordatorios` | La llama Vercel Cron todos los días a las 13:00 UTC (8 a. m. en Colombia). Envía los recordatorios de hoy y los que quedaron de ayer, en tandas de 10 y máximo 40 segundos, y respeta `LIMITE_DIARIO`. Exige `Authorization: Bearer <CRON_SECRET>` | |
 
-- Archivos: `prototipo/api/*.js` (una función por ruta, `_comun.js` con lo compartido), `prototipo/comunicaciones.js` (cliente del navegador), `prototipo/vercel.json` (cron) y `prototipo/api/test-api.mjs` (pruebas).
-- Todas responden `{ ok, simulado, error? }`. Sin dependencias: Twilio y Redis se usan por su API REST con `fetch`.
-- **Modo simulado:** si faltan `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` o el número de origen del canal, la función responde `{ ok: true, simulado: true }` y solo registra en el log el canal, los dos últimos dígitos del número y el largo del texto.
+- Archivos: `prototipo/api/*.js` (una función por ruta, `_comun.js` con lo compartido), `prototipo/comunicaciones.js` (cliente del navegador), `prototipo/vercel.json` (cron) y `prototipo/api/_test-api.mjs` (pruebas; el guion bajo evita que Vercel lo publique).
+- Todas responden `{ ok, simulado, error? }`. Solo aceptan `Content-Type: application/json` (si no, 415) y peticiones de la propia app (403 si `Origin` o `Sec-Fetch-Site` dicen otro sitio). Sin dependencias: Twilio y Redis se usan por su API REST con `fetch`.
+- **Modo simulado:** si faltan `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` o el número de origen del canal, la función responde `{ ok: true, simulado: true }` y solo registra en el log el canal, los dos últimos dígitos del número y el largo del texto. En modo simulado no se aplica ningún límite (no se gasta nada); solo la validación.
 - **Sin Redis**, los recordatorios y los límites viven en la memoria de la función: sirven para probar, pero se pierden cuando Vercel apaga la función.
 
 ## 2. Pasos para activarlo (en este orden)
@@ -24,7 +24,7 @@ Estado (20-oct-2026): el código está listo y **funciona en modo simulado**. No
 2. Generar `CLAVE_CIFRADO` y `CRON_SECRET` y ponerlas en Vercel (sección 7).
 3. Crear la cuenta de Twilio, activar Colombia y anotar el SID, el token y el número (secciones 3 y 4).
 4. Activar el sandbox de WhatsApp y unir los celulares del demo (sección 5).
-5. Poner `NUMEROS_DEMO` con los celulares del equipo y `LIMITE_DIARIO=30` para el hackathon.
+5. Poner `NUMEROS_DEMO` con los celulares del equipo y `LIMITE_DIARIO=30` para el hackathon. **Sin `NUMEROS_DEMO`, los envíos reales quedan cerrados** (sección 9).
 6. Volver a desplegar (las variables nuevas solo aplican a despliegues nuevos) y probar con `curl` (sección 11).
 
 ## 3. Cuenta de Twilio
@@ -54,7 +54,7 @@ Errores de Twilio más comunes (la API responde `Twilio no aceptó el envío (c�
 1. *Console → Messaging → Try it out → Send a WhatsApp message*. Aparece un código del tipo `join palabra-palabra`.
 2. Cada celular del demo envía por WhatsApp ese texto al **+1 415 523 8886**. El sandbox solo entrega a quien se unió, y la unión **vence a los 3 días** (hay que repetir el `join`).
 3. `TWILIO_WHATSAPP_FROM=+14155238886`.
-4. **Ventana de 24 horas:** después de que la persona escribe, se le puede mandar texto libre y PDF por 24 horas. Fuera de esa ventana, Meta solo permite **plantillas aprobadas**. Para los recordatorios por WhatsApp (que llegan días después) se usa la plantilla de `TWILIO_WHATSAPP_PLANTILLA`, con el código del caso como variable `{{1}}`. Plantilla sugerida (categoría *utility*, en el *Content Template Builder*): "Recordatorio de su caso {{1}}. Si la entidad no le ha respondido, avise a su líder." Sin plantilla configurada se intenta texto libre, que fuera de la ventana no llega.
+4. **Ventana de 24 horas:** después de que la persona escribe, se le puede mandar texto libre y PDF por 24 horas. Fuera de esa ventana, Meta solo permite **plantillas aprobadas**. Para los recordatorios por WhatsApp (que llegan días después) se usa la plantilla de `TWILIO_WHATSAPP_PLANTILLA`, con el código del caso en `{{1}}` y la fecha (por ejemplo `30-nov`) en `{{2}}`. Plantilla sugerida (categoría *utility*, en el *Content Template Builder*): "Caso {{1}}: recordatorio del {{2}}. Si la entidad no le ha respondido, avise a su líder." Con envío real y sin plantilla, `/api/recordatorios` rechaza el canal `whatsapp`.
 5. El sandbox envía como máximo 1 mensaje cada 3 segundos y es solo para pruebas. Para producción hace falta un remitente propio de WhatsApp con el negocio verificado en Meta.
 6. **Política de Meta:** prohíbe los chatbots de IA de propósito general y pedir la cédula por WhatsApp. Este canal es solo para avisos y documentos.
 7. **PDF por WhatsApp:** Twilio necesita una URL pública con https, en el mismo dominio de la app o en uno de `DOMINIOS_PDF`. Hoy la app arma el documento en el celular y no lo sube a ninguna parte; para mandarlo habría que subirlo (por ejemplo, a Vercel Blob) con un nombre al azar y borrarlo después de enviado. Eso no está en esta rama.
@@ -67,14 +67,14 @@ Errores de Twilio más comunes (la API responde `Twilio no aceptó el envío (c�
 2. Vercel agrega solas `KV_REST_API_URL` y `KV_REST_API_TOKEN` (en algunas cuentas se llaman `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN`; el código acepta las dos).
 3. **No registrar tarjeta en Upstash:** con tarjeta la base pasa a pago por uso.
 
-Plan gratis: 500.000 comandos al mes, 256 MB, sin tarjeta. Cada envío gasta de 2 a 6 comandos y el cron 1 más 2 por recordatorio: sobra para el piloto.
+Plan gratis: 500.000 comandos al mes, 256 MB, sin tarjeta. Cada envío gasta unos 6 comandos, programar unos 15 y el cron 2 más 3 por recordatorio: sobra para el piloto.
 
 Qué se guarda, y nada más:
-- Un registro por caso en `recordatorios`: `codigo → { canal, fechas, c }`, donde `c` es el teléfono y el mensaje cifrados con **AES-256-GCM**. La clave sale de `CLAVE_CIFRADO`, que vive en Vercel, no en la base.
-- Contadores de límites `rl:<HMAC>:<ventana>`, que se borran solos en 1 hora o 24 horas. Ni el número ni la IP quedan en claro: se guardan como HMAC.
-- Se borra al enviar el último recordatorio (el cron) o al cancelar (`DELETE`).
-
-Seguridad: si hay claves de Twilio pero no hay Redis ni `NUMEROS_DEMO`, los envíos reales quedan apagados (respuesta 503). Con Redis pero sin `CLAVE_CIFRADO`, las funciones fallan en vez de guardar teléfonos sin cifrar.
+- `rec:<id>` → `{ codigo, canal, fechas, c }`, donde `c` es el teléfono cifrado con **AES-256-GCM** e `id` es HMAC(código + token): dos casos con el mismo código no chocan y sin el token no se puede cancelar. Vence solo 3 días después de su última fecha; el cron lo borra antes, al enviar la última.
+- `dia:<fecha>` → los `id` que salen ese día (vence 3 días después). El cron saca cada `id` antes de enviar, así que nunca envía dos veces, y nunca reescribe un registro: lo cancelado no revive.
+- `num:<HMAC del número>` → los casos activos de ese número (máximo 3).
+- Contadores `rl:<HMAC>:<ventana>` (por red, por número y total del día) y cupos `prog:<fecha>` por fecha, que vencen solos. Ni el número ni la IP quedan en claro.
+- La clave sale de `CLAVE_CIFRADO`, que vive en Vercel, no en la base. Con Redis pero sin `CLAVE_CIFRADO`, las funciones fallan en vez de guardar teléfonos sin cifrar.
 
 ## 7. Variables de entorno
 
@@ -90,11 +90,12 @@ Dónde: Vercel → proyecto **miderecho** → *Settings* → *Environment Variab
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | (los pone Vercel) | Upstash Redis |
 | `CLAVE_CIFRADO` | salida de `openssl rand -base64 32` | Cifra los teléfonos (AES-GCM) y firma los contadores (HMAC). Si se cambia, los recordatorios guardados ya no se pueden leer y se descartan |
 | `CRON_SECRET` | salida de `openssl rand -hex 32` | Vercel la manda sola al cron; protege `/api/cron-recordatorios` |
-| `NUMEROS_DEMO` | `3001234567,3109876543` | Si existe, solo se envía a esos números. Usarla en el hackathon |
-| `LIMITE_DIARIO` | `30` | Tope total de envíos por día (100 si no está) |
+| `NUMEROS_DEMO` | `3001234567,3109876543` | Solo se envía a esos números. Usarla en el hackathon: sin ella (y sin `PERMITIR_ENVIO_ABIERTO`) los envíos reales quedan cerrados |
+| `PERMITIR_ENVIO_ABIERTO` | `1` | Abre el envío a cualquier celular colombiano. Exige Redis. **No usar sin verificación del número** (sección 9) |
+| `LIMITE_DIARIO` | `30` | Tope total de envíos por día y de recordatorios programados por fecha (100 si no está) |
 | `DOMINIOS_PDF` | `x.public.blob.vercel-storage.com` | Opcional: otros dominios permitidos para `pdfUrl` |
 
-El cron de Vercel solo corre en **producción** (no en los previews) y, en el plan Hobby, llega a cualquier minuto entre las 13:00 y las 13:59 UTC.
+El cron de Vercel solo corre en **producción** (no en los previews) y, en el plan Hobby, llega a cualquier minuto entre las 13:00 y las 13:59 UTC. Por eso, desde las 8 a. m. ya no se aceptan recordatorios para hoy. Si falta `CRON_SECRET`, el cron responde 401 y deja un error en los logs.
 
 ## 8. Costos aproximados (precios de lista de Twilio, octubre de 2026, en dólares)
 
@@ -114,31 +115,32 @@ Por caso, con 3 recordatorios: por SMS ≈ **0,18**; por WhatsApp ≈ **0,02**; 
 La app es pública: sin estas barreras, cualquiera podría usar las funciones para mandar SMS o llamadas a cualquier número y gastar el saldo.
 
 - **Solo celulares colombianos:** 10 dígitos que empiezan por 3, con o sin +57. Se rechazan fijos y números de otros países.
-- **Límites:** 20 solicitudes por hora por IP, 10 envíos por día al mismo número y `LIMITE_DIARIO` envíos por día en total. Con Redis valen para todas las funciones; sin Redis, cada instancia lleva su cuenta (por eso los envíos reales exigen Redis o `NUMEROS_DEMO`).
-- **Topes de texto:** 160 (SMS y recordatorios), 1.000 (WhatsApp) y 400 (llamada).
-- **Lista blanca `NUMEROS_DEMO`:** si existe, solo se envía a esos números.
+- **Cerrado por defecto:** con claves reales de Twilio, solo se envía a `NUMEROS_DEMO`. Para abrirlo a cualquier número hay que poner `PERMITIR_ENVIO_ABIERTO=1` y tener Redis; si no, 503. **Antes de abrirlo en producción** hay que verificar cada número con un código de un solo uso (SMS que la persona devuelve en la app) y poner un captcha en la app; sin eso, cualquiera puede mandar texto libre a un tercero.
+- **Límites (solo con envío real):** 60 solicitudes por hora por red (las IPv6 se agrupan por red, y el tope es alto para tolerar el CGNAT de los operadores y el Wi-Fi del evento), 10 envíos por día al mismo número y `LIMITE_DIARIO` en total. Con Redis valen para todas las funciones; sin Redis, cada instancia lleva su cuenta.
+- **Recordatorios:** máximo 3 casos activos por número (el mismo código con el mismo número se reemplaza); cada fecha gasta del cupo de ese día, en total (`LIMITE_DIARIO`) y por número (10); el cron también se detiene al llegar a `LIMITE_DIARIO`. El texto es fijo (código y fecha): nadie puede usar los recordatorios para mandar texto libre.
+- **Topes de texto:** 160 (SMS), 1.000 (WhatsApp) y 400 (llamada).
 - **PDF solo del propio sitio**, para que nadie use el número para repartir archivos ajenos.
-- **Recordatorios:** un código ya programado con otro número no se puede sobrescribir (409), y cancelar cuenta para el límite por IP, para que no se puedan borrar los de otros probando códigos.
+- **Cancelar exige el token** de 128 bits que recibió la app al programar. El código del caso no basta (va impreso en el documento) y la respuesta no revela si el registro existía.
 - **Cron** protegido con `CRON_SECRET`.
 - **Logs** sin el contenido de los mensajes ni números completos (solo `***67`). Los errores de Twilio se registran solo por su código, porque su texto incluye el número.
-- No hay CORS: el navegador solo deja llamar a `/api` desde la misma app.
+- **Solo desde la app:** se rechaza lo que no sea `application/json` (415), así un formulario HTML de otro sitio no puede disparar envíos, y lo que traiga `Origin` o `Sec-Fetch-Site` de otro sitio (403); se aceptan el propio dominio y `localhost`. Esto frena a otros sitios web, no a un script: contra eso están el cierre por defecto y los límites.
 
 ## 10. Límites legales y de privacidad
 
 - **Autorización expresa antes de cualquier recordatorio** (Ley 1581 de 2012 y Decreto 1377 de 2013: previa, expresa e informada). En la app debe ser una casilla aparte y sin marcar, del tipo "Quiero que me recuerden las fechas por SMS a este número", con el canal y la hora. La SIC ya multó a un operador por contactar sin permiso (ver `investigacion/11`, sección 1.2). La prueba de la autorización queda hoy solo en el celular; validar con quien lidere privacidad si hace falta guardar una prueba seudónima (`investigacion/06`, sección 5.6).
 - **Solo mensajes que la persona pidió.** Nada de promociones ni envíos masivos.
 - **Horario:** el cron envía a las 8 a. m. (hora de Colombia) y las fechas de la app son días hábiles. Los SMS y las llamadas inmediatas los dispara la misma persona desde la app. Como regla, no contactar fuera de lunes a viernes de 7 a. m. a 7 p. m. ni sábados después de las 3 p. m. (es el horario de la Ley 2300 de 2023 para cobranzas; aplicarlo aquí es una buena práctica, por validar con un abogado). Twilio también pide escribir solo en horario diurno.
-- **Contenido:** en SMS y WhatsApp, solo el código del caso y la fecha. Nunca nombres, cédula, entidad, tema ni hechos: los SMS no van cifrados y el celular puede ser compartido o revisado (`investigacion/06`, sección 4.3). Ejemplo: `Peticion 4F7K vence el 1-dic. Si no responden, avise a su lider.`
+- **Contenido:** en SMS y WhatsApp, solo el código del caso y la fecha. Nunca nombres, cédula, entidad, tema ni hechos: los SMS no van cifrados y el celular puede ser compartido o revisado (`investigacion/06`, sección 4.3). Los recordatorios usan siempre: `Caso 4F7K: recordatorio del 1-dic. Si la entidad no le ha respondido, avise a su lider.`
 - **Borrado:** el servidor borra el registro tras el último recordatorio o al cancelar. Twilio guarda en su consola el registro de cada mensaje (número y texto): después del demo, borrarlos en *Monitor → Logs* o por API (`DELETE /Messages/{Sid}`). Meta conserva los mensajes de WhatsApp hasta 30 días.
 - **Transferencia internacional:** Twilio y Upstash procesan los datos fuera de Colombia. Para el piloto hacen falta los acuerdos de transmisión con ellos (`investigacion/06`, sección 1.5).
 
 ## 11. Cómo probar
 
 ```bash
-node prototipo/api/test-api.mjs
+node prototipo/api/_test-api.mjs
 ```
 
-Prueba, sin cuentas reales: modo simulado, números inválidos, textos largos, lista blanca, límites por IP, por número y diario, PDF de otro dominio, recordatorios (fechas, cifrado, choque de códigos, cron, cancelación y borrado) y, con un `fetch` falso que imita a Twilio y a Upstash, el formato exacto de cada envío real, la plantilla de WhatsApp, el error de Twilio y que en los logs no aparezcan números ni textos.
+Prueba, sin cuentas reales y con reloj fijo: modo simulado sin límites, 415 y 403, números inválidos, topes de texto, GSM-7, TwiML de 4.000, PDF de otro dominio, recordatorios (fechas, hoy después de las 8 a. m., token, mismo código en dos casos, cancelación sin revelar, cron sin repetir ni revivir, lo atrasado de ayer, vencimiento a los 3 días, falta de `CRON_SECRET`) y, con un `fetch` falso que imita a Twilio y a Upstash: cierre por defecto, formato exacto de cada envío real, error de Twilio, lista blanca, límites por red, por número y diario, plantilla de WhatsApp, casos activos por número, cupos por fecha, cron con `LIMITE_DIARIO` y que en los logs no aparezcan números ni textos.
 
 Contra un despliegue (cambiar la URL; los previews de Vercel piden iniciar sesión o un enlace de acceso):
 
@@ -159,15 +161,15 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://miderecho-two.vercel.app/ap
    ```js
    const rad = deIso(c.rad), venc = deIso(c.venc);
    const fechas = [sumarHabiles(rad, c.plazo - 3), venc, sumarHabiles(rad, c.plazo + 1)].map(iso);   // las mismas de resumenPlazo
-   programarRecordatorios({ codigo: c.codigo, telefono, canal: 'sms', fechas,
-     mensaje: `Peticion ${c.codigo} vence el ${fechaSms(venc)}. Si no responden, avise a su lider.` })
-     .then(r => r.ok || aviso('No se pudieron programar los recordatorios: ' + r.error));
+   programarRecordatorios({ codigo: c.codigo, telefono, canal: 'sms', fechas: fechas.filter(f => f > iso(hoy())) })
+     .then(r => r.ok ? (c.token = r.token, guardar()) : aviso('No se pudieron programar los recordatorios: ' + r.error));
    ```
 
-   Mostrar "(simulado)" si `r.simulado`. La fecha `plazo − 3` puede caer antes de hoy en plazos cortos: filtrarla (`f >= iso(hoy())`), porque el servidor rechaza fechas pasadas.
+   El `token` se guarda con el caso (cifrado con la clave de la app): sin él no se puede cancelar. Mostrar "(simulado)" si `r.simulado`. El filtro quita las fechas pasadas y la de hoy, que el servidor rechaza después de las 8 a. m.
 4. Casos en cola sin internet (`procesarCola`): hoy no conservan el teléfono; si se quieren recordatorios, el teléfono debe quedar en el borrador cifrado hasta que se programen.
-5. En `acciones.cerrar` y `acciones.borrarSi`: `cancelarRecordatorios(codigo)` por cada caso con `sms: true`, sin esperar la respuesta para no frenar la pantalla.
-6. El cliente nunca lanza errores: sin internet devuelve `{ ok: false, error: 'Sin internet' }`.
+5. En `acciones.cerrar` y `acciones.borrarSi`: `cancelarRecordatorios(c.codigo, c.token)` por cada caso con `token`, sin esperar la respuesta para no frenar la pantalla.
+6. El cliente nunca lanza errores: sin internet, sin servidor o si la respuesta no trae `ok`, devuelve `{ ok: false, simulado: false, error }`.
+7. **Cambio de interfaz frente a CONTRATOS.md (aprobado por integración):** `programarRecordatorios` devuelve también `token`, ignora `mensaje`, y `cancelarRecordatorios(codigo, token)` pide el token.
 
 ## Fuentes
 

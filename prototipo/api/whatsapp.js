@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     async POST(b) {
       const tel = celular(b.telefono), t = texto(b.texto, 1000);
       const pdfUrl = b.pdfUrl ? pdfPropio(b.pdfUrl, req.headers.host) : undefined;
-      await proteger(req, tel);
+      await proteger(req, tel, 'whatsapp');
       return enviar('whatsapp', tel, t, { pdfUrl });
     },
   });
