@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test-almacen.mjs && node test-avisos.mjs"
+    "test": "node test-almacen.mjs && node test-avisos.mjs && node test-offline.mjs"
   },
   "dependencies": {
     "@miderecho/nucleo": "*",

@@ -6,7 +6,9 @@
 //   los casos y sobrevive a "Borrar todo". cancelarTodo() cancela todo lo de este celular y anula la suscripción push.
 // - Aviso local (sin internet): plazos que vencen hoy o mañana.
 // - Llamada del agente de voz (api/llamar.js): ahora o agendada.
+// - Sin señal, programar un recordatorio por teléfono o pedir la llamada queda en la cola cifrada (lib/cola.js) y sale solo.
 import { sumarHabiles, deIso, iso } from '@miderecho/nucleo';
+import { hayRed, encolar, alEnviarse } from './cola.js';
 
 const BASE = import.meta.env?.VITE_API_URL || '';
 const COLA = 'miderecho-cancelar';
@@ -15,7 +17,7 @@ const LLAMADA = 'miderecho-llamada';   // { token, cuando, texto } de la llamada
 
 // Igual que prototipo/comunicaciones.js: nunca lanza; sin internet o con error devuelve { ok: false, error }.
 export async function pedir(ruta, method, datos) {
-  if (!navigator.onLine) return { ok: false, simulado: false, error: 'Sin internet' };
+  if (!hayRed()) return { ok: false, simulado: false, error: 'Sin internet' };
   try {
     const r = await fetch(`${BASE}/api/${ruta}`, {
       method, headers: { 'Content-Type': 'application/json' }, body: datos && JSON.stringify(datos),
@@ -34,7 +36,7 @@ const escribirJSON = (k, v) => { try { v == null || (Array.isArray(v) && !v.leng
 // ---------- cola de cancelación ----------
 let corriendo = false;
 export async function procesarCola() {
-  if (corriendo || !navigator.onLine) return;
+  if (corriendo || !hayRed()) return;
   corriendo = true;
   try {
     // Cada pendiente una vez por corrida, también los que se agregan mientras corre.
@@ -47,7 +49,7 @@ export async function procesarCola() {
     }
   } finally { corriendo = false; }
 }
-function encolar(ruta, datos) {
+function cancelarEnServidor(ruta, datos) {
   escribirJSON(COLA, [...leerJSON(COLA, []), { ruta, datos }]);
   return procesarCola();
 }
@@ -60,7 +62,7 @@ export function cancelarAvisos(codigo, canales) {
   const sale = a => a.codigo === codigo && (!canales || canales.includes(a.canal));
   const todos = leerJSON(AVISOS, []);
   escribirJSON(AVISOS, todos.filter(a => !sale(a)));
-  todos.filter(a => sale(a) && a.token).forEach(a => encolar('recordatorios', { codigo: a.codigo, token: a.token }));
+  todos.filter(a => sale(a) && a.token).forEach(a => cancelarEnServidor('recordatorios', { codigo: a.codigo, token: a.token }));
 }
 
 // ---------- recordatorios ----------
@@ -111,7 +113,13 @@ export async function programar(caso, canal, telefono, aviso) {
   const fechas = fechasAviso(caso);
   if (!fechas.length) return { ok: false, error: 'Ya no quedan fechas por recordar' };
   let destino = { telefono };
+  // Sin señal: queda en la cola cifrada con el número, y sale solo al volver (ver alEnviarse abajo).
+  if (canal !== 'push' && !hayRed()) {
+    encolar('recordatorios', { codigo: caso.codigo, canal, fechas, vence: caso.venc, acepto: true, aviso, telefono });
+    return { ok: true, enCola: true };
+  }
   if (canal === 'push') {
+    if (!hayRed()) return { ok: false, error: 'Las notificaciones se activan con internet.' };
     const a = await activarPush();
     if (!a.ok || a.simulado) { if (a.ok) guardarAviso(caso.codigo, canal, ''); return a; }
     destino = { suscripcion: a.suscripcion };
@@ -123,6 +131,9 @@ export async function programar(caso, canal, telefono, aviso) {
 function guardarAviso(codigo, canal, token) {
   escribirJSON(AVISOS, [...leerJSON(AVISOS, []).filter(a => !(a.codigo === codigo && a.canal === canal)), { codigo, canal, token }]);
 }
+// Al salir de la cola: solo las fechas que aún no pasaron (pudo pasar un día sin señal).
+alEnviarse('recordatorios', (r, e) => guardarAviso(e.datos.codigo, e.datos.canal, r.token), undefined,
+  d => { const fechas = d.fechas.filter(f => f > iso(new Date())); return fechas.length ? { ...d, fechas } : null; });
 
 // ---------- aviso local: plazos que vencen hoy o mañana (sin internet) ----------
 export function plazosCercanos(casos, hoy = new Date()) {
@@ -139,18 +150,22 @@ export const llamadaAgendada = () => {
   return g;
 };
 export async function pedirLlamada(datos) {
+  if (!hayRed()) { encolar('llamar', datos); return { ok: true, enCola: true }; }   // sale sola al volver la señal
   const r = await pedir('llamar', 'POST', datos);
-  if (r.ok && r.token) {
-    const anterior = llamadaAgendada();
-    if (anterior) encolar('llamar', { token: anterior.token });   // una sola llamada agendada a la vez
-    escribirJSON(LLAMADA, { token: r.token, cuando: Date.parse(datos.cuando), texto: datos.texto });
-  }
+  if (r.ok) llamadaPedida(r, datos);
   return r;
 }
+function llamadaPedida(r, datos) {
+  if (!r.token) return;
+  const anterior = llamadaAgendada();
+  if (anterior) cancelarEnServidor('llamar', { token: anterior.token });   // una sola llamada agendada a la vez
+  escribirJSON(LLAMADA, { token: r.token, cuando: Date.parse(datos.cuando), texto: datos.texto });
+}
+alEnviarse('llamar', (r, e) => llamadaPedida(r, e.datos));
 export function cancelarLlamada() {
   const g = leerJSON(LLAMADA, null);
   escribirJSON(LLAMADA, null);
-  return g ? encolar('llamar', { token: g.token }) : Promise.resolve();
+  return g ? cancelarEnServidor('llamar', { token: g.token }) : Promise.resolve();
 }
 
 // "Borrar todo": cancela en el servidor todo lo que este celular dejó programado y anula la suscripción push.

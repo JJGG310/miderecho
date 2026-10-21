@@ -16,7 +16,10 @@ import Clave from './pantallas/Clave.jsx';
 import Peligro, { PreguntaPeligro } from './pantallas/Peligro.jsx';
 import Consentimiento, { consintio } from './pantallas/Consentimiento.jsx';
 // La política de datos se descarga solo cuando se abre (el service worker igual la guarda para usarla sin internet).
-const Politica = lazy(() => import('./pantallas/Politica.jsx'));
+// Si ese archivo no alcanzó a guardarse (por ejemplo, justo después de una actualización), se avisa en vez de quedar en blanco.
+const Politica = lazy(() => import('./pantallas/Politica.jsx').catch(() => ({
+  default: () => <main className="pantalla"><p className="nota-privacidad" role="status">Para ver la política de datos, ábrala una vez con internet.</p><a className="btn-secundario" href="#/inicio">Volver al inicio</a></main>,
+})));
 
 // Documentos nuevos: antes de empezar se pregunta si hay alguien en peligro.
 const NUEVOS = ['peticion', 'servicios_publicos', 'tutela_salud', 'tutela'];

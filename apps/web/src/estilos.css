@@ -55,6 +55,9 @@ h1, h2, h3 { margin: 0; }
 .btn-encabezado { min-height: 44px; min-width: 44px; padding: 0 10px; border-radius: 12px; border: 1.5px solid var(--verde); color: var(--verde); background: var(--papel); font-weight: 700; font-size: .889rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .btn-encabezado.peligro { border-color: var(--rojo); color: var(--rojo); }
 .chip-estado { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: 999px; background: var(--ambar-fondo); color: var(--ambar); font-weight: 700; font-size: .889rem; }
+.chip-estado.con { background: var(--verde-fondo); color: var(--verde); }
+.aviso-envios { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; padding: 10px 12px; border-radius: var(--radio); background: var(--verde-fondo); color: var(--verde); font-weight: 700; }
+.aviso-envios button { min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1.5px solid var(--verde); background: var(--papel); color: var(--verde); font-weight: 700; }
 .interruptor { min-height: 44px; padding: 0 10px; border-radius: 12px; border: 1.5px dashed var(--suave); color: var(--suave); font-size: .889rem; }
 @media (max-width: 369px) {
   .logo-svg { height: 20px; }
@@ -99,9 +102,6 @@ h1, h2, h3 { margin: 0; }
 .caja-relato textarea:focus { outline: none; }
 .caja-relato:focus-within { border-color: var(--verde); box-shadow: 0 0 0 2px var(--verde); }
 .caja-relato .btn-mini { position: absolute; right: 8px; bottom: 8px; }
-.sin-conexion { padding: 14px 16px; color: var(--texto); }
-.sin-conexion p { margin: 0 0 6px; }
-.sin-conexion-titulo { font-weight: 800; display: flex; gap: 8px; align-items: center; }
 .btn-mini { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; flex: none; }
 .btn-mini.mic { background: var(--oliva-btn); color: var(--verde-icono); }
 .btn-mini.enviar { background: var(--verde); color: #fff; }

@@ -25,7 +25,7 @@ export default function Derecho({ id }) {
   const [txtAccion, IconoAccion] = ACCIONES[d.accion] || [];
   // La ruta de la carta venta funciona sin internet y es la respuesta principal de Tierras: va primero.
   const ruta = d.accion === 'carta';
-  const accion = txtAccion && <button className={enLinea && !ruta ? 'btn-secundario' : 'btn-primario'} onClick={hacer}><IconoAccion size={20} aria-hidden /> {txtAccion}</button>;
+  const accion = txtAccion && <button className={ruta ? 'btn-primario' : 'btn-secundario'} onClick={hacer}><IconoAccion size={20} aria-hidden /> {txtAccion}</button>;
   const lectura = d.cuadros ? d.cuadros.map((q, i) => lecturaCuadro(q, i + 1)).join(' ') : `${d.descripcion} Qué puede hacer: ${d.pasos.join(' ')}`;
 
   return (
@@ -67,9 +67,8 @@ export default function Derecho({ id }) {
       <DichoDeOtraForma>{d.dichoDeOtraForma}</DichoDeOtraForma>
 
       {ruta && accion}
-      {enLinea
-        ? <button className={ruta ? 'btn-secundario' : 'btn-primario'} onClick={contar}><MessageCircle size={22} aria-hidden /> ¿Le está pasando algo así? Cuéntenos</button>
-        : <p className="nota-privacidad">Cuando tenga internet, puede contarnos su caso y le decimos qué hacer.</p>}
+      <button className={ruta ? 'btn-secundario' : 'btn-primario'} onClick={contar}><MessageCircle size={22} aria-hidden /> ¿Le está pasando algo así? Cuéntenos</button>
+      {!enLinea && <p className="nota-privacidad">Está sin internet: le responde el modo básico, sin inteligencia artificial.</p>}
       {!ruta && accion}
 
       <LeyDesplegable texto={d.queDiceLaLey} normas={d.normas} fuente={d.fuente}>
