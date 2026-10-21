@@ -41,11 +41,10 @@ export default function Derecho({ id }) {
 
       <DichoDeOtraForma>{d.dichoDeOtraForma}</DichoDeOtraForma>
 
-      {enLinea
-        ? <button className="btn-primario" onClick={contar}><MessageCircle size={22} aria-hidden /> ¿Le está pasando algo así? Cuéntenos</button>
-        : <p className="nota-privacidad">Cuando tenga internet, puede contarnos su caso y le decimos qué hacer.</p>}
+      <button className="btn-primario" onClick={contar}><MessageCircle size={22} aria-hidden /> ¿Le está pasando algo así? Cuéntenos</button>
+      {!enLinea && <p className="nota-privacidad">Está sin internet: le responde el modo básico, sin inteligencia artificial.</p>}
       {d.accion === 'peticion' && (
-        <button className={enLinea ? 'btn-secundario' : 'btn-primario'} onClick={peticion}><FilePen size={20} aria-hidden /> Hacer un derecho de petición</button>
+        <button className="btn-secundario" onClick={peticion}><FilePen size={20} aria-hidden /> Hacer un derecho de petición</button>
       )}
 
       <LeyDesplegable texto={d.queDiceLaLey} normas={d.normas} fuente={d.fuente}>

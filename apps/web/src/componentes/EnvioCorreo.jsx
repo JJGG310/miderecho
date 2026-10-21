@@ -2,12 +2,14 @@
 // Primero pregunta al servidor en qué modo está (GET /api/correo): si es simulado o de prueba, el botón lo dice y el caso NO
 // se guarda como entregado. Al enviar, el documento completo (nombre, cédula, contacto y lo que contó la persona) pasa por el
 // servidor de MiDerecho, que no lo guarda, y por Resend (Estados Unidos), que guarda una copia 30 días. En el celular solo queda
-// la constancia (número de envío, fecha y destinatario). Sin conexión, el envío espera en la memoria de esta pantalla.
+// la constancia (número de envío, fecha y destinatario). Sin señal, el envío espera en la cola cifrada (lib/cola.js), sale solo
+// al volver la señal y el plazo empieza a contar ese día; mientras tanto el caso queda en Mis casos como "por enviar".
 import { useCallback, useEffect, useState } from 'react';
 import { Mail, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
-import { DIRECTORIO, paraJuzgado, TIPOS, deIso } from '@miderecho/nucleo';
+import { DIRECTORIO, paraJuzgado, TIPOS, deIso, iso, sumarHabiles } from '@miderecho/nucleo';
 import { useConexion } from '../lib/conexion.jsx';
 import { almacen } from '../lib/almacen.js';
+import { encolar, alEnviarse } from '../lib/cola.js';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 const nuevoCodigo = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
@@ -32,8 +34,26 @@ async function pedir(cuerpo) {
   } catch { return { ok: false, error: 'No se pudo conectar con el servidor' }; }
 }
 
-// Constancia de un envío real: en la pantalla del documento y en Mis casos.
+// Al salir de la cola: la constancia reemplaza al pendiente y el plazo cuenta desde ese día. Una prueba no cuenta como entregado.
+const conPendiente = id => almacen.casos().find(c => c.envios?.some(k => k.pendiente === id));
+const sinPendiente = (c, id, cambios) => almacen.guardarCaso({ ...c, envios: c.envios.filter(k => k.pendiente !== id), ...cambios });
+alEnviarse('correo', (r, e) => {
+  const c = conPendiente(e.id), k = { ...r.constancia, codigo: e.datos.datos.codigo }, hoy = new Date();
+  if (!c) return;
+  if (k.simulado || k.prueba) return sinPendiente(c, e.id, { envioFallido: 'No se envió de verdad (modo de prueba). Entréguelo a mano.' });
+  sinPendiente(c, e.id, { envios: [...c.envios.filter(x => x.pendiente !== e.id), k], envioFallido: undefined, rad: iso(hoy), venc: c.plazo ? iso(sumarHabiles(hoy, c.plazo)) : c.venc });
+}, (r, e) => {
+  const c = conPendiente(e.id);
+  if (c) sinPendiente(c, e.id, { envioFallido: `No se pudo enviar por correo: ${r.error}. Entréguelo a mano.` });
+});
+
+// Constancia de un envío real: en la pantalla del documento y en Mis casos. Si espera señal, lo dice.
 export function Constancia({ k }) {
+  if (k.pendiente) return (
+    <p className="plazo"><Mail size={16} aria-hidden /><span>
+      Sin señal: lo enviamos por correo a <b>{k.entidad}</b> ({k.para}) apenas vuelva. El plazo empieza a contar ese día.{k.codigo && <> · Código del caso: {k.codigo}</>}
+    </span></p>
+  );
   return (
     <p className="plazo ok"><Mail size={16} aria-hidden /><span>
       Enviado por correo a <b>{k.entidad}</b> ({k.para}) el {fechaHora(k.fecha)}
@@ -71,8 +91,12 @@ export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar }) {
     else alAbrir(null);   // y el documento vuelve a la versión para imprimir y firmar
     setEstado({ constancia, copia: copia && r.copia });
   }, [tipo, para, copia, datos, codigo, modo, f.codigo, alEnviar]);
-  // En cola: sale solo apenas vuelve la conexión, mientras esta pantalla siga abierta.
-  useEffect(() => { if (estado === 'cola' && enLinea) enviar(); }, [estado, enLinea, enviar]);
+  // Sin señal: a la cola cifrada, y el caso queda en Mis casos como "por enviar" (sale solo al volver la señal).
+  const encolarCorreo = () => {
+    const id = encolar('correo', { tipo, destino: para.clave, copia, datos: { ...datos, codigo }, ...(modo?.verificar && { verificacion: { codigo: f.codigo } }) });
+    alEnviar({ pendiente: id, entidad: para.nombre || datos.entidad, para: para.correo, codigo, fecha: new Date().toISOString() });
+    setEstado('cola');
+  };
 
   if ((judicial && !dest) || modo?.cerrado) return null;   // sin juzgado en el directorio, o envíos cerrados: se entrega en persona
   const k = estado?.constancia;
@@ -142,10 +166,10 @@ export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar }) {
         : <p className="aviso-error">Para enviarlo necesitamos confirmar tu celular con un código: vuelve y escríbelo en tus datos.</p>)}
 
       <label className="check"><input type="checkbox" checked={f.autoriza} onChange={e => set('autoriza', e.target.checked)} /> Autorizo a MiDerecho a enviar en mi nombre este documento completo a {nombreDestino}{para ? ` (${para.correo})` : ''}. Lleva mi nombre, mi cédula, mis datos de contacto y lo que conté{salud ? ', incluida información de mi salud' : ''}. El correo sale por Resend, un servicio de Estados Unidos que guarda una copia por 30 días. MiDerecho no lo guarda.</label>
-      {estado === 'cola' && <p className="nota-privacidad">Sin conexión: se envía solo apenas vuelva la señal. No cierres esta pantalla; si la cierras, tendrás que enviarlo de nuevo.</p>}
+      {estado === 'cola' && <p className="nota-privacidad" role="status">Sin señal: lo enviamos apenas vuelva. Mientras tanto queda guardado cifrado en este celular, con tu clave; puedes cerrar esta pantalla. En Mis casos verás cuándo salga.</p>}
       {estado?.error && <p className="aviso-error"><AlertTriangle size={14} aria-hidden /> {estado.error}. Puedes intentarlo otra vez o entregarlo a mano.</p>}
-      <button className="btn-primario" disabled={!listo || estado === 'enviando' || estado === 'cola'} onClick={() => (enLinea ? enviar() : setEstado('cola'))}>
-        {estado === 'enviando' ? <><Loader2 className="girar" size={18} aria-hidden /> Enviando…</> : estado?.error ? 'Enviar de nuevo' : deMentira ? 'Probar el envío' : 'Enviar ahora'}
+      <button className="btn-primario" disabled={!listo || estado === 'enviando' || estado === 'cola'} onClick={() => (enLinea ? enviar() : encolarCorreo())}>
+        {estado === 'enviando' ? <><Loader2 className="girar" size={18} aria-hidden /> Enviando…</> : estado?.error ? 'Enviar de nuevo' : !enLinea ? 'Enviar apenas vuelva la señal' : deMentira ? 'Probar el envío' : 'Enviar ahora'}
       </button>
       <button className="btn-secundario" onClick={() => { setAbierto(false); setEstado(null); alAbrir(null); }}>Mejor no lo envío</button>
     </section>

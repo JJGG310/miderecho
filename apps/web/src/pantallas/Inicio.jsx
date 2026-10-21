@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Mic, ArrowUp, WifiOff } from 'lucide-react';
+import { Mic, ArrowUp } from 'lucide-react';
 import { Encabezado, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
 import Buho, { NOMBRE_BUHO } from '../componentes/Buho.jsx';
 import { AvisoPlazos } from '../componentes/Avisos.jsx';
@@ -46,32 +46,27 @@ export default function Inicio() {
       <h1 className="saludo"><span>¿Qué necesita resolver hoy?</span><BotonVoz texto={SALUDO} /></h1>
       <AvisoPlazos />
       <div className="caja-relato tarjeta">
-        {enLinea ? (<>
-          <textarea
-            rows={3}
-            value={texto}
-            onChange={e => cambiar(e.target.value)}
-            placeholder="Cuéntenos aquí qué le está pasando. No necesita saber de leyes."
-            aria-label="Cuéntenos qué le está pasando"
-            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) enviar(); }}
-          />
-          {conTexto && hayDictado && !dictado.escuchando && (
-            <button className="btn-mini mic" onClick={dictar} aria-label="Seguir contando con la voz"><Mic size={24} aria-hidden /></button>
-          )}
-        </>) : (
-          <div className="sin-conexion" role="status">
-            <p className="sin-conexion-titulo"><WifiOff size={20} aria-hidden /> Está sin internet</p>
-            <p>Cuando vuelva la señal, el asistente podrá ayudarle. Mientras tanto puede crear un documento, conocer sus derechos y ver sus casos.</p>
-          </div>
+        <textarea
+          rows={3}
+          value={texto}
+          onChange={e => cambiar(e.target.value)}
+          placeholder="Cuéntenos aquí qué le está pasando. No necesita saber de leyes."
+          aria-label="Cuéntenos qué le está pasando"
+          onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) enviar(); }}
+        />
+        {enLinea && conTexto && hayDictado && !dictado.escuchando && (
+          <button className="btn-mini mic" onClick={dictar} aria-label="Seguir contando con la voz"><Mic size={24} aria-hidden /></button>
         )}
       </div>
+      {/* Sin señal no hay dictado ni IA: contesta el modo básico en el celular (lib/api.js). */}
+      {!enLinea && <p className="nota-modo" role="status">Está sin internet: le responde el modo básico, con reglas fijas y sin inteligencia artificial. Lo que escriba no sale de su celular.</p>}
 
       {/* Un solo botón grande: contar con la voz o, si ya escribió, enviar. */}
-      {enLinea && (dictado.escuchando
+      {dictado.escuchando
         ? <button className="btn-primario escuchando" onClick={dictado.alternar}><Mic size={24} aria-hidden /> Escuchando… toque para terminar</button>
-        : conTexto || !hayDictado
+        : conTexto || !hayDictado || !enLinea
           ? <button className="btn-primario" disabled={!conTexto} onClick={enviar}><ArrowUp size={24} aria-hidden /> Enviar</button>
-          : <button className="btn-primario" onClick={dictar}><Mic size={24} aria-hidden /> Contar con mi voz</button>)}
+          : <button className="btn-primario" onClick={dictar}><Mic size={24} aria-hidden /> Contar con mi voz</button>}
 
       <h2 className="subtitulo">¿Prefiere elegir una opción?</h2>
       <OpcionesRapidas />

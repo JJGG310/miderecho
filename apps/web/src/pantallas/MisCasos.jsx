@@ -20,6 +20,7 @@ const vencidoDe = (c, hoy) => !!c.venc && iso(hoy) > c.venc;
 // Etiqueta del estado: [ícono, color, texto]. Verde: hay tiempo. Ámbar: vence pronto o hay que contestar algo. Rojo: plazo corto de la persona.
 function etiqueta(c, hoy) {
   const faltan = faltanDe(c, hoy), vencido = vencidoDe(c, hoy), ultimo = c.venc === iso(hoy);
+  if (c.envios?.some(k => k.pendiente)) return ['📤', 'ambar', 'Sin señal: lo enviamos apenas vuelva'];   // lib/cola.js
   if (c.estado === 'negada') return vencido ? ['⛔', 'rojo', 'Se venció el plazo para impugnar'] : ['⛔', 'rojo', ultimo ? 'Hoy es el último día para impugnar' : `Impugne a más tardar el ${fecha(c.venc)}`];
   if (c.estado === 'tutela') return ['✅', 'verde', 'Ya hizo la tutela por esta petición'];
   if (c.estado === 'ganada') return ['✅', 'verde', 'El juez le dio la razón'];
@@ -62,7 +63,7 @@ export default function MisCasos() {
       ) : (
         <ul className="casos">
           {orden.map(c => {
-            const [icono, color, texto] = etiqueta(c, hoy);
+            const [icono, color, texto] = etiqueta(c, hoy), porEnviar = c.envios?.some(k => k.pendiente);   // el plazo cuenta desde que salga
             return (
               <li key={c.id} className={`tarjeta clara caso ${color === 'verde' ? '' : color}`}>
                 <div className="caso-cabeza">
@@ -72,8 +73,9 @@ export default function MisCasos() {
                 </div>
                 <span className={`estado ${color}`}><span aria-hidden>{icono}</span> {texto}</span>
                 {c.envios?.length > 0 && <Constancia k={c.envios.at(-1)} />}
-                <Siguiente c={c} hoy={hoy} recargar={recargar} cerrar={() => setBorrar({ ...c, cerrar: true })} />
-                {c.estado === 'esperando' && <EstadoAvisos caso={c} alCambiar={recargar} />}
+                {c.envioFallido && <p className="aviso-error" role="status">{c.envioFallido}</p>}
+                {!porEnviar && <Siguiente c={c} hoy={hoy} recargar={recargar} cerrar={() => setBorrar({ ...c, cerrar: true })} />}
+                {!porEnviar && c.estado === 'esperando' && <EstadoAvisos caso={c} alCambiar={recargar} />}
               </li>
             );
           })}

@@ -51,7 +51,7 @@ export default function Asistente() {
     if (!mensajes.length) { if (!voz) ir('inicio'); return; }
     if (iniciado.current) return; // StrictMode monta dos veces en desarrollo
     iniciado.current = true;
-    if (mensajes.at(-1).rol === 'persona' && enLinea) consultar(mensajes);
+    if (mensajes.at(-1).rol === 'persona') consultar(mensajes);   // sin señal contesta el modo básico (lib/api.js)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
@@ -109,9 +109,9 @@ export default function Asistente() {
 
       {!riesgo && !orientado && !voz && (
         <div className="caja-respuesta tarjeta">
-          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={enLinea ? 'Escriba su respuesta…' : 'Sin internet'} disabled={!enLinea} rows={2} aria-label="Su respuesta" />
+          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder="Escriba su respuesta…" rows={2} aria-label="Su respuesta" />
           <button className={`btn-mini mic ${dictado.escuchando ? 'escuchando' : ''}`} disabled={!enLinea || !hayDictado} onClick={dictado.alternar} aria-label={dictado.escuchando ? 'Parar el dictado' : 'Dictar con la voz'}><Mic size={24} aria-hidden /></button>
-          <button className="btn-mini enviar" disabled={!enLinea || !texto.trim() || cargando} onClick={() => responder(texto)} aria-label="Enviar"><ArrowUp size={24} aria-hidden /></button>
+          <button className="btn-mini enviar" disabled={!texto.trim() || cargando} onClick={() => responder(texto)} aria-label="Enviar"><ArrowUp size={24} aria-hidden /></button>
         </div>
       )}
       {!riesgo && !orientado && !voz && <button className="btn-secundario" disabled={!enLinea} onClick={() => setVoz(true)}><AudioLines size={22} aria-hidden /> Hablar en vez de escribir</button>}

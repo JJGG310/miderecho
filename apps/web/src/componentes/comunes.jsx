@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb, Lock, WifiOff } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb, Lock, Wifi, WifiOff } from 'lucide-react';
 import { iso, deIso } from '@miderecho/nucleo';
-import { useConexion, DEMO } from '../lib/conexion.jsx';
+import { useConexion, useEnvios, DEMO } from '../lib/conexion.jsx';
+import { cerrarMensajeEnvios } from '../lib/cola.js';
 import { useLectura } from '../lib/voz.js';
 import { almacen, useAbierta } from '../lib/almacen.js';
 import { ir, atras, olvidar } from '../lib/ruta.js';
@@ -20,22 +21,27 @@ function Logo() {
   );
 }
 
-// Logo, "Sin internet" (solo si de verdad no hay señal), ayuda si hay peligro y Bloquear (si la clave está puesta).
+// Logo, "Con internet" o "Sin internet" (y cuántos envíos esperan señal), ayuda si hay peligro y Bloquear (si la clave está puesta).
 export function Encabezado() {
   const { enLinea, forzado, alternar } = useConexion();
+  const { pendientes, mensaje } = useEnvios();
   const abierta = useAbierta();
   const bloquear = () => { almacen.bloquear(); olvidar(); ir('inicio'); };
-  return (
+  return (<>
     <header className="encabezado">
       <button className="logo" onClick={() => ir('inicio')} aria-label="MiDerecho, ir al inicio"><Logo /></button>
       <div className="encabezado-acciones">
-        {!enLinea && <span className="chip-estado" role="status"><WifiOff size={18} aria-hidden /> Sin internet</span>}
+        <span className={`chip-estado ${enLinea ? 'con' : ''}`} role="status">
+          {enLinea ? <Wifi size={18} aria-hidden /> : <WifiOff size={18} aria-hidden />} {enLinea ? 'Con internet' : 'Sin internet'}
+          {pendientes > 0 && ` · ${pendientes} por enviar`}
+        </span>
         {DEMO && <button className="interruptor" role="switch" aria-checked={!forzado} onClick={alternar}>Demo: {forzado ? 'sin' : 'con'} internet</button>}
         <button className="btn-encabezado peligro" onClick={() => ir('peligro')}>¿En peligro?</button>
         {abierta && <button className="btn-encabezado" onClick={bloquear} aria-label="Bloquear con la clave"><Lock size={18} aria-hidden /><span className="solo-ancho">Bloquear</span></button>}
       </div>
     </header>
-  );
+    {mensaje && <p className="aviso-envios" role="status">{mensaje} <button onClick={cerrarMensajeEnvios} aria-label="Cerrar el aviso">Listo</button></p>}
+  </>);
 }
 
 export function BotonVoz({ texto, className = '' }) {

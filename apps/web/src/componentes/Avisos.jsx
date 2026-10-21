@@ -75,19 +75,19 @@ export function ElegirAvisos({ caso: inicial, alGuardar, tarjeta = true }) {
     e.preventDefault();
     setEstado('guardando');
     const errores = [], quitar = Object.keys(activos).filter(k => !sel[k]);
-    let simulado = false;
+    let simulado = false, enCola = false;
     if (quitar.length) cancelarAvisos(caso.codigo, quitar);
     // Push primero: el permiso del navegador necesita el toque. El caso guarda solo su código; los tokens, lib/avisos.js.
     for (const k of ['push', ...TELEFONO]) if (sel[k] && !(k in activos)) {
       const r = await programar(caso, k, telefono, VERSION_AVISOS);
-      if (r.ok) simulado ||= !!r.simulado; else errores.push(`${CANALES[k][0].toUpperCase() + CANALES[k].slice(1)}: ${r.error}`);
+      if (r.ok) { simulado ||= !!r.simulado; enCola ||= !!r.enCola; } else errores.push(`${CANALES[k][0].toUpperCase() + CANALES[k].slice(1)}: ${r.error}`);
     }
     if (!inicial.codigo) almacen.guardarCaso(caso);
     const ahora = avisosDe(caso.codigo);
     setActivos(ahora);
     setSel(Object.fromEntries(Object.keys(CANALES).map(k => [k, k in ahora])));
     setTelefono('');   // el número no se guarda en el celular
-    setEstado({ errores, simulado });
+    setEstado({ errores, simulado, enCola });
     alGuardar?.(caso);
   };
 
@@ -116,6 +116,7 @@ export function ElegirAvisos({ caso: inicial, alGuardar, tarjeta = true }) {
         <button className="btn-primario" type="submit" disabled={!listo}>{estado === 'guardando' ? 'Guardando…' : 'Guardar avisos'}</button>
         {tarjeta && <p className="plazo" role="status"><Bell size={16} aria-hidden /><span>{resumenAvisos(caso)}</span></p>}
         {estado?.simulado && <p className="nota-privacidad">Modo de prueba: el servidor todavía no tiene las claves, así que no se envía nada de verdad.</p>}
+        {estado?.enCola && <p className="nota-privacidad" role="status">Sin señal: lo enviamos apenas vuelva. Hasta entonces su número queda guardado cifrado en este celular, con su clave.</p>}
         {estado?.errores?.map(x => <p key={x} className="aviso-error">{x}</p>)}
         <small className="ayuda">Puede quitar los avisos cuando quiera: desmarque y guarde, o borre el caso.</small>
       </form>
@@ -176,6 +177,7 @@ export function LlamadaAsistente({ casos }) {
       cuando: ahora ? undefined : `${franja.dia}T${String(f.hora).padStart(2, '0')}:00-05:00`, texto });
     if (!r.ok) return setEstado({ error: r.error });
     setF(x => ({ ...x, telefono: '', acepto: false }));   // el número no se guarda en el celular
+    if (r.enCola) return setEstado({ texto: 'Sin señal: pedimos la llamada apenas vuelva. Hasta entonces su número queda guardado cifrado en este celular, con su clave.' });
     setAgendada(llamadaAgendada());
     setEstado({ texto: ahora ? 'En unos segundos le entra una llamada. Contéstela: es el asistente automático de MiDerecho. Si no entra, pídala de nuevo más tarde.' : `Lo llamamos el ${punto(texto)} Tenga el celular a la mano.`, simulado: r.simulado });
   };
