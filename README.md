@@ -46,7 +46,7 @@ Para probarlo en el celular: `npm run dev:web -- --host` y abrir la IP del compu
 ## Reglas que no se negocian (investigacion/06 y 12)
 
 - La app **no es abogado**. La IA conversa, entiende y clasifica. "Qué dice la ley", los plazos y los documentos salen de **contenido fijo** que valida un consultorio jurídico.
-- **Privacidad:** cédulas, teléfonos y correos se quitan en el celular y otra vez en el servidor antes de llegar a la IA. El servidor no guarda conversaciones. En el celular solo quedan los casos (sin nombre, cédula ni relato) y el tema de cada búsqueda. **Borrar todo** está en Perfil.
+- **Privacidad:** cédulas, teléfonos y correos se quitan en el celular y otra vez en el servidor antes de llegar a la IA. El servidor no guarda conversaciones. **Nombre, cédula, celular y dirección se piden solo al crear el documento** (paso "Tus datos para el documento"): van impresos en el papel, nunca a la IA ni al servidor, y no se guardan en el celular. También se pueden dejar en blanco y llenar a mano. En el celular solo quedan los casos (sin datos personales ni relato) y el tema de cada búsqueda. **Borrar todo** está en Perfil.
 - **Protocolo de riesgo:** ante amenazas o grupos armados, corta antes de llamar a la IA y muestra a dónde acudir.
 
 ## Desplegar
