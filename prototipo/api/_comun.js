@@ -190,6 +190,8 @@ async function twilio(recurso, datos) {
   if (r.ok) return;
   const { code } = await r.json().catch(() => ({}));   // el mensaje de Twilio puede traer el número: solo se usa el código
   console.error(`[twilio] ${recurso} falló: ${r.status} ${code ?? ''}`);
+  // Diagnóstico sin datos sensibles: solo la forma de las credenciales, nunca su valor.
+  if (r.status === 401) console.error(`[twilio] forma: sid AC=${/^AC[0-9a-f]{32}$/.test(sid)} key SK=${/^SK[0-9a-f]{32}$/.test(env.TWILIO_API_KEY || '')} secreto=${(env.TWILIO_API_SECRET || '').length} car., token=${(env.TWILIO_AUTH_TOKEN || '').length} car.`);
   throw falla(502, `Twilio no aceptó el envío (código ${code ?? r.status})`);
 }
 
