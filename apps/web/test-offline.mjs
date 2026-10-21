@@ -111,8 +111,8 @@ try {
   const faltan = archivos(tmp).map(f => relative(tmp, f)).filter(f => !/^(sw\.js|workbox-[\w-]+\.js)$/.test(f) && !precache.has(f));
   assert.deepEqual(faltan, [], 'todo lo del build queda guardado para usarse sin internet');
   for (const f of ['index.html', 'sw-avisos.js', 'manifest.webmanifest']) assert.ok(precache.has(f), f);
-  for (const f of readdirSync(join(raiz, 'public', 'figma'))) assert.ok(precache.has(`figma/${f}`), `historieta ${f}`);
-  for (const f of readdirSync(join(raiz, 'public', 'buho'))) assert.ok(precache.has(`buho/${f}`), `búho ${f}`);
+  // Historietas, búho, íconos: todo lo de public/, esté en la carpeta que esté.
+  for (const f of archivos(join(raiz, 'public')).map(f => relative(join(raiz, 'public'), f))) assert.ok(precache.has(f), `sin internet falta ${f}`);
   assert.ok([...precache].some(f => /^assets\/Politica-.*\.js$/.test(f)), 'la política (se carga aparte) también');
   assert.match(sw, /createHandlerBoundToURL\("index\.html"\)/, 'cualquier pantalla abre sin internet');
   assert.match(sw, /denylist:\[\/\^\\\/api\\\/\/\]/, 'las respuestas de /api nunca salen del caché');
