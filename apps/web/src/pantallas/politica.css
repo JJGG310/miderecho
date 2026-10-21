@@ -51,19 +51,16 @@
 
 .pc-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* El asistente: mismos estados que en el prototipo (reposo, hablando, alerta, exito). */
+/* El asistente (el búho): mismos estados que en el prototipo (reposo, hablando, alerta, exito). */
 .pc-asis .pc-flota { animation: pc-flotar 3s ease-in-out infinite; }
-.pc-asis .pc-ojos { transform-box: fill-box; transform-origin: center; animation: pc-parpadeo 4s infinite; }
-.pc-asis .pc-boca-abierta, .pc-asis .pc-signo { display: none; }
-.pc-escena[data-estado="hablando"] .pc-boca { display: none; }
-.pc-escena[data-estado="hablando"] .pc-boca-abierta { display: inline; transform-box: fill-box; transform-origin: center; animation: pc-hablar .28s ease-in-out infinite alternate; }
+.pc-asis .pc-signo { display: none; }
+.pc-escena[data-estado="hablando"] .pc-flota { transform-box: fill-box; transform-origin: bottom; animation: pc-hablar .35s ease-in-out infinite alternate; }
 .pc-escena[data-estado="alerta"] .pc-signo { display: inline; }
 .pc-escena[data-estado="alerta"] .pc-flota { transform-box: fill-box; transform-origin: center; animation: pc-alerta .6s ease-in-out 3; }
 .pc-escena[data-estado="exito"] .pc-flota { transform-box: fill-box; transform-origin: bottom; animation: pc-saltar .5s ease 3; }
 .pc-entra { animation: pc-entra .25s ease-out; }
 @keyframes pc-flotar { 50% { transform: translateY(-3px); } }
-@keyframes pc-parpadeo { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
-@keyframes pc-hablar { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
+@keyframes pc-hablar { to { transform: translateY(-2px) rotate(-2deg); } }
 @keyframes pc-alerta { 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
 @keyframes pc-saltar { 50% { transform: translateY(-6px) scale(1.06); } }
 @keyframes pc-entra { from { opacity: .4; transform: translateX(var(--pc-dx)); } }

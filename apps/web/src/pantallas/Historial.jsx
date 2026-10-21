@@ -3,6 +3,7 @@ import { ChevronRight, Trash2 } from 'lucide-react';
 import { Encabezado, Titulo, BotonVoz, Confirmar, Aviso, ICONOS_DERECHO } from '../componentes/comunes.jsx';
 import { derechoInfo } from '@miderecho/nucleo/derechos';
 import Orientacion from '../componentes/Orientacion.jsx';
+import Buho from '../componentes/Buho.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir } from '../lib/ruta.js';
 
@@ -38,7 +39,7 @@ export default function Historial({ id }) {
       <div className="titulo"><h1>Historial</h1><BotonVoz texto={'Historial. ' + (items.map(i => i.tema).join('. ') || 'Aún no tiene búsquedas guardadas.')} /></div>
       <p className="texto">Sus búsquedas guardadas. Puede verlas sin internet.</p>
       {items.length === 0 ? (
-        <div className="vacio"><h2>Aún no hay búsquedas</h2><p className="texto">Cuando el asistente le oriente, la ruta queda guardada aquí. No guardamos lo que nos contó.</p></div>
+        <div className="vacio"><Buho pose="lupa" ancho={80} primera /><h2>Aún no hay búsquedas</h2><p className="texto">Cuando el asistente le oriente, la ruta queda guardada aquí. No guardamos lo que nos contó.</p></div>
       ) : (
         <section className="tarjeta clara lista-temas">
           <ul>

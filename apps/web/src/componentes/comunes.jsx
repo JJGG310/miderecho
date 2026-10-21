@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb, Lock, WifiOff, Scale } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX, House, FolderClock, History, User, FileMinus, BookOpen, HeartPulse, BriefcaseBusiness, Landmark, Users, ShieldCheck, Lightbulb, Lock, WifiOff } from 'lucide-react';
 import { iso, deIso } from '@miderecho/nucleo';
 import { useConexion, DEMO } from '../lib/conexion.jsx';
 import { useLectura } from '../lib/voz.js';
 import { almacen, useAbierta } from '../lib/almacen.js';
 import { ir, atras, olvidar } from '../lib/ruta.js';
+import Buho from './Buho.jsx';
 
 export const ICONOS_DERECHO = { salud: HeartPulse, trabajo: BriefcaseBusiness, vivienda: House, peticion: Landmark, igualdad: Users, otros: ShieldCheck };
 
@@ -109,7 +110,7 @@ export function DichoDeOtraForma({ children, titulo = 'Dicho de otra forma' }) {
 export function LeyDesplegable({ texto, normas, fuente, children }) {
   return (
     <details className="desplegable">
-      <summary><Scale size={22} aria-hidden /> Ver qué dice la ley</summary>
+      <summary><Buho pose="ley" ancho={40} /> Ver qué dice la ley</summary>
       {children}
       {texto && <p className="texto">{texto}</p>}
       {normas && <p className="texto"><b>Normas para consultar:</b> {normas}</p>}

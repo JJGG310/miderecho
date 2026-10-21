@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { DERECHOS_INFO } from '@miderecho/nucleo/derechos';
 import { Encabezado, Titulo, ICONOS_DERECHO } from '../componentes/comunes.jsx';
+import Buho from '../componentes/Buho.jsx';
 import { ir } from '../lib/ruta.js';
 
 const LECTURA = 'Conozca sus derechos. Le explicamos con palabras sencillas y con historietas qué derechos tiene, cómo darse cuenta de que no se los respetan y qué puede hacer. Funciona sin internet. Temas: ' + DERECHOS_INFO.map(d => d.menu).join(', ') + '.';
@@ -11,7 +12,7 @@ export default function Derechos() {
     <main className="pantalla">
       <Encabezado />
       <Titulo lectura={LECTURA}>Conozca sus derechos</Titulo>
-      <p className="texto">Con palabras sencillas y con historietas: qué derechos tiene, cómo darse cuenta de que no se los respetan y qué puede hacer. Funciona sin internet.</p>
+      <Buho pose="ley" primera>Con palabras sencillas y con historietas: qué derechos tiene, cómo darse cuenta de que no se los respetan y qué puede hacer. Funciona sin internet.</Buho>
 
       <section className="tarjeta clara lista-temas">
         <h2 className="subtitulo">¿Qué tema quiere conocer?</h2>
