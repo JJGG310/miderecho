@@ -1,12 +1,12 @@
-// Pruebas de la llamada del agente de voz (api/llamar.js) y de los avisos push, sin cuentas reales:
+// Pruebas de la llamada del agente de voz (api/llamar.js) y de los recordatorios por llamada y push, sin cuentas reales:
 //   node prototipo/api/_test-llamadas.mjs
-// Parte 1, modo simulado. Parte 2, con un fetch falso que imita a ElevenLabs, QStash, Upstash y un servicio de push.
+// Parte 1, modo simulado. Parte 2, con un fetch falso que imita a ElevenLabs, QStash, Upstash, Twilio y un servicio de push.
 // Reloj fijo. El guion bajo evita que Vercel publique este archivo.
 import assert from 'node:assert/strict';
 import { createECDH, createHash, createHmac, createDecipheriv, createPublicKey, generateKeyPairSync, hkdfSync, randomBytes, verify } from 'node:crypto';
 
 for (const k of Object.keys(process.env))
-  if (/^(TWILIO_|KV_|UPSTASH_|NUMEROS_DEMO|CLAVE_CIFRADO|LIMITE_DIARIO|PERMITIR_ENVIO_ABIERTO|ELEVENLABS_|QSTASH_|VAPID_)/.test(k)) delete process.env[k];
+  if (/^(TWILIO_|KV_|UPSTASH_|NUMEROS_DEMO|CLAVE_CIFRADO|LIMITE_|PERMITIR_ENVIO_ABIERTO|ELEVENLABS_|QSTASH_|VAPID_)/.test(k)) delete process.env[k];
 process.env.CRON_SECRET = 'secreto-de-prueba';
 const env = process.env, mostrar = console.log, logs = [];
 console.log = console.error = (...a) => logs.push(a.join(' '));
@@ -15,7 +15,7 @@ Date.now = () => ahora;
 const ir = iso => { ahora = Date.parse(iso); };
 ir('2026-10-21T15:00:00Z');   // 10 a. m. en Colombia
 
-const { cifrarPush, memoria, textoLlamada, POR_NUMERO_DIA } = await import('./_comun.js');
+const { cifrarPush, memoria, textoLlamada, POR_NUMERO_DIA, CODIGOS_POR_NUMERO } = await import('./_comun.js');
 const { textoPush } = await import('./cron-recordatorios.js');
 
 async function api(ruta, method, body, { ip = '10.0.0.1', headers = {} } = {}) {
@@ -25,11 +25,14 @@ async function api(ruta, method, body, { ip = '10.0.0.1', headers = {} } = {}) {
   return r;
 }
 const TEL = '3001112233';
-const llamar = (cambios = {}, opciones) => api('llamar', 'POST', { telefono: TEL, acepto: true, codigo: 'ABCD', vence: '2026-11-03', ...cambios }, opciones);
+const llamar = (cambios = {}, opciones) => api('llamar', 'POST', { telefono: TEL, acepto: true, aviso: 'llamada-v1', codigo: 'ABCD', vence: '2026-11-03', ...cambios }, opciones);
+const programar = cambios => api('recordatorios', 'POST', { codigo: 'K7P2', canal: 'sms', telefono: TEL, fechas: ['2026-11-03'], vence: '2026-11-03', acepto: true, aviso: 'avisos-v1', ...cambios });
+const cron = () => api('cron-recordatorios', 'GET', null, { headers: { authorization: 'Bearer secreto-de-prueba' } });
 // Un navegador de verdad: llaves del cliente para descifrar lo que le llega.
 const ua = createECDH('prime256v1'); ua.generateKeys();
 const auth = randomBytes(16);
 const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123', keys: { p256dh: ua.getPublicKey().toString('base64url'), auth: auth.toString('base64url') } };
+const programarPush = cambios => programar({ codigo: 'ABCD', canal: 'push', telefono: undefined, suscripcion: sub, fechas: ['2026-11-02', '2026-11-03', '2026-11-04'], ...cambios });
 let r;
 
 // ---------- parte 1: modo simulado ----------
@@ -41,8 +44,9 @@ assert.equal((await llamar({}, { headers: { 'content-type': 'text/plain' } })).s
 assert.equal((await llamar({}, { headers: { 'sec-fetch-site': 'cross-site' } })).status, 403);
 assert.equal((await llamar({}, { headers: { origin: 'https://malo.example' } })).status, 403);
 
-// autorización expresa: tiene que venir `acepto: true`, no algo parecido
+// autorización expresa: `acepto: true` y la versión del texto que vio la persona
 for (const acepto of [undefined, false, 'true', 1]) assert.match((await llamar({ acepto })).error, /autorización/);
+for (const aviso of [undefined, '', 'llamada', 'Llamada-v1', 'x-v1; borrar']) assert.match((await llamar({ aviso })).error, /versión del aviso/);
 // solo celulares de Colombia
 for (const telefono of ['12345', '+1 415 555 0100', '601 234 5678', '', null]) assert.equal((await llamar({ telefono })).status, 400, `debió rechazar ${telefono}`);
 assert.equal((await llamar({ codigo: 'abc' })).status, 400);
@@ -82,34 +86,25 @@ assert.equal((await api('llamar', 'PUT', { id: 'x' })).status, 401);
 // en modo simulado no hay límites (no se gasta nada)
 for (let i = 0; i <= POR_NUMERO_DIA; i++) assert.equal((await llamar({}, { ip: '10.0.0.9' })).status, 200);
 
-// push: clave pública y validación de la suscripción (nada de URLs ajenas: el servidor hace POST ahí)
-r = await api('push', 'GET');
+// push: la clave pública VAPID sale del GET de recordatorios, y la suscripción solo puede ser de un servicio conocido
+r = await api('recordatorios', 'GET');
 assert.deepEqual([r.status, r.simulado, r.clave], [200, true, null]);
-const aviso = s => api('push', 'POST', { suscripcion: s });
-assert.deepEqual([(r = await aviso(sub)).status, r.simulado], [200, true]);
+assert.match((r = await programarPush()).token, /^[\w-]{22}$/);
 for (const endpoint of ['http://fcm.googleapis.com/fcm/send/x', 'https://malo.example/push', 'https://169.254.169.254/latest', 'https://fcm.googleapis.com.malo.example/x',
   'https://localhost/x', 'no es url', undefined])
-  assert.equal((await aviso({ ...sub, endpoint })).status, 400, `debió rechazar ${endpoint}`);
+  assert.equal((await programarPush({ suscripcion: { ...sub, endpoint } })).status, 400, `debió rechazar ${endpoint}`);
 for (const endpoint of ['https://updates.push.services.mozilla.com/wpush/v2/x', 'https://web.push.apple.com/QX', 'https://wns2-by3p.notify.windows.com/w/?token=x'])
-  assert.equal((await aviso({ ...sub, endpoint })).status, 200, endpoint);
-assert.equal((await aviso({ ...sub, keys: { ...sub.keys, auth: 'corto' } })).status, 400);
-assert.equal((await aviso({ ...sub, keys: { ...sub.keys, p256dh: randomBytes(65).toString('base64url') } })).status, 400);
-assert.equal((await aviso(null)).status, 400);
-
-// push en los recordatorios: suscripción en vez de teléfono y fecha de vencimiento
-const programarPush = cambios => api('recordatorios', 'POST', { codigo: 'ABCD', canal: 'push', suscripcion: sub, fechas: ['2026-11-02', '2026-11-03', '2026-11-04'], vence: '2026-11-03', ...cambios });
-assert.match((r = await programarPush()).token, /^[\w-]{22}$/);
+  assert.equal((await programarPush({ suscripcion: { ...sub, endpoint } })).status, 200, endpoint);
+assert.equal((await programarPush({ suscripcion: { ...sub, keys: { ...sub.keys, auth: 'corto' } } })).status, 400);
+assert.equal((await programarPush({ suscripcion: { ...sub, keys: { ...sub.keys, p256dh: randomBytes(65).toString('base64url') } } })).status, 400);
+assert.equal((await programarPush({ suscripcion: null })).status, 400);
 assert.equal((await programarPush({ vence: undefined })).status, 400);
 assert.equal((await programarPush({ vence: '2026-11-31' })).status, 400);
-assert.equal((await programarPush({ suscripcion: { ...sub, endpoint: 'https://malo.example/x' } })).status, 400);
 assert.equal((await api('recordatorios', 'DELETE', { codigo: 'ABCD', token: r.token })).status, 200);
 
-// texto de la llamada con voz leída (recordatorio y respaldo del agente): plantilla fija
+// textos fijos: llamada con voz leída (recordatorio) y push (solo código y cuándo vence)
 assert.equal(textoLlamada('K7P2', '2026-11-03', '2026-10-30'), 'Hola. Le habla MiDerecho, un servicio automático. Le recordamos su caso K, 7, P, 2. El plazo vence el martes, 3 de noviembre. Si la entidad no le ha respondido, abra la app MiDerecho o pida ayuda a su líder o a la Personería.');
 assert.match(textoLlamada('K7P2', '2026-11-03', '2026-11-04'), /El plazo venció el martes, 3 de noviembre\./);
-assert.equal(textoLlamada(null, null, '2026-11-04'), 'Hola. Le habla MiDerecho, un servicio automático. Si la entidad no le ha respondido, abra la app MiDerecho o pida ayuda a su líder o a la Personería.');
-
-// textos de los avisos: solo código y cuándo vence
 assert.equal(textoPush('ABCD', '2026-11-02', '2026-11-03'), 'Su caso ABCD vence mañana.');
 assert.equal(textoPush('ABCD', '2026-11-03', '2026-11-03'), 'Su caso ABCD vence hoy.');
 assert.equal(textoPush('ABCD', '2026-10-30', '2026-11-03'), 'Su caso ABCD vence el 3 de noviembre.');
@@ -121,12 +116,13 @@ assert.equal(cifrarPush('When I grow up, I want to be a watermelon',
   Buffer.from('yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw', 'base64url'), Buffer.from('DGv6ra1nlYgDCS1FRnbzlw', 'base64url')).toString('base64url'),
   'DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPTpK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN');
 
-// ---------- parte 2: ElevenLabs, QStash, Upstash y servicio de push falsos ----------
+// ---------- parte 2: ElevenLabs, QStash, Upstash, Twilio y servicio de push falsos ----------
 let mapa = new Map(), redis = memoria(mapa), fallaEleven = false, fallaQstash = false, estadoPush = 201;
-const llamadas = [], publicados = [], avisos = [], twilio = [];
-globalThis.fetch = async (url, { body, headers }) => {
+const llamadas = [], publicados = [], avisos = [], twilio = [], orden = [];
+globalThis.fetch = async (url, { body, headers, signal }) => {
+  if (!url.startsWith('https://kv.test/')) assert.ok(signal, `sin tiempo límite: ${url}`);
   if (url.startsWith('https://api.twilio.com/')) {
-    twilio.push(Object.fromEntries(body));
+    twilio.push(Object.fromEntries(body)); orden.push('twilio');
     return new Response('{"sid":"CA1"}', { status: 201 });
   }
   if (url === 'https://api.elevenlabs.io/v1/convai/twilio/outbound-call') {
@@ -139,7 +135,7 @@ globalThis.fetch = async (url, { body, headers }) => {
     return new Response('{"messageId":"msg_1"}', { status: fallaQstash ? 500 : 201 });
   }
   if (url.startsWith('https://fcm.googleapis.com/')) {
-    avisos.push({ url, headers, body });
+    avisos.push({ url, headers, body }); orden.push('push');
     return new Response('', { status: estadoPush });
   }
   assert.deepEqual([url, headers.Authorization], ['https://kv.test/pipeline', 'Bearer kv']);
@@ -155,14 +151,17 @@ Object.assign(env, {
 });
 ir('2026-10-21T15:00:00Z');
 
-// falla cerrada: con claves reales, sin NUMEROS_DEMO (ni envío abierto) no se llama a nadie
-assert.equal((await llamar()).status, 503);
+// falla cerrada: con claves reales, el agente solo llama a NUMEROS_DEMO, aunque el envío esté abierto
+assert.match((await llamar()).error, /NUMEROS_DEMO/);
+env.PERMITIR_ENVIO_ABIERTO = '1';
+assert.match((await llamar()).error, /NUMEROS_DEMO/);
+delete env.PERMITIR_ENVIO_ABIERTO;
 assert.equal(llamadas.length, 0);
 env.NUMEROS_DEMO = '3001112233, 310 000 0000';
 assert.equal((await llamar({ telefono: '3209998877' })).status, 403);
 assert.equal(llamadas.length, 0);
 
-// llamada real: formato exacto para ElevenLabs
+// llamada real: formato exacto para ElevenLabs (día 1: dos llamadas, la tercera ya no)
 r = await llamar();
 assert.deepEqual([r.status, r.ok, r.simulado], [200, true, false]);
 assert.equal(llamadas.at(-1).headers['xi-api-key'], 'xi-prueba');
@@ -174,47 +173,59 @@ assert.deepEqual(d.telephony_call_config.twilio_machine_detection.actions, [{ ac
 assert.ok(!('conversation_config_override' in d.conversation_initiation_client_data));   // nada de cambiar el prompt desde aquí
 await llamar({ codigo: '', vence: '' });
 assert.deepEqual(llamadas.at(-1).datos.conversation_initiation_client_data.dynamic_variables, { codigo: 'ninguno', vence: 'ninguna' });
+assert.match((await llamar()).error, /llamadas de hoy/);   // tope propio: 2 llamadas al día por número
+assert.equal(llamadas.length, 2);
+
+// prueba de la autorización: seudónimo, fecha, versión, respuesta y canal; sin número ni código
+const autorizaciones = () => [...mapa].filter(([k]) => k.startsWith('aut:')).map(([k, { v }]) => [k, JSON.parse(v)]);
+assert.ok(autorizaciones().length);
+for (const [k, v] of autorizaciones()) {
+  assert.deepEqual(Object.keys(v), ['aviso', 'fecha', 'respuesta', 'canal']);
+  assert.deepEqual([v.aviso, v.respuesta, v.canal], ['llamada-v1', 'acepto', 'agente']);
+  assert.ok(!/3001112233|ABCD/.test(k + JSON.stringify(v)));
+}
+
+// día 2: otro agente por variable; si ElevenLabs falla, 502 sin su mensaje (trae el número) y SIN respaldo con voz leída
+ir('2026-10-22T15:00:00Z');
 env.ELEVENLABS_AGENT_ID = 'agent_otro';
 await llamar();
 assert.equal(llamadas.at(-1).datos.agent_id, 'agent_otro');
 delete env.ELEVENLABS_AGENT_ID;
-
-// prueba de la autorización: seudónimo, fecha, versión y respuesta; sin número ni código
-const autorizaciones = [...mapa].filter(([k]) => k.startsWith('aut:'));
-assert.ok(autorizaciones.length);
-for (const [k, { v }] of autorizaciones) {
-  assert.deepEqual(Object.keys(JSON.parse(v)), ['aviso', 'fecha', 'respuesta']);
-  assert.equal(JSON.parse(v).aviso, 'llamada-v1');
-  assert.ok(!/3001112233|ABCD/.test(k + v));
-}
-
-// error de ElevenLabs: 502 sin repetir su mensaje (trae el número)
+Object.assign(env, { TWILIO_ACCOUNT_SID: 'ACprueba', TWILIO_AUTH_TOKEN: 'token', TWILIO_FROM: '+15005550006' });
 fallaEleven = true;
 assert.deepEqual([(r = await llamar()).status, r.error], [502, 'No se pudo hacer la llamada (código 422)']);
+assert.equal(twilio.length, 0, 'una voz grabada podría dejar el código en un buzón');
 fallaEleven = false;
 
-// agendar de verdad: número cifrado en Redis y QStash vuelve a la hora con PUT
-r = await llamar({ cuando: '2026-10-22T09:00-05:00' });
+// día 3: agendar de verdad; el número queda cifrado en Redis y QStash vuelve a la hora con PUT
+ir('2026-10-23T15:00:00Z');
+r = await llamar({ cuando: '2026-10-24T09:00-05:00' });
 assert.deepEqual([r.status, r.simulado], [200, false]);
-const token = r.token, pub = publicados.at(-1);
-assert.equal(pub.url, 'https://qstash.test/v2/publish/https://miderecho.test/api/llamar');
-assert.deepEqual([pub.headers.Authorization, pub.headers['Upstash-Method'], pub.headers['Upstash-Not-Before']], ['Bearer qs-token', 'PUT', String(Date.parse('2026-10-22T14:00:00Z') / 1000)]);
-const { id } = JSON.parse(pub.body);
-assert.deepEqual(Object.keys(JSON.parse(pub.body)), ['id']);   // a QStash no le llega ni el número ni el token
-assert.notEqual(id, token);
-const guardado = mapa.get('llam:' + id).v;
-assert.ok(!/3001112233|\+57/.test(guardado), 'el número debe quedar cifrado');
+const p1 = publicados.at(-1), id1 = JSON.parse(p1.body).id;
+assert.equal(p1.url, 'https://qstash.test/v2/publish/https://miderecho.test/api/llamar');
+assert.deepEqual([p1.headers.Authorization, p1.headers['Upstash-Method'], p1.headers['Upstash-Not-Before']], ['Bearer qs-token', 'PUT', String(Date.parse('2026-10-24T14:00:00Z') / 1000)]);
+assert.deepEqual(Object.keys(JSON.parse(p1.body)), ['id']);   // a QStash no le llega ni el número ni el token
+assert.notEqual(id1, r.token);
+assert.ok(!/3001112233|\+57/.test(mapa.get('llam:' + id1).v), 'el número debe quedar cifrado');
+// una sola agendada por número: la nueva reemplaza la anterior
+await llamar({ cuando: '2026-10-24T10:00-05:00' });
+const pub = publicados.at(-1), { id } = JSON.parse(pub.body);
+assert.equal(mapa.has('llam:' + id1), false);
+assert.equal(mapa.has('llam:' + id), true);
 
 // firma de QStash
 const firmar = (cuerpo, { clave = 'sig_actual', sub: s = 'https://miderecho.test/api/llamar', exp = 300, hash } = {}) => {
   const p = o => Buffer.from(JSON.stringify(o)).toString('base64url'), t = Math.floor(ahora / 1000);
   const jwt = p({ alg: 'HS256', typ: 'JWT' }) + '.' + p({ iss: 'Upstash', sub: s, exp: t + exp, nbf: t, iat: t, jti: 'jwt_1',
-    body: hash ?? createHash('sha256').update(cuerpo).digest('base64') .replace(/\+/g, '-').replace(/\//g, '_') });
+    body: hash ?? createHash('sha256').update(cuerpo).digest('base64').replace(/\+/g, '-').replace(/\//g, '_') });
   return jwt + '.' + createHmac('sha256', clave).update(jwt).digest('base64url');
 };
 const qstash = (cuerpo, opciones) => api('llamar', 'PUT', JSON.parse(cuerpo), { headers: { 'upstash-signature': firmar(cuerpo, opciones) } });
-ir('2026-10-22T14:00:02Z');
 const antes = llamadas.length;
+ir('2026-10-24T14:00:02Z');
+assert.equal((await qstash(p1.body)).status, 200);   // la reemplazada llega y no pasa nada
+assert.equal(llamadas.length, antes);
+ir('2026-10-24T15:00:02Z');
 assert.equal((await qstash(pub.body, { clave: 'sig_falsa' })).status, 401);
 assert.equal((await qstash(pub.body, { sub: 'https://malo.example/api/llamar' })).status, 401);
 assert.equal((await qstash(pub.body, { exp: -120 })).status, 401);
@@ -229,64 +240,64 @@ assert.equal(mapa.has('llam:' + id), false, 'tras llamar, se borra');
 assert.equal((await qstash(pub.body)).status, 200);   // reintento de QStash: no vuelve a llamar
 assert.equal(llamadas.length, antes + 1);
 
-// cancelar antes de la hora
-ir('2026-10-21T15:00:00Z');
-const t2 = (await llamar({ cuando: '2026-10-22T10:00-05:00' })).token, b2 = publicados.at(-1).body;
+// día 5: cancelar antes de la hora, y QStash fuera del horario no llama
+ir('2026-10-25T15:00:00Z');
+const t2 = (await llamar({ cuando: '2026-10-26T10:00-05:00' })).token, b2 = publicados.at(-1).body;
 assert.equal((await api('llamar', 'DELETE', { token: t2 })).status, 200);
-ir('2026-10-22T15:00:01Z');
-assert.equal((await qstash(b2)).status, 200);
-assert.equal(llamadas.length, antes + 1);
-
-// si QStash llega fuera del horario, no llama
-ir('2026-10-21T15:00:00Z');
-await llamar({ cuando: '2026-10-22T18:30-05:00' });
+await llamar({ cuando: '2026-10-26T18:30-05:00' });
 const b3 = publicados.at(-1).body;
-ir('2026-10-23T00:05:00Z');   // 7:05 p. m.
+ir('2026-10-26T15:00:01Z');
+assert.equal((await qstash(b2)).status, 200);
+ir('2026-10-27T00:05:00Z');   // 7:05 p. m.
 assert.equal((await qstash(b3)).status, 200);
 assert.equal(llamadas.length, antes + 1);
 
-// QStash no acepta: 502 y no queda nada guardado
-ir('2026-10-21T15:00:00Z');
+// día 7: QStash no acepta → 502 y no queda nada guardado; sin QStash no se agenda con claves reales
+ir('2026-10-27T15:00:00Z');
 fallaQstash = true;
-const llavesAntes = [...mapa.keys()].filter(k => k.startsWith('llam:')).length;
-assert.equal((await llamar({ cuando: '2026-10-23T09:00-05:00' })).status, 502);
-assert.equal([...mapa.keys()].filter(k => k.startsWith('llam:')).length, llavesAntes);
+const llaves = () => [...mapa.keys()].filter(k => k.startsWith('llam:')).length, llavesAntes = llaves();
+assert.equal((await llamar({ cuando: '2026-10-28T09:00-05:00' })).status, 502);
+assert.equal(llaves(), llavesAntes);
 fallaQstash = false;
-// sin QStash no se agenda con claves reales
 delete env.QSTASH_TOKEN;
-assert.match((await llamar({ cuando: '2026-10-23T09:00-05:00' })).error, /QSTASH_TOKEN/);
+assert.match((await llamar({ cuando: '2026-10-28T09:00-05:00' })).error, /QSTASH_TOKEN/);
 env.QSTASH_TOKEN = 'qs-token';
-
-// límites: tope por número al día (ya van varios hoy con este número)
-ir('2026-10-25T15:00:00Z');
-mapa.clear();
-for (let i = 0; i < POR_NUMERO_DIA; i++) assert.equal((await llamar({}, { ip: `10.1.0.${i}` })).status, 200);
-assert.match((await llamar({}, { ip: '10.1.0.99' })).error, /muchos mensajes hoy/);
-env.LIMITE_DIARIO = '2';
+env.LIMITE_DIARIO = '1';   // ya hubo un envío hoy en total
 assert.match((await llamar({ telefono: '3100000000' }, { ip: '10.2.0.1' })).error, /límite de envíos de hoy/);
 delete env.LIMITE_DIARIO;
-
-// respaldo: con Twilio, si ElevenLabs falla o no está configurado, llama con voz leída (texto fijo, sin texto libre)
-Object.assign(env, { TWILIO_ACCOUNT_SID: 'ACprueba', TWILIO_AUTH_TOKEN: 'token', TWILIO_FROM: '+15005550006' });
-ir('2026-10-26T15:00:00Z');
-fallaEleven = true;
-assert.deepEqual([(r = await llamar()).status, r.simulado], [200, false]);
-assert.equal(twilio.at(-1).To, '+573001112233');
-assert.ok(twilio.at(-1).Twiml.includes('Le recordamos su caso A, B, C, D. El plazo vence el martes, 3 de noviembre.'));
-fallaEleven = false;
+// sin clave de ElevenLabs no hay llamada real ni respaldo por Twilio
 delete env.ELEVENLABS_API_KEY;
-const n0 = llamadas.length;
-await llamar({ codigo: '', vence: '' });
-assert.equal(llamadas.length, n0);   // sin agente, ni lo intenta
-assert.ok(!twilio.at(-1).Twiml.includes('caso'));
+ir('2026-10-28T15:00:00Z');
+assert.deepEqual([(r = await llamar()).status, r.simulado], [200, true]);
+assert.equal(twilio.length, 0);
 env.ELEVENLABS_API_KEY = 'xi-prueba';
 
-// recordatorio por llamada: el cron usa la voz leída con la fecha de vencimiento
+// ---------- recordatorios: canales que conviven, códigos distintos y autorización por canal ----------
 ir('2026-10-30T15:00:00Z');
 mapa.clear();
-assert.equal((await api('recordatorios', 'POST', { codigo: 'K7P2', canal: 'llamada', telefono: TEL, fechas: ['2026-11-03'], vence: '2026-11-03' })).status, 200);
-ir('2026-11-03T13:00:00Z');
-assert.equal((await api('cron-recordatorios', 'GET', null, { headers: { authorization: 'Bearer secreto-de-prueba' } })).enviados, 1);
+assert.equal((await programar()).status, 200);                        // K7P2 por SMS
+assert.equal((await programar({ canal: 'llamada' })).status, 200);    // K7P2 por llamada: no borra el SMS
+assert.equal((await programar()).status, 200);                        // reintento por SMS: reemplaza solo el SMS
+const vivos = () => [...mapa].filter(([k]) => k.startsWith('rec:')).map(([, { v }]) => JSON.parse(v).canal).sort();
+assert.deepEqual(vivos(), ['llamada', 'sms']);
+for (const codigo of ['C2C2', 'C3C3']) assert.equal((await programar({ codigo })).status, 200);   // 3 códigos distintos
+assert.equal(CODIGOS_POR_NUMERO, 3);
+assert.match((await programar({ codigo: 'C4C4' })).error, /máximo de casos/);
+const porCanal = autorizaciones().map(([, v]) => v.canal).sort();
+assert.deepEqual([...new Set(porCanal)], ['llamada', 'sms']);
+assert.ok(autorizaciones().every(([k, v]) => v.aviso === 'avisos-v1' && !/3001112233|K7P2/.test(k)));
+
+// cron: la llamada con voz leída solo de 8 a. m. a 7 p. m.; lo que cuesta va primero y push al final
+ir('2026-10-30T15:00:00Z');
+assert.equal((await programarPush({ codigo: 'K7P2', fechas: ['2026-11-03'] })).status, 200);
+ir('2026-11-03T06:00:00Z');   // 1 a. m. en Colombia: el SMS y el push salen, la llamada espera
+orden.length = 0;
+r = await cron();
+assert.deepEqual([r.enviados, r.omitidos], [4, 1]);   // 3 SMS (K7P2, C2C2, C3C3) + 1 push; la llamada omitida
+assert.deepEqual(orden, ['twilio', 'twilio', 'twilio', 'push']);
+assert.ok(!twilio.some(x => x.Twiml));
+ir('2026-11-03T13:00:00Z');   // 8 a. m.: ahora sí la llamada
+assert.equal((await cron()).enviados, 1);
 assert.ok(twilio.at(-1).Twiml.includes('Le recordamos su caso K, 7, P, 2. El plazo vence el martes, 3 de noviembre.'));
 for (const k of Object.keys(env)) if (k.startsWith('TWILIO_')) delete env[k];
 
@@ -307,22 +318,18 @@ const firmaVapid = h => {
   assert.ok(verify('sha256', Buffer.from(cab + '.' + carga), { key: createPublicKey({ format: 'jwk', key: { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y } }), dsaEncoding: 'ieee-p1363' }, Buffer.from(firma, 'base64url')));
   return JSON.parse(Buffer.from(carga, 'base64url'));
 };
-r = await api('push', 'GET');
+r = await api('recordatorios', 'GET');
 assert.deepEqual([r.simulado, r.clave], [false, env.VAPID_PUBLIC_KEY]);
-assert.deepEqual([(r = await aviso(sub)).status, r.simulado], [200, false]);   // push no exige NUMEROS_DEMO
-let a = avisos.at(-1);
+const a = avisos.at(-1);   // el push del cron de arriba
 assert.equal(a.url, sub.endpoint);
 assert.deepEqual([a.headers['Content-Encoding'], a.headers.TTL, a.headers['Content-Type']], ['aes128gcm', '86400', 'application/octet-stream']);
 const jwt = firmaVapid(a.headers.Authorization);
 assert.deepEqual([jwt.aud, jwt.sub], ['https://fcm.googleapis.com', 'mailto:equipo@miderecho.test']);
 assert.ok(jwt.exp > ahora / 1000 && jwt.exp <= ahora / 1000 + 86400);   // RFC 8292: máximo 24 horas
-assert.deepEqual(abrir(a.body), { texto: 'Listo: así le van a llegar los avisos de sus plazos.' });
-estadoPush = 410;
-assert.equal((await aviso(sub)).status, 410);
-estadoPush = 201;
+assert.deepEqual(abrir(a.body), { texto: 'Su caso K7P2 vence hoy.' });
 
-// recordatorios por push, de punta a punta con el cron: el día antes, el día y el día después
-const cron = () => api('cron-recordatorios', 'GET', null, { headers: { authorization: 'Bearer secreto-de-prueba' } });
+// de punta a punta: el día antes, el día y el día después
+mapa.clear();
 ir('2026-10-30T15:00:00Z');
 assert.equal((await programarPush()).status, 200);
 const textos = [];
@@ -343,7 +350,13 @@ estadoPush = 201;
 ir('2026-11-03T13:00:00Z');
 assert.equal((await cron()).enviados, 0);
 assert.equal(avisos.length, n + 1);
+// cupo diario global de push
+ir('2026-10-31T15:00:00Z');
+env.LIMITE_PUSH_DIARIO = '1';
+assert.equal((await programarPush({ codigo: 'P1P1' })).status, 200);
+assert.match((await programarPush({ codigo: 'P2P2' }, { ip: '10.9.0.1' })).error, /límite de envíos de hoy/);
+delete env.LIMITE_PUSH_DIARIO;
 
 // los logs no llevan números, suscripciones, códigos ni textos
-assert.ok(!logs.some(l => /\d{7}|fcm\.googleapis|abc123|ABCD|EFGH|vence|noviembre|Listo/i.test(l)), logs.join('\n'));
+assert.ok(!logs.some(l => /\d{7}|fcm\.googleapis|abc123|ABCD|EFGH|K7P2|vence|noviembre/i.test(l)), logs.join('\n'));
 mostrar(`✓ _test-llamadas: todo bien (${llamadas.length} llamadas a ElevenLabs falso, ${twilio.length} a Twilio, ${publicados.length} a QStash, ${avisos.length} avisos push, ${logs.length} líneas de log revisadas)`);

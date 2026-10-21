@@ -1,14 +1,16 @@
 // Avisos de los plazos y llamadas del asistente.
 // - Recordatorios en el servidor (api/recordatorios.js y su cron): notificación push, SMS, WhatsApp o llamada con voz leída,
-//   cada canal con autorización expresa. Del celular nunca se guarda el número: solo el código del caso y el token para cancelar.
-// - Cola de cancelación: pares no sensibles que se reintentan al volver la señal; vive fuera de los casos, así que
-//   sobrevive a "Borrar todo".
+//   cada canal con autorización expresa. Del celular nunca se guarda el número: solo { código, canal, token } en una clave
+//   propia y SIN cifrar a propósito (no es sensible): así se puede cancelar aunque la app esté bloqueada o se olvide la clave.
+// - Cola de cancelación: lo que hay que cancelar se reintenta al volver la señal y al abrir la app; también vive fuera de
+//   los casos y sobrevive a "Borrar todo". cancelarTodo() cancela todo lo de este celular y anula la suscripción push.
 // - Aviso local (sin internet): plazos que vencen hoy o mañana.
 // - Llamada del agente de voz (api/llamar.js): ahora o agendada.
 import { sumarHabiles, deIso, iso } from '@miderecho/nucleo';
 
 const BASE = import.meta.env?.VITE_API_URL || '';
 const COLA = 'miderecho-cancelar';
+const AVISOS = 'miderecho-avisos';   // [{ codigo, canal, token }] de lo programado ('' = push en modo de prueba)
 const LLAMADA = 'miderecho-llamada';   // { token, cuando, texto } de la llamada agendada; nunca el número
 
 // Igual que prototipo/comunicaciones.js: nunca lanza; sin internet o con error devuelve { ok: false, error }.
@@ -51,8 +53,15 @@ function encolar(ruta, datos) {
 }
 if (typeof window !== 'undefined') { window.addEventListener('online', procesarCola); procesarCola(); }
 
-export const cancelarAvisos = caso => Object.values(caso?.avisos || {}).filter(Boolean)
-  .forEach(token => encolar('recordatorios', { codigo: caso.codigo, token }));
+// Canales activos de un caso: { sms: token, push: '' … }.
+export const avisosDe = codigo => Object.fromEntries(leerJSON(AVISOS, []).filter(a => a.codigo === codigo).map(a => [a.canal, a.token]));
+// Cancela los avisos de un caso (todos, o solo esos canales): al borrar el caso, al marcar que le respondieron o al quitarlos.
+export function cancelarAvisos(codigo, canales) {
+  const sale = a => a.codigo === codigo && (!canales || canales.includes(a.canal));
+  const todos = leerJSON(AVISOS, []);
+  escribirJSON(AVISOS, todos.filter(a => !sale(a)));
+  todos.filter(a => sale(a) && a.token).forEach(a => encolar('recordatorios', { codigo: a.codigo, token: a.token }));
+}
 
 // ---------- recordatorios ----------
 export const CANALES = {
@@ -76,16 +85,16 @@ const llave = b64 => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '
 const swListo = () => Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(r, 4000))]);
 
 // Solo tras un toque de la persona: pide el permiso y suscribe este navegador. Sin claves VAPID en el servidor muestra
-// una notificación de ejemplo desde el mismo celular (modo de prueba).
-export async function activarPush() {
+// una notificación de ejemplo desde el mismo celular (modo de prueba). Título neutro: el celular puede ser compartido.
+async function activarPush() {
   if (!soportaPush()) return { ok: false, error: 'Este celular no recibe notificaciones de la app. Igual le mostramos el aviso al abrirla.' };
   if (await Notification.requestPermission() !== 'granted') return { ok: false, error: 'Sin permiso no le podemos enviar notificaciones. Puede darlo después en los ajustes del navegador.' };
-  const k = await pedir('push', 'GET');
+  const k = await pedir('recordatorios', 'GET');   // la clave pública VAPID
   if (!k.ok) return k;
   const reg = await swListo();
   if (!reg) return { ok: false, error: 'La app todavía no está instalada en este celular. Ábrala de nuevo con internet e intente otra vez.' };
   if (!k.clave) {
-    await reg.showNotification('MiDerecho', { body: 'Modo de prueba: así le van a llegar los avisos de sus plazos.', icon: 'icon-192.png', lang: 'es-CO' });
+    await reg.showNotification('Recordatorio', { body: 'Modo de prueba: así le van a llegar los avisos de sus plazos.', icon: 'icon-192.png', lang: 'es-CO' });
     return { ok: true, simulado: true };
   }
   try {
@@ -96,11 +105,23 @@ export async function activarPush() {
   }
 }
 
-// destino: { telefono } o { suscripcion }. Devuelve { ok, simulado, token } o { ok: false, error }.
-export function programar(caso, canal, destino) {
+// Programa un canal tras la autorización expresa. `aviso` es la versión del texto que vio la persona. Para push, primero pide
+// el permiso del navegador (por eso debe ser lo primero que se espera tras el toque). Guarda solo { código, canal, token }.
+export async function programar(caso, canal, telefono, aviso) {
   const fechas = fechasAviso(caso);
   if (!fechas.length) return { ok: false, error: 'Ya no quedan fechas por recordar' };
-  return pedir('recordatorios', 'POST', { codigo: caso.codigo, canal, fechas, vence: caso.venc, ...destino });
+  let destino = { telefono };
+  if (canal === 'push') {
+    const a = await activarPush();
+    if (!a.ok || a.simulado) { if (a.ok) guardarAviso(caso.codigo, canal, ''); return a; }
+    destino = { suscripcion: a.suscripcion };
+  }
+  const r = await pedir('recordatorios', 'POST', { codigo: caso.codigo, canal, fechas, vence: caso.venc, acepto: true, aviso, ...destino });
+  if (r.ok) guardarAviso(caso.codigo, canal, r.token);
+  return r;
+}
+function guardarAviso(codigo, canal, token) {
+  escribirJSON(AVISOS, [...leerJSON(AVISOS, []).filter(a => !(a.codigo === codigo && a.canal === canal)), { codigo, canal, token }]);
 }
 
 // ---------- aviso local: plazos que vencen hoy o mañana (sin internet) ----------
@@ -132,8 +153,12 @@ export function cancelarLlamada() {
   return g ? encolar('llamar', { token: g.token }) : Promise.resolve();
 }
 
-// "Borrar todo": cancela en el servidor todo lo que este celular dejó programado.
-export function cancelarTodo(casos) {
-  casos.forEach(cancelarAvisos);
+// "Borrar todo": cancela en el servidor todo lo que este celular dejó programado y anula la suscripción push.
+// No necesita los casos (pueden estar cifrados o borrados): sale de las claves propias de este módulo.
+export async function cancelarTodo() {
+  for (const a of leerJSON(AVISOS, [])) if (a.token) escribirJSON(COLA, [...leerJSON(COLA, []), { ruta: 'recordatorios', datos: { codigo: a.codigo, token: a.token } }]);
+  escribirJSON(AVISOS, null);
   cancelarLlamada();
+  procesarCola();
+  try { await (await (await swListo())?.pushManager?.getSubscription())?.unsubscribe(); } catch { /* sin service worker o sin suscripción */ }
 }

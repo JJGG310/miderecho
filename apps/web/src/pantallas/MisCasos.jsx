@@ -3,6 +3,7 @@ import { Trash2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { habilesEntre, deIso } from '@miderecho/nucleo';
 import { Encabezado, BarraNav, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
 import { EstadoAvisos, LlamadaAsistente } from '../componentes/Avisos.jsx';
+import { cancelarAvisos } from '../lib/avisos.js';
 import { almacen } from '../lib/almacen.js';
 import { ir, memoria } from '../lib/ruta.js';
 
@@ -40,7 +41,7 @@ export default function MisCasos() {
                 <div className="caso-cabeza">
                   <span className="caso-icono" aria-hidden>{c.icono}</span>
                   <div><b>{c.titulo}</b><small>{c.entidad} · {c.municipio}</small></div>
-                  <button className="btn-icono" onClick={() => { almacen.borrarCaso(c.id); recargar(); }} aria-label="Borrar caso"><Trash2 size={18} /></button>
+                  <button className="btn-icono" onClick={() => { almacen.borrarCaso(c.id); cancelarAvisos(c.codigo); recargar(); }} aria-label="Borrar caso"><Trash2 size={18} /></button>
                 </div>
                 <p className="suave">Entregado el {fecha(c.rad)}</p>
                 {c.venc && !vencido && <p className="plazo"><Clock size={16} aria-hidden /><span>{c.tipo.startsWith('tutela') ? 'El juez debe decidir' : 'Te deben responder'} a más tardar el <b>{fecha(c.venc)}</b>. Faltan {faltan} días hábiles.</span></p>}
@@ -48,7 +49,7 @@ export default function MisCasos() {
                   <>
                     <p className="plazo alerta"><AlertTriangle size={16} aria-hidden /><span>El plazo venció el {fecha(c.venc)}. ¿Te respondieron?</span></p>
                     <div className="botones-opcion">
-                      <button onClick={() => { almacen.guardarCaso({ ...c, estado: 'respondido' }); recargar(); }}>Sí, me respondieron</button>
+                      <button onClick={() => { almacen.guardarCaso({ ...c, estado: 'respondido' }); cancelarAvisos(c.codigo); recargar(); }}>Sí, me respondieron</button>
                       {c.tipo === 'peticion'
                         ? <button className="sel" onClick={() => { memoria.caso = c; ir('documento', 'tutela_peticion'); }}>No: crear la tutela</button>
                         : <button className="sel" onClick={() => ir('inicio')}>No: ¿qué hago?</button>}

@@ -7,9 +7,9 @@ import { useState } from 'react';
 import { AlertTriangle, Bell, Phone } from 'lucide-react';
 import { deIso } from '@miderecho/nucleo';
 import { BotonVoz } from './comunes.jsx';
-import { almacen } from '../lib/almacen.js';
+import { almacen } from '../lib/almacen.js';   // solo para guardar el código del caso; los tokens van en lib/avisos.js
 import { ir } from '../lib/ruta.js';
-import { CANALES, fechasAviso, nuevoCodigo, activarPush, programar, cancelarAvisos, plazosCercanos, llamadaAgendada, pedirLlamada, cancelarLlamada } from '../lib/avisos.js';
+import { CANALES, avisosDe, fechasAviso, nuevoCodigo, programar, cancelarAvisos, plazosCercanos, llamadaAgendada, pedirLlamada, cancelarLlamada } from '../lib/avisos.js';
 
 const corta = f => 'el ' + deIso(f).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 const enLista = xs => xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs.at(-1)}`;
@@ -17,6 +17,21 @@ const MES3 = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oc
 const fechaSms = f => { const d = deIso(f); return `${d.getDate()}-${MES3[d.getMonth()]}`; };   // como lo escribe el cron
 const celularValido = s => /^(\+?57)?3\d{9}$/.test(s.replace(/[\s().-]/g, ''));
 const TELEFONO = ['sms', 'whatsapp', 'llamada'];
+
+// Aviso de datos (Ley 1581, art. 12): responsable, terceros, para qué, derechos y la política. Los corchetes los completa el
+// aliado; la lectura en voz alta dice "la organización que acompaña a MiDerecho" en vez de leerlos.
+const RESPONSABLE = '[Organización], [contacto]';
+const terceros = asistente => asistente
+  ? 'ElevenLabs (la voz del asistente y su modelo de lenguaje) y Twilio (la llamada)'
+  : 'Twilio (SMS, WhatsApp y llamadas) y el servicio de notificaciones de su navegador';
+const datosTexto = (asistente, responsable = RESPONSABLE) => `Responsable: ${responsable}. Su número (o la suscripción de este celular) lo usan ${terceros(asistente)}, fuera de Colombia, solo para esto. Puede conocer, corregir o borrar sus datos y retirar la autorización cuando quiera: aquí mismo o con "Borrar todo".`;
+const datosLectura = asistente => datosTexto(asistente, 'la organización que acompaña a MiDerecho');
+function AvisoDatos({ asistente }) {
+  return <small className="ayuda">{datosTexto(asistente)} <a href="#/politica">Política de datos</a>.</small>;
+}
+
+// Versión del texto de autorización de los recordatorios: si cambia AUTORIZA o el aviso de datos, cambia la versión.
+const VERSION_AVISOS = 'avisos-v1';
 const AUTORIZA = {
   push: 'Acepto notificaciones en este celular',
   sms: 'Acepto SMS a mi celular',
@@ -26,7 +41,7 @@ const AUTORIZA = {
 
 // El texto "Le recordaremos el…" solo si de verdad hay un canal activo.
 export function resumenAvisos(caso) {
-  const fechas = fechasAviso(caso).map(corta), canales = Object.keys(caso.avisos || {}).map(k => CANALES[k]);
+  const fechas = fechasAviso(caso).map(corta), canales = Object.keys(caso.codigo ? avisosDe(caso.codigo) : {}).map(k => CANALES[k]);
   if (!fechas.length) return canales.length ? 'Ya pasaron las fechas de los avisos.' : '';
   return canales.length ? `Le recordaremos ${enLista(fechas)} por ${enLista(canales)}.` : `Abra Mis casos ${enLista(fechas)} para revisar su plazo.`;
 }
@@ -45,8 +60,8 @@ export function AvisoPlazos() {
 }
 
 export function ElegirAvisos({ caso: inicial, alGuardar, tarjeta = true }) {
-  const [caso, setCaso] = useState(() => ({ ...inicial, codigo: inicial.codigo || nuevoCodigo() }));
-  const activos = caso.avisos || {};
+  const [caso] = useState(() => ({ ...inicial, codigo: inicial.codigo || nuevoCodigo() }));
+  const [activos, setActivos] = useState(() => avisosDe(caso.codigo));
   const [sel, setSel] = useState(() => Object.fromEntries(Object.keys(CANALES).map(k => [k, k in activos])));
   const [telefono, setTelefono] = useState('');
   const [estado, setEstado] = useState(null);   // null | 'guardando' | { errores, simulado }
@@ -55,30 +70,26 @@ export function ElegirAvisos({ caso: inicial, alGuardar, tarjeta = true }) {
   const cambio = Object.keys(CANALES).some(k => sel[k] !== (k in activos));
   const listo = cambio && (!pideTelefono || celularValido(telefono)) && estado !== 'guardando';
   const ejemplo = fechas.length && `Caso ${caso.codigo}: recordatorio del ${fechaSms(fechas[0])}. Si la entidad no le ha respondido, avise a su lider.`;
-  const lectura = `¿Cómo quiere que le avisemos? ${resumenAvisos({ ...caso, avisos: {} })} Puede escoger notificación en este celular, SMS, WhatsApp o una llamada con voz grabada. Cada aviso dice solo el código del caso y la fecha.`;
+  const lectura = `¿Cómo quiere que le avisemos? Puede escoger notificación en este celular, SMS, WhatsApp o una llamada con voz grabada. Cada aviso dice solo el código del caso y la fecha. ${datosLectura(false)}`;
 
   const guardar = async e => {
     e.preventDefault();
     setEstado('guardando');
-    const avisos = { ...activos }, errores = [];
+    const errores = [], quitar = Object.keys(activos).filter(k => !sel[k]);
     let simulado = false;
-    for (const k of Object.keys(avisos)) if (!sel[k]) { cancelarAvisos({ codigo: caso.codigo, avisos: { [k]: avisos[k] } }); delete avisos[k]; }
-    if (sel.push && !('push' in avisos)) {
-      const a = await activarPush();   // primero: el permiso del navegador necesita el toque
-      const r = a.ok && !a.simulado ? await programar(caso, 'push', { suscripcion: a.suscripcion }) : a;
-      if (r.ok) { avisos.push = r.token || ''; simulado ||= !!r.simulado; } else errores.push(`Notificación: ${r.error}`);
+    if (quitar.length) cancelarAvisos(caso.codigo, quitar);
+    // Push primero: el permiso del navegador necesita el toque. El caso guarda solo su código; los tokens, lib/avisos.js.
+    for (const k of ['push', ...TELEFONO]) if (sel[k] && !(k in activos)) {
+      const r = await programar(caso, k, telefono, VERSION_AVISOS);
+      if (r.ok) simulado ||= !!r.simulado; else errores.push(`${CANALES[k][0].toUpperCase() + CANALES[k].slice(1)}: ${r.error}`);
     }
-    for (const k of TELEFONO) if (sel[k] && !(k in avisos)) {
-      const r = await programar(caso, k, { telefono });
-      if (r.ok) { avisos[k] = r.token; simulado ||= !!r.simulado; } else errores.push(`${CANALES[k][0].toUpperCase() + CANALES[k].slice(1)}: ${r.error}`);
-    }
-    const nuevo = { ...caso, avisos };
-    almacen.guardarCaso(nuevo);
-    setCaso(nuevo);
-    setSel(Object.fromEntries(Object.keys(CANALES).map(k => [k, k in avisos])));
+    if (!inicial.codigo) almacen.guardarCaso(caso);
+    const ahora = avisosDe(caso.codigo);
+    setActivos(ahora);
+    setSel(Object.fromEntries(Object.keys(CANALES).map(k => [k, k in ahora])));
     setTelefono('');   // el número no se guarda en el celular
     setEstado({ errores, simulado });
-    alGuardar?.(nuevo);
+    alGuardar?.(caso);
   };
 
   if (!fechas.length) return null;
@@ -93,6 +104,7 @@ export function ElegirAvisos({ caso: inicial, alGuardar, tarjeta = true }) {
           </label>
         ))}
         {sel.push && !('push' in activos) && <small className="ayuda">La notificación se ve aunque el celular esté bloqueado. Si otra persona usa este celular, piénselo.</small>}
+        {sel.llamada && !('llamada' in activos) && <small className="ayuda">Si contesta el buzón de voz, el mensaje (código y fecha) puede quedar grabado ahí.</small>}
         {pideTelefono && (
           <div className="campo">
             <span className="etiqueta">Su celular</span>
@@ -101,6 +113,7 @@ export function ElegirAvisos({ caso: inicial, alGuardar, tarjeta = true }) {
             <small className="ayuda">Al marcar, usted autoriza usar este número solo para estos avisos. No se guarda en este celular; en el servidor queda cifrado y se borra 3 días después del último aviso.</small>
           </div>
         )}
+        <AvisoDatos />
         <button className="btn-primario" type="submit" disabled={!listo}>{estado === 'guardando' ? 'Guardando…' : 'Guardar avisos'}</button>
         {tarjeta && <p className="plazo" role="status"><Bell size={16} aria-hidden /><span>{resumenAvisos(caso)}</span></p>}
         {estado?.simulado && <p className="nota-privacidad">Modo de prueba: el servidor todavía no tiene las claves, así que no se envía nada de verdad.</p>}
@@ -113,13 +126,13 @@ export function ElegirAvisos({ caso: inicial, alGuardar, tarjeta = true }) {
 
 export function EstadoAvisos({ caso, alCambiar }) {
   const [abierto, setAbierto] = useState(false);
-  const resumen = resumenAvisos(caso);
+  const resumen = resumenAvisos(caso), hay = !!caso.codigo && Object.keys(avisosDe(caso.codigo)).length > 0;
   if (!resumen) return null;
   return (<>
-    <p className="plazo"><Bell size={16} aria-hidden /><span>{resumen}{caso.codigo && Object.keys(caso.avisos || {}).length ? ` Código ${caso.codigo}.` : ''}</span></p>
+    <p className="plazo"><Bell size={16} aria-hidden /><span>{resumen}{hay ? ` Código ${caso.codigo}.` : ''}</span></p>
     {abierto
       ? <ElegirAvisos caso={caso} tarjeta={false} alGuardar={alCambiar} />
-      : <button className="btn-secundario" onClick={() => setAbierto(true)}>{Object.keys(caso.avisos || {}).length ? 'Cambiar avisos' : 'Activar avisos'}</button>}
+      : <button className="btn-secundario" onClick={() => setAbierto(true)}>{hay ? 'Cambiar avisos' : 'Activar avisos'}</button>}
   </>);
 }
 
@@ -131,6 +144,8 @@ const enHorario = () => { const h = colombia().getUTCHours(); return h >= 8 && h
 const hora = h => `${h > 12 ? h - 12 : h} ${h < 12 ? 'a. m.' : h === 12 ? 'm.' : 'p. m.'}`;
 const diaLargo = d => `${SEMANA[d.getUTCDay()]} ${d.getUTCDate()} de ${MESES[d.getUTCMonth()]}`;
 const punto = s => (s.endsWith('.') ? s : s + '.');   // "a las 9 a. m." ya termina en punto
+// Versión del texto de autorización de la llamada ("Acepto que MiDerecho me llame…" y el aviso de datos del asistente).
+const VERSION_LLAMADA = 'llamada-v1';
 
 // Franjas de una hora, de 8 a. m. a 6 p. m.; hoy, solo las que empiezan en más de 10 minutos. Hasta 6 días adelante.
 function franjas() {
@@ -151,19 +166,19 @@ export function LlamadaAsistente({ casos }) {
   const abiertos = casos.filter(c => c.estado === 'esperando' && c.venc);
   const set = (k, v) => setF(x => ({ ...x, [k]: v }));
   const listo = celularValido(f.telefono) && f.acepto && estado !== 'enviando';
-  const lectura = 'Que el asistente lo llame. El asistente automático de MiDerecho lo llama a su celular para recordarle sus plazos o decirle qué documento le puede servir. No es un abogado. Escriba su celular, escoja el día y la hora, y autorice la llamada.';
+  const lectura = `Que el asistente lo llame. El asistente automático de MiDerecho lo llama a su celular para recordarle sus plazos o decirle qué documento le puede servir. No es un abogado. Escriba su celular, escoja el día y la hora, y autorice la llamada. ${datosLectura(true)}`;
 
   const pedir = async ahora => {
     setEstado('enviando');
     let c = abiertos.find(x => x.id === f.caso);
     if (c && !c.codigo) { c = { ...c, codigo: nuevoCodigo() }; almacen.guardarCaso(c); }   // el mismo código que dirán los avisos
     const franja = fs[f.dia], texto = ahora ? '' : `${diaLargo(franja.fecha)}, ${f.hora === 13 ? 'a la' : 'a las'} ${hora(f.hora)}`;
-    const r = await pedirLlamada({ telefono: f.telefono, acepto: f.acepto, codigo: c?.codigo, vence: c?.venc,
+    const r = await pedirLlamada({ telefono: f.telefono, acepto: f.acepto, aviso: VERSION_LLAMADA, codigo: c?.codigo, vence: c?.venc,
       cuando: ahora ? undefined : `${franja.dia}T${String(f.hora).padStart(2, '0')}:00-05:00`, texto });
     if (!r.ok) return setEstado({ error: r.error });
     setF(x => ({ ...x, telefono: '', acepto: false }));   // el número no se guarda en el celular
     setAgendada(llamadaAgendada());
-    setEstado({ texto: ahora ? 'En unos segundos le entra una llamada. Contéstela: es el asistente automático de MiDerecho.' : `Lo llamamos el ${punto(texto)} Tenga el celular a la mano.`, simulado: r.simulado });
+    setEstado({ texto: ahora ? 'En unos segundos le entra una llamada. Contéstela: es el asistente automático de MiDerecho. Si no entra, pídala de nuevo más tarde.' : `Lo llamamos el ${punto(texto)} Tenga el celular a la mano.`, simulado: r.simulado });
   };
   const cancelar = async () => { await cancelarLlamada(); setAgendada(null); setEstado({ texto: 'Llamada cancelada.' }); };
 
@@ -173,7 +188,7 @@ export function LlamadaAsistente({ casos }) {
       <h2>Que el asistente lo llame <BotonVoz texto={lectura} /></h2>
       <p className="suave">El asistente automático de MiDerecho lo llama para recordarle sus plazos o decirle qué documento le puede servir. No es un abogado. Recibir la llamada no le cuesta.</p>
       {agendada && (<>
-        <p className="plazo ok"><Phone size={16} aria-hidden /><span>Tiene una llamada agendada para el <b>{punto(agendada.texto)}</b></span></p>
+        <p className="plazo ok"><Phone size={16} aria-hidden /><span>Tiene una llamada agendada para el <b>{punto(agendada.texto)}</b> Si no lo llamamos a esa hora, pídala de nuevo.</span></p>
         <button className="btn-secundario" onClick={cancelar}>Cancelar la llamada agendada</button>
       </>)}
       {estado?.texto && <p className="nota-privacidad" role="status">{estado.texto}</p>}
@@ -210,6 +225,7 @@ export function LlamadaAsistente({ casos }) {
           </div>
           <label className="check grande"><input type="checkbox" checked={f.acepto} onChange={e => set('acepto', e.target.checked)} /> Acepto que MiDerecho me llame a este número para esta llamada</label>
           <small className="ayuda">Su número no se guarda en este celular; en el servidor queda cifrado solo hasta la llamada. No le vamos a pedir su cédula ni su nombre. Puede llamarlo un número desconocido, incluso de otro país. Si contesta el buzón de voz, se cuelga sin dejar mensaje.</small>
+          <AvisoDatos asistente />
           <button className="btn-primario" type="submit" value="agendar" disabled={!listo}>{estado === 'enviando' ? 'Un momento…' : 'Agendar la llamada'}</button>
           <button className="btn-secundario" type="submit" value="ahora" disabled={!listo || !enHorario()}>Llámenme ahora</button>
           {!enHorario() && <small className="ayuda">Ahora no podemos llamar: llamamos de 8 a. m. a 7 p. m.</small>}

@@ -4,8 +4,10 @@
 import { createCipheriv, createDecipheriv, createECDH, createHmac, createPrivateKey, hkdfSync, randomBytes, sign } from 'node:crypto';
 
 const env = process.env;
-export const POR_IP_HORA = 60, POR_NUMERO_DIA = 10, CODIGOS_POR_NUMERO = 3;
+export const POR_IP_HORA = 60, POR_NUMERO_DIA = 10, CODIGOS_POR_NUMERO = 3, LLAMADAS_POR_DIA = 2;
 export const limiteDiario = () => Number(env.LIMITE_DIARIO || 100);
+export const limitePush = () => Number(env.LIMITE_PUSH_DIARIO || 1000);   // push no cuesta, pero tampoco es ilimitado
+export const horarioVoz = () => horaColombia() >= 8 && horaColombia() < 19;   // llamadas solo de 8 a. m. a 7 p. m.
 
 // ---------- respuestas ----------
 export const falla = (status, error) => Object.assign(new Error(error), { status });
@@ -48,6 +50,15 @@ export function celular(t) {
   return tel;
 }
 
+// Versión del texto de autorización que vio la persona (la define la app, junto al texto: "avisos-v1", "llamada-v1").
+export function version(v) {
+  if (!/^[a-z]+-v\d{1,3}$/.test(String(v ?? ''))) throw falla(400, 'Falta la versión del aviso de autorización');
+  return v;
+}
+// Prueba mínima de la autorización (Ley 1581): seudónimo del número, fecha, versión del aviso, respuesta y canal. Nada más.
+export const autorizacion = (destino, aviso, canal) =>
+  ['SET', `aut:${hmac('num:' + destino)}:${canal}:${Date.now()}`, JSON.stringify({ aviso, fecha: new Date().toISOString(), respuesta: 'acepto', canal }), 'EXAT', Math.floor(Date.now() / 1000) + 370 * 86400];
+
 export function texto(t, max, medir = s => s.length) {
   t = String(t ?? '').replace(/[\x00-\x09\x0B-\x1F\x7F]/g, '').trim();
   if (!t) throw falla(400, 'Falta el texto');
@@ -73,16 +84,19 @@ const ip = req => {
 
 export async function proteger(req, tel, canal) {
   if (simulado(canal)) return;
-  // Push no cuesta y solo lleva texto fijo a la suscripción de quien lo pide: sin lista blanca ni tope diario.
-  const push = canal === 'push', demo = env.NUMEROS_DEMO;
+  // Push solo lleva texto fijo a la suscripción de quien lo pide: sin lista blanca y con su propio cupo diario.
+  const push = canal === 'push', agente = canal === 'agente', demo = env.NUMEROS_DEMO;
   // Cerrado por defecto: texto libre a cualquier número solo si se abre a propósito y hay límites globales (Redis).
-  if (!push && !demo && (env.PERMITIR_ENVIO_ABIERTO !== '1' || !redisListo()))
-    throw falla(503, 'Envíos reales cerrados: configure NUMEROS_DEMO, o Redis y PERMITIR_ENVIO_ABIERTO=1');
+  // El agente de voz (IA) solo llama a NUMEROS_DEMO, aunque PERMITIR_ENVIO_ABIERTO esté puesto.
+  if (!push && !demo && (agente || env.PERMITIR_ENVIO_ABIERTO !== '1' || !redisListo()))
+    throw falla(503, agente ? 'Llamadas del asistente cerradas: configure NUMEROS_DEMO' : 'Envíos reales cerrados: configure NUMEROS_DEMO, o Redis y PERMITIR_ENVIO_ABIERTO=1');
   if (!push && demo && !demo.split(',').map(normalizar).includes(tel)) throw falla(403, 'Este número no está autorizado para el demo');
   // ponytail: 60 por hora y red tolera CGNAT y el Wi-Fi del evento; el freno real son el tope por número y el diario.
   if (await contar('ip:' + ip(req), 3600) > POR_IP_HORA) throw falla(429, 'Demasiadas solicitudes desde esta conexión. Intente en una hora');
+  // Llamadas (agente o voz leída): tope propio y bajo por número, aparte del de SMS.
+  if ((agente || canal === 'llamada') && await contar('voz:' + tel, 86400) > LLAMADAS_POR_DIA) throw falla(429, 'Este número ya tiene las llamadas de hoy. Intente mañana');
   if (await contar('num:' + tel, 86400) > POR_NUMERO_DIA) throw falla(429, push ? 'Este celular ya pidió muchos avisos hoy. Intente mañana' : 'Este número ya recibió muchos mensajes hoy. Intente mañana');
-  if (!push && await contar('total', 86400) > limiteDiario()) throw falla(429, 'Se alcanzó el límite de envíos de hoy');
+  if (await contar(push ? 'push-total' : 'total', 86400) > (push ? limitePush() : limiteDiario())) throw falla(429, 'Se alcanzó el límite de envíos de hoy');
 }
 
 export async function incr(k, venceSeg) {
@@ -169,6 +183,7 @@ async function twilio(recurso, datos) {
     method: 'POST',
     headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${env.TWILIO_AUTH_TOKEN}`).toString('base64') },
     body: new URLSearchParams(datos),
+    signal: AbortSignal.timeout(8000),
   });
   if (r.ok) return;
   const { code } = await r.json().catch(() => ({}));   // el mensaje de Twilio puede traer el número: solo se usa el código
@@ -250,6 +265,7 @@ async function push(s, texto) {
     method: 'POST',
     headers: { Authorization: vapid(s.endpoint), 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '86400', Urgency: 'high' },
     body: cifrarPush(JSON.stringify({ texto }), s),
+    signal: AbortSignal.timeout(8000),
   });
   if (r.status === 404 || r.status === 410) throw falla(410, 'Ese celular ya no recibe los avisos');   // quien llama borra el registro
   if (!r.ok) {
