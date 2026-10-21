@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Mic, ArrowUp, WifiOff } from 'lucide-react';
 import { Encabezado, BotonVoz, OpcionesRapidas } from '../componentes/comunes.jsx';
+import Buho, { NOMBRE_BUHO } from '../componentes/Buho.jsx';
 import { AvisoPlazos } from '../componentes/Avisos.jsx';
 import { AvisoIA, consintio } from './Consentimiento.jsx';
 import { useConexion } from '../lib/conexion.jsx';
@@ -8,7 +9,8 @@ import { useDictado, hayDictado } from '../lib/voz.js';
 import { ir, memoria } from '../lib/ruta.js';
 import { limpiar } from '@miderecho/nucleo/privacidad';
 
-const SALUDO = '¡Hola! ¿Qué necesita resolver hoy? No necesita saber de leyes. Cuéntenos qué está pasando: puede escribir o contarlo con su voz.';
+const PRESENTA = `¡Hola! Soy ${NOMBRE_BUHO} y le ayudo a hacer valer sus derechos.`;
+const SALUDO = PRESENTA + ' ¿Qué necesita resolver hoy? No necesita saber de leyes. Cuéntenos qué está pasando: puede escribir o contarlo con su voz.';
 
 export default function Inicio() {
   const { enLinea } = useConexion();
@@ -40,7 +42,8 @@ export default function Inicio() {
   return (
     <main className="pantalla inicio">
       <Encabezado />
-      <h1 className="saludo"><span>¡Hola! ¿Qué necesita resolver hoy?</span><BotonVoz texto={SALUDO} /></h1>
+      <Buho pose="saludo" ancho={76} primera className="buho-respira">{PRESENTA}</Buho>
+      <h1 className="saludo"><span>¿Qué necesita resolver hoy?</span><BotonVoz texto={SALUDO} /></h1>
       <AvisoPlazos />
       <div className="caja-relato tarjeta">
         {enLinea ? (<>

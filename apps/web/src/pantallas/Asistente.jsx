@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Mic, ShieldAlert, Loader2, AudioLines } from 'lucide-react';
+import { ArrowUp, Mic, ShieldAlert, AudioLines } from 'lucide-react';
 import { Encabezado, Titulo, BotonVoz } from '../componentes/comunes.jsx';
 import Orientacion from '../componentes/Orientacion.jsx';
+import Buho from '../componentes/Buho.jsx';
 import ModoVoz from '../componentes/ModoVoz.jsx';
 import { preguntarAsistente } from '../lib/api.js';
 import { useConexion } from '../lib/conexion.jsx';
@@ -77,13 +78,14 @@ export default function Asistente() {
       <p className="nota-privacidad">Antes de enviar, quitamos cédulas, teléfonos y correos. No guardamos lo que nos cuenta.</p>
 
       <div className="chat" aria-live="polite">
-        {mensajes.map((m, i) => (
-          <div key={i} className={`burbuja ${m.rol}`}>
-            {m.texto}
-            {m.rol === 'asistente' && <BotonVoz texto={m.texto} className="voz-burbuja" />}
+        {/* Las respuestas las da el búho: su avatar va al lado. Mientras la IA piensa, trabaja en el computador. */}
+        {mensajes.map((m, i) => m.rol === 'asistente' ? (
+          <div key={i} className="fila-buho">
+            <Buho pose="avatar-amigable" ancho={40} primera />
+            <div className="burbuja asistente">{m.texto}<BotonVoz texto={m.texto} className="voz-burbuja" /></div>
           </div>
-        ))}
-        {cargando && <div className="burbuja asistente cargando"><Loader2 className="girar" size={20} aria-hidden /> Pensando…</div>}
+        ) : <div key={i} className="burbuja persona">{m.texto}</div>)}
+        {cargando && <div className="fila-buho"><Buho pose="computador" ancho={64} primera className="buho-respira" /><div className="burbuja asistente cargando">Pensando…</div></div>}
         {error && <div className="aviso-error" role="alert">{error} <button onClick={() => consultar(mensajes)}>Reintentar</button></div>}
       </div>
 

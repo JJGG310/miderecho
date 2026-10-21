@@ -1,9 +1,10 @@
 // Política de datos: historieta interactiva (Legal Design) en #/politica y política completa (Decreto 1377 de 2013, art. 13)
-// en #/politica/completa. Los dibujos son SVG hechos a mano, sin imágenes, para no gastar datos.
+// en #/politica/completa. Los dibujos son SVG hechos a mano para no gastar datos; el asistente es el búho (WebP livianos).
 // La política completa es la de docs/politica-de-datos.md sin las marcas [validar]: si cambia una, cambie la otra.
 import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Volume2, VolumeX, ArrowLeft, ArrowRight, FileText, Check, X } from 'lucide-react';
 import { Encabezado, Titulo } from '../componentes/comunes.jsx';
+import Buho from '../componentes/Buho.jsx';
 import { hablar, callar } from '../lib/voz.js';
 import { almacen } from '../lib/almacen.js';
 import { ir, atras } from '../lib/ruta.js';
@@ -19,14 +20,12 @@ const PIEL = '#9c6644', PELO = '#2b211c', CAMISA = '#2f7f8f', PAJA = '#e9c46a';
 const en = (x, y, s, svg) => `<g transform="translate(${x} ${y}) scale(${s})">${svg}</g>`;
 const campo = '<path d="M0 132q50-26 105-8t110-6 105 4V170H0z" fill="#c9d6bf"/><circle cx="292" cy="26" r="14" fill="#f2c879"/>';
 
-// El asistente es un globo de diálogo del color de sus respuestas en el chat. Sus estados van en data-estado del <svg>.
-const asis = (x, y, s = 1.3) => en(x, y, s, `<g class="pc-asis">
-  <ellipse cx="32" cy="66" rx="15" ry="3" fill="${T}" opacity=".15" stroke="none"/>
-  <g class="pc-flota"><path d="M32 6c14.4 0 26 10.3 26 23S46.4 52 32 52c-3 0-5.9-.4-8.6-1.3L12 56l2.6-10.2C9.3 41.6 6 35.7 6 29 6 16.3 17.6 6 32 6z" fill="#cbd3bf" stroke="${VERDE}"/>
-    <g class="pc-ojos" fill="${T}" stroke="none"><circle cx="23" cy="26" r="4.2"/><circle cx="41" cy="26" r="4.2"/></g>
-    <path class="pc-boca" d="M24 36q8 6 16 0" stroke="${VERDE}" stroke-width="3.5" fill="none"/>
-    <ellipse class="pc-boca-abierta" cx="32" cy="37.5" rx="5.5" ry="4.5" fill="${VERDE}" stroke="none"/>
-    <g class="pc-signo"><circle cx="54" cy="10" r="9" fill="#e07b39"/><path d="M54 5v6m0 3.5v.5" stroke="#fff" stroke-width="3"/></g></g></g>`);
+// El asistente es el búho de MiDerecho (public/buho/, guardado en el celular como el resto). La pose va con cada viñeta.
+// Sus estados van en data-estado del <svg>: flota, salta (éxito), se mueve (alerta, con el signo) y "habla" al leer.
+const asis = (x, y, s, pose) => en(x, y, s, `<g class="pc-asis">
+  <ellipse cx="32" cy="68" rx="18" ry="3.5" fill="${T}" opacity=".15" stroke="none"/>
+  <g class="pc-flota"><image href="buho/${pose}.webp" x="-4" y="-8" width="72" height="78" preserveAspectRatio="xMidYMax meet"/>
+    <g class="pc-signo"><circle cx="60" cy="2" r="9" fill="#e07b39"/><path d="M60 -3v6m0 3.5v.5" stroke="#fff" stroke-width="3"/></g></g></g>`);
 
 // Doña Rosa, campesina con sombrero y trenza.
 const brazo = (d, x, y) => `<path d="${d}" stroke-width="13" fill="none"/><path d="${d}" stroke="${CAMISA}" stroke-width="8" fill="none"/><circle cx="${x}" cy="${y}" r="6" fill="${PIEL}"/>`;
@@ -72,30 +71,30 @@ const filas = `<g fill="#fff">${[22, 42, 62].map(y => `<rect x="10" y="${y}" wid
 // ---------- viñetas: a = asistente, r = doña Rosa, lista = puntos dentro de la viñeta. Globos de 90 caracteres o menos ----------
 const NOMBRES = { a: 'Asistente', r: 'Doña Rosa' };
 const PASOS = [
-  { titulo: '¿Quién cuida sus datos?', escena: campo + asis(26, 44, 1.4) + signo(160, 70) + rosa(204, 6, 'duda', 'cel'), dialogo: [
+  { titulo: '¿Quién cuida sus datos?', escena: campo + asis(26, 44, 1.4, 'saludo') + signo(160, 70) + rosa(204, 6, 'duda', 'cel'), dialogo: [
     ['r', '¿Y quién va a ver lo que yo escriba en esta aplicación?'],
     ['a', 'Soy el asistente de MiDerecho. Soy una máquina, no una persona.'],
     ['a', `Quien responde por sus datos es ${ORG}`],
     ['a', `Puede llamar o escribir al ${CONTACTO}.`]] },
-  { titulo: '¿Para qué usamos sus datos?', escena: campo + asis(14, 50, 1.25) + papel(118, 16) + sobre(160, 52) + calendario(116, 92) + brillo(176, 22) + rosa(212, 6, 'sonrie', 'cel'), dialogo: [
+  { titulo: '¿Para qué usamos sus datos?', escena: campo + asis(14, 50, 1.25, 'documento') + papel(118, 16) + sobre(160, 52) + calendario(116, 92) + brillo(176, 22) + rosa(212, 6, 'sonrie', 'cel'), dialogo: [
     ['r', '¿Y para qué necesitan mis datos?'],
     ['a', 'Para entender lo que le pasa y armar su documento.'],
     ['a', 'También para recordarle cuándo le deben responder.'],
     ['a', 'Nada más. No los vendemos ni los usamos para publicidad.']] },
-  { titulo: 'Lo que no guardamos', escena: asis(10, 52, 1.25) + relato(106, 14) + tache(104, 12, 44, 34) + cedula(160, 56) + tache(158, 54, 50, 34) + papel(112, 100) + rosa(214, 6, 'o'), dialogo: [
+  { titulo: 'Lo que no guardamos', escena: asis(10, 52, 1.25, 'lupa') + relato(106, 14) + tache(104, 12, 44, 34) + cedula(160, 56) + tache(158, 54, 50, 34) + papel(112, 100) + rosa(214, 6, 'o'), dialogo: [
     ['a', 'No guardamos la conversación con el asistente.'],
     ['a', 'El nombre y la cédula del documento no se guardan ni van a la inteligencia artificial.'],
     ['a', 'Solo van en el papel. No los escriba en el chat.'],
     ['r', '¿Y si guardo el documento en PDF?'],
     ['a', 'Ese archivo es suyo y queda donde lo guarde. Cuídelo.']] },
-  { titulo: 'Lo que queda en su celular', escena: asis(10, 50, 1.25) + celular(124, 22, filas) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
+  { titulo: 'Lo que queda en su celular', escena: asis(10, 50, 1.25, 'corazon') + celular(124, 22, filas) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
     ['a', 'En este celular quedan sus casos: la entidad, el municipio, la vereda y las fechas.'],
     ['a', 'También el tema de cada consulta, aunque sea de salud.'],
     ['r', '¿Y si otra persona usa mi celular?'],
     ['a', 'Póngale clave, o bórrelo todo en Perfil con «Borrar todo de este celular».']] },
   { pregunta: 'Si otra persona usa su celular, ¿puede ver sus casos?', opciones: [['Sí, si no tiene clave', true], ['No, nunca', false]],
     explica: 'Sus casos quedan en este celular. Póngale clave o bórrelos en Perfil.' },
-  { titulo: 'El asistente y otras empresas', fondo: 'cielo', escena: asis(8, 52, 1.2) + mundo + micro(112, 14) + relato(184, 10, .7) + sobre(110, 124, .8) + campana(190, 120)
+  { titulo: 'El asistente y otras empresas', fondo: 'cielo', escena: asis(8, 52, 1.2, 'computador') + mundo + micro(112, 14) + relato(184, 10, .7) + sobre(110, 124, .8) + campana(190, 120)
       + flecha('M236 128q-20-30-42-44', 194, 84, 220) + rosa(214, 6, 'sonrie', 'cel'), dialogo: [
     ['a', 'Lo que me cuenta lo lee una inteligencia artificial: Claude o Gemini.'],
     ['a', 'Claude es de la empresa Anthropic y Gemini de Google, las dos en Estados Unidos.'],
@@ -105,20 +104,20 @@ const PASOS = [
     ['a', 'Cuando existan, pasarán por otras empresas, y solo si usted lo pide.']] },
   { pregunta: 'Antes de enviar su relato al asistente, ¿qué le quitamos?', opciones: [['Cédulas, teléfonos y correos, cuando el filtro los encuentra', true], ['Todo, también los nombres', false]],
     explica: 'Los nombres no se quitan y el filtro no atrapa todo. No escriba nombres, cédulas ni direcciones en el chat.' },
-  { titulo: 'Lo delicado es opcional', escena: campo + asis(10, 46, 1.25) + `<rect x="114" y="14" width="66" height="96" rx="4" fill="#fff"/><g fill="#fff">${[34, 56, 78].map(y => `<rect x="122" y="${y - 7}" width="12" height="12" rx="2"/>`).join('')}</g><path d="M140 34h30M140 56h30M140 78h24" stroke-width="2"/>`
+  { titulo: 'Lo delicado es opcional', escena: campo + asis(10, 46, 1.25, 'pensando') + `<rect x="114" y="14" width="66" height="96" rx="4" fill="#fff"/><g fill="#fff">${[34, 56, 78].map(y => `<rect x="122" y="${y - 7}" width="12" height="12" rx="2"/>`).join('')}</g><path d="M140 34h30M140 56h30M140 78h24" stroke-width="2"/>`
       + `<g stroke-width="4">${flecha('M120 120q36 26 70-4', 190, 116, -50, VERDE)}</g>` + rosa(212, 6, 'sonrie', 'arriba'), dialogo: [
     ['a', 'No tiene que contarnos si es víctima, su etnia, su religión o sus ideas políticas.'],
     ['a', 'Tampoco a qué organización pertenece.'],
     ['r', '¿Y si no lo digo?'],
     ['a', 'La app funciona igual.'],
     ['a', 'En la tutela de salud sí hay que contar el problema de salud: va en el documento.']] },
-  { titulo: 'Sus derechos', estado: 'exito', escena: campo + asis(12, 46, 1.25) + escudo(132, 24, 1.4) + brillo(124, 30) + brillo(210, 70) + brillo(140, 112) + rosa(214, 6, 'sonrie', 'arriba'), dialogo: [
+  { titulo: 'Sus derechos', estado: 'exito', escena: campo + asis(12, 46, 1.25, 'ley') + escudo(132, 24, 1.4) + brillo(124, 30) + brillo(210, 70) + brillo(140, 112) + rosa(214, 6, 'sonrie', 'arriba'), dialogo: [
     ['a', 'Sobre sus datos, usted tiene derecho a:'],
     ['lista', [['Conocer', 'qué datos suyos tenemos.'], ['Corregirlos.', ''], ['Borrarlos.', ''], ['Retirar su permiso', 'cuando quiera.'],
       ['Quejarse', 'ante la Superintendencia de Industria y Comercio: la entidad del Estado que vigila que se cuiden los datos personales.']]],
     ['r', '¿Y eso me cuesta?'],
     ['a', 'No. Es gratis.']] },
-  { titulo: '¿Cómo los hace valer?', escena: asis(8, 52, 1.2) + celular(118, 18, `<rect x="9" y="44" width="40" height="22" rx="11" fill="${ROJO}"/><path d="M21 49h16M26 49v-2h6v2M23 52l1.5 10h9l1.5-10" stroke="#fff" stroke-width="2" fill="none"/>`)
+  { titulo: '¿Cómo los hace valer?', escena: asis(8, 52, 1.2, 'documento') + celular(118, 18, `<rect x="9" y="44" width="40" height="22" rx="11" fill="${ROJO}"/><path d="M21 49h16M26 49v-2h6v2M23 52l1.5 10h9l1.5-10" stroke="#fff" stroke-width="2" fill="none"/>`)
       + flecha('M180 60q14-20 10-30', 192, 30, -80) + sobre(176, 4, .8) + rosa(214, 6, 'sonrie', 'senala'), dialogo: [
     ['a', 'En Perfil, toque «Borrar todo de este celular»: se borran sus casos y su historial.'],
     ['a', `Eso no borra lo que tengan otras empresas. Para eso, llámenos o escríbanos al ${CONTACTO}.`],
@@ -128,17 +127,17 @@ const PASOS = [
     ['a', 'Puede quejarse ante la Superintendencia de Industria y Comercio.']] },
   { pregunta: 'Para borrar lo que quedó en este celular, ¿qué hace?', opciones: [['Toco «Borrar todo» en Perfil', true], ['Voy hasta la alcaldía', false]],
     explica: `Eso borra lo de este celular. Para lo que tengan otras empresas, llame o escriba al ${CONTACTO}.` },
-  { titulo: 'Si hay peligro', fondo: 'alerta', estado: 'alerta', escena: asis(10, 50, 1.25) + escudo(122, 18, 1.2) + `<circle cx="168" cy="118" r="24" fill="${ROJO}"/>` + fono(150, 100) + rosa(214, 6, 'triste', 'menton'), dialogo: [
+  { titulo: 'Si hay peligro', fondo: 'alerta', estado: 'alerta', escena: asis(10, 50, 1.25, 'pensando') + escudo(122, 18, 1.2) + `<circle cx="168" cy="118" r="24" fill="${ROJO}"/>` + fono(150, 100) + rosa(214, 6, 'triste', 'menton'), dialogo: [
     ['r', '¿Y si alguien me amenaza por reclamar?'],
     ['a', 'Si nos cuenta eso, la app deja de preguntar, no guarda nada y le dice a dónde acudir.'],
     ['a', 'Si hay peligro ahora, llame al 123.'],
     ['a', 'La Personería y la Defensoría del Pueblo pueden ayudarle a protegerse.']] },
-  { titulo: 'No somos abogados', estado: 'exito', escena: campo + edificio(118, 52) + asis(10, 46, 1.25) + rosa(214, 6, 'sonrie', 'papel'), dialogo: [
+  { titulo: 'No somos abogados', estado: 'exito', escena: campo + edificio(118, 52) + asis(10, 46, 1.25, 'corazon') + rosa(214, 6, 'sonrie', 'papel'), dialogo: [
     ['a', 'MiDerecho le da información y plantillas. No somos abogados.'],
     ['a', 'La Personería y los consultorios jurídicos atienden gratis y le pueden aconsejar.'],
     ['r', '¡Entendido! Gracias.']] },
 ];
-const PREGUNTA_ESCENA = campo + asis(26, 44, 1.4) + signo(150, 66) + rosa(204, 6, 'duda', 'menton');
+const PREGUNTA_ESCENA = campo + asis(26, 44, 1.4, 'pensando') + signo(150, 66) + rosa(204, 6, 'duda', 'menton');
 const PREGUNTAS = PASOS.filter(p => p.pregunta);
 
 const textoDe = p => p.pregunta
@@ -364,7 +363,7 @@ function Completa() {
       <Titulo icono={ShieldCheck}>Política de datos</Titulo>
       <Borrador />
       <p className="texto"><b>Versión 1</b>, vigente desde el {VIGENCIA}. Ley 1581 de 2012 y Decreto 1377 de 2013.</p>
-      <p className="suave">Toque cada título para abrirlo. Con «Escuchar» la app le lee lo que tenga abierto.</p>
+      <Buho pose="avatar-sabio" ancho={64} primera>Toque cada título para abrirlo. Con «Escuchar» la app le lee lo que tenga abierto.</Buho>
       <div className="pc-arriba"><BotonEscuchar leyendo={leyendo} onClick={() => (leyendo ? parar() : leer(textoAbierto()))} /><Salir /></div>
       <div ref={caja} className="pc-politica">
         {SECCIONES.map(([t, c]) => <details key={t} className="tarjeta clara"><summary>{t}</summary><div className="texto">{c}</div></details>)}

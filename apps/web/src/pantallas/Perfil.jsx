@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Trash2, ShieldCheck, Phone } from 'lucide-react';
 import { AVISO, AYUDA_RIESGO } from '@miderecho/nucleo';
 import { Encabezado, Confirmar, Aviso } from '../componentes/comunes.jsx';
+import Buho from '../componentes/Buho.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir, olvidar } from '../lib/ruta.js';
 import { cancelarTodo } from '../lib/avisos.js';   // cancela también los recordatorios del servidor y la suscripción push
@@ -14,7 +15,7 @@ export default function Perfil() {
     <main className="pantalla">
       <Encabezado />
       <div className="titulo"><h1>Perfil</h1></div>
-      <p className="texto">No necesita cuenta. Lo que guarda queda solo en este celular, protegido con su clave.</p>
+      <Buho pose="avatar-acompanante" ancho={72} primera>No necesita cuenta. Lo que guarda queda solo en este celular, protegido con su clave.</Buho>
 
       <section className="tarjeta clara">
         <label className="check grande"><input type="checkbox" checked={modoVoz} onChange={e => { setModoVoz(e.target.checked); almacen.setPref('modoVoz', e.target.checked); }} /> Leer en voz alta las respuestas del asistente</label>
