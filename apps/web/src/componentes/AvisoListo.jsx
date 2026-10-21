@@ -26,7 +26,7 @@ export default function AvisoListo({ codigo }) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'No se pudo enviar');
       setTelefono(''); setAcepto(false);   // ni el número ni la autorización quedan en pantalla
-      setEstado({ ok: true, texto: j.simulado ? 'Modo de prueba: el mensaje no se envió de verdad.' : 'Listo. Te llegará en unos minutos.' });
+      setEstado({ ok: true, texto: j.simulado ? 'Modo de prueba: el mensaje no se envió de verdad.' : 'Listo. Le llegará en unos minutos.' });
     } catch (err) {
       setEstado({ ok: false, texto: navigator.onLine ? err.message : 'Se perdió la conexión. No se envió nada.' });
     }
@@ -34,8 +34,8 @@ export default function AvisoListo({ codigo }) {
 
   return (
     <section className="tarjeta clara aviso-listo">
-      <h2><MessageSquareText size={18} aria-hidden /> ¿Te avisamos por mensaje?</h2>
-      <p className="suave">Te mandamos el código <b>{codigo}</b> para que lo tengas a mano. El mensaje solo dice que tu documento quedó listo y el código: nada de tu caso, tu nombre ni tu cédula.</p>
+      <h2><MessageSquareText size={18} aria-hidden /> ¿Le avisamos por mensaje?</h2>
+      <p className="suave">Le mandamos el código <b>{codigo}</b> para que lo tenga a mano. El mensaje solo dice que su documento quedó listo y el código: nada de su caso, su nombre ni su cédula.</p>
       <form className="formulario" onSubmit={enviar}>
         <div className="botones-opcion" role="group" aria-label="Por dónde">
           {[['sms', 'SMS'], ['whatsapp', 'WhatsApp']].map(([id, t]) => (

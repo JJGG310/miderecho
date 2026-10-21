@@ -10,6 +10,8 @@ const AGENTE = 'agent_8101m5dg7s5se9trrst6fjpvz52d';   // exige sesión firmada 
 // Con Redis (Upstash) los topes valen para todas las instancias; sin Redis, cada instancia lleva su cuenta.
 // El total diario es el mismo tope del agente en ElevenLabs (60 conversaciones al día, 3 a la vez).
 const POR_IP_HORA = 10, POR_DIA = 60;
+// Versión vigente del aviso de voz: la misma AVISO_VOZ de apps/web/src/lib/agenteVoz.js (lo revisa _test-agente-avisos.mjs).
+export const AVISO_VOZ = 'voz-v3';
 
 // Solo el propio sitio (o localhost con `vercel dev`): pedido JSON, que obliga al navegador a preguntar antes si viene
 // de otro dominio, y Origin igual al host. Un programa fuera del navegador puede falsificarlo: por eso el límite.
@@ -24,10 +26,12 @@ export default async function handler(req, res) {
   if (req.query?.herramienta) return herramienta(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
   if (!mismoSitio(req.headers)) return res.status(403).json({ error: 'Solo desde MiDerecho' });
-  // Solo con el aviso de voz aceptado (ModoVoz.jsx manda su versión). Se cuenta por versión y día: es la prueba
+  // Solo con el aviso de voz vigente aceptado (ModoVoz.jsx manda su versión). Se cuenta por versión y día: es la prueba
   // mínima de la aceptación, sin IP ni datos de la persona (el celular guarda su propia fecha y versión).
+  // Una app guardada con un aviso viejo recibe 409 y se actualiza sola al recargar (PWA con autoUpdate).
   const aviso = req.body?.aviso;
   if (typeof aviso !== 'string' || !/^voz-v\d{1,3}$/.test(aviso)) return res.status(400).json({ error: 'Falta aceptar el aviso del asistente de voz' });
+  if (aviso !== AVISO_VOZ) return res.status(409).json({ error: 'El aviso de voz cambió: recargue la app y vuelva a aceptarlo' });
   const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'sin-ip';
   try {
     if (await contar('voz-ip:' + ip, 3600) > POR_IP_HORA || await contar('voz-total', 86400) > POR_DIA)

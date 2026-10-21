@@ -1,11 +1,11 @@
 // Prueba de prototipo/api/elevenlabs-sesion.js sin red ni clave real: node agente/test-sesion.mjs
 // Sin Redis los topes viven en memoria (los mismos comandos de _comun.js).
 import assert from 'node:assert/strict';
-import handler from '../prototipo/api/elevenlabs-sesion.js';
+import handler, { AVISO_VOZ } from '../prototipo/api/elevenlabs-sesion.js';
 
 const llamar = async (headers, method = 'POST') => {
   const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
-  await handler({ method, body: headers.body ?? { aviso: 'voz-v1' }, headers: { host: 'miderecho-two.vercel.app', 'x-forwarded-for': headers.ip || '1.1.1.1', ...headers } }, res);
+  await handler({ method, body: headers.body ?? { aviso: AVISO_VOZ }, headers: { host: 'miderecho-two.vercel.app', 'x-forwarded-for': headers.ip || '1.1.1.1', ...headers } }, res);
   return res;
 };
 const bueno = { origin: 'https://miderecho-two.vercel.app', 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' };
@@ -20,6 +20,7 @@ assert.equal((await llamar({ ...bueno, 'content-type': 'text/plain' })).code, 40
 assert.equal((await llamar({ ...bueno, origin: undefined })).code, 403, 'sin Origin');
 assert.equal((await llamar({ ...bueno, body: {} })).code, 400, 'sin aviso aceptado');
 assert.equal((await llamar({ ...bueno, body: { aviso: ['voz-v1'] } })).code, 400);
+assert.equal((await llamar({ ...bueno, body: { aviso: 'voz-v1' } })).code, 409, 'aviso viejo: recargar');
 
 delete process.env.ELEVENLABS_API_KEY;
 assert.equal((await llamar({ ...bueno, ip: '2.2.2.2' })).code, 503, 'sin clave');

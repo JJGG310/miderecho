@@ -13,9 +13,9 @@ console.log = console.error = console.warn = (...a) => logs.push(a.join(' '));
 const { septetos, gsm, kv, hmac, descifrar, memoria, POR_NUMERO_DIA } = await import('./_comun.js');
 const { PLANTILLAS, armarAviso } = await import('./_avisos.js');
 const { FRASE } = await import('./_herramientas.js');
-const { default: sesion } = await import('./elevenlabs-sesion.js');
+const { default: sesion, AVISO_VOZ } = await import('./elevenlabs-sesion.js');
 const { sumarHabiles, deIso, iso } = await import('@miderecho/nucleo');
-const { crearAgente, resumen, contexto, FRASES } = await import('../../apps/web/src/lib/agenteVoz.js');
+const { crearAgente, resumen, contexto, FRASES, AVISO_VOZ: AVISO_VOZ_APP } = await import('../../apps/web/src/lib/agenteVoz.js');
 
 async function llamar(handler, { method = 'POST', body, query, headers = {}, ip = '10.0.0.1' }) {
   const r = {};
@@ -81,7 +81,8 @@ assert.equal((await herr('borrar_todo', {})).status, 404, 'herramienta desconoci
 assert.equal((await herr('__proto__', {})).status, 404);
 assert.equal((await herr('orientar', undefined, SECRETO, 'GET')).status, 405);
 // sin ?herramienta= la misma función sigue siendo la sesión del navegador (y sin clave de ElevenLabs, 503)
-assert.equal((await llamar(sesion, { body: { aviso: 'voz-v1' }, headers: { origin: 'https://miderecho.test', 'sec-fetch-site': 'same-origin' } })).status, 503);
+assert.equal(AVISO_VOZ_APP, AVISO_VOZ, 'la app y el servidor piden la misma versión del aviso de voz');
+assert.equal((await llamar(sesion, { body: { aviso: AVISO_VOZ }, headers: { origin: 'https://miderecho.test', 'sec-fetch-site': 'same-origin' } })).status, 503);
 
 // orientar: valores cerrados, frases y ley fijas
 r = await herr('orientar', { documento: 'servicios_publicos' });

@@ -19,7 +19,8 @@
       "voice_id": "l7mz7X0JldPlSP6WNhdd",
       "nombre": "Gabriel (andino nariñense, pausado)",
       "nota": "Es de la biblioteca: hay que agregarla a 'Mis voces' en elevenlabs.io antes de usarla"
-    }
+    },
+    "modo_expresivo": "apagado (21-oct-2026): con él encendido, el agente metía etiquetas de emoción como [happy] al hablar de un problema de salud; con temas serios y el protocolo de riesgo el tono debe ser neutro"
   },
   "transcripcion": {
     "proveedor": "scribe_realtime",
@@ -113,7 +114,7 @@
     "rafagas": false,
     "anulaciones_desde_el_cliente": "todas apagadas, incluido el modo solo texto",
     "comodines": "No funcionan: con '*.vercel.app' un preview fue rechazado ('Host ... is not allowed'). Cada preview que deba usar el agente se agrega con su alias fijo (miderecho-git-<rama>-jjgg310s-projects.vercel.app).",
-    "como": "El navegador pide POST /api/elevenlabs-sesion con { aviso: 'voz-v1' } (prototipo/api/elevenlabs-sesion.js). La función, con ELEVENLABS_API_KEY de Vercel, pide a ElevenLabs GET /v1/convai/conversation/token?agent_id=… y devuelve { token }. apps/web/src/lib/agenteVoz.js abre la sesión con conversationToken (WebRTC). Solo atiende pedidos JSON del mismo sitio (Origin igual al host, Sec-Fetch-Site same-origin), 10 por IP por hora y 60 al día en total, con contar() de _comun.js (Redis si está; si no, en memoria)."
+    "como": "El navegador pide POST /api/elevenlabs-sesion con { aviso: 'voz-v3' } (la versión vigente; otra da 409) (prototipo/api/elevenlabs-sesion.js). La función, con ELEVENLABS_API_KEY de Vercel, pide a ElevenLabs GET /v1/convai/conversation/token?agent_id=… y devuelve { token }. apps/web/src/lib/agenteVoz.js abre la sesión con conversationToken (WebRTC). Solo atiende pedidos JSON del mismo sitio (Origin igual al host, Sec-Fetch-Site same-origin), 10 por IP por hora y 60 al día en total, con contar() de _comun.js (Redis si está; si no, en memoria)."
   },
   "sdk_navegador": {
     "paquete": "@elevenlabs/client@1.26.0",
@@ -132,5 +133,6 @@
   "herramientas_viejas": "iniciar_caso (tool_0401m5dg87gyehjv2qtzs5spj5ka), pantalla_actual (tool_7901m5dg8a2gfcvap8az4zayzs7a) y elegir_opcion (tool_4901m5dg8cc1f3htrvdbh95kbckd) siguen en el espacio de trabajo pero ya no están en ningún agente web.",
   "contexto_inicial": "Al conectar, ModoVoz.jsx manda sendContextualUpdate con la última respuesta del asistente de la app y sus opciones (filtradas). No manda el relato de la persona.",
   "riesgo_por_transcripcion": "El SDK 1.26.0 entrega lo que dice la persona en onMessage({ source: 'user', role: 'user', message }) gracias a 'user_transcript' en client_events. agenteVoz.js aplica hayRiesgo() del núcleo a cada uno: si hay peligro, muestra la ayuda fija, bloquea contar_al_asistente y avisa al agente con sendContextualUpdate. La transcripción no se guarda ni se registra. Confirmado en vivo el 21-oct-2026 con el agente de pruebas y retención cero: el evento user_transcript llega al cliente (la retención cero solo afecta lo que ElevenLabs guarda).",
-  "aviso_de_voz": "ModoVoz.jsx, versión AVISO_VOZ = 'voz-v1'. /api/elevenlabs-sesion solo entrega la sesión con { aviso: 'voz-vN' } y cuenta aceptaciones por versión y día (sin IP ni datos); el celular guarda { version, fecha } en sus preferencias. Si cambia el texto, subir la versión."
+  "aviso_de_voz": "ModoVoz.jsx, versión AVISO_VOZ = 'voz-v3' (trato de usted). /api/elevenlabs-sesion solo entrega la sesión con esa misma versión (AVISO_VOZ exportado en elevenlabs-sesion.js; una vieja da 409) y cuenta aceptaciones por versión y día (sin IP ni datos); el celular guarda { version, fecha } en sus preferencias. Si cambia el texto, subir la versión en los dos lados: la prueba revisa que coincidan.",
+  "prueba_en_produccion": "21-oct-2026, https://miderecho-two.vercel.app en el navegador integrado a 375 px, con un micrófono simulado en silencio (para no captar audio real) y mensajes de texto con sendUserMessage: sesión 200, conexión WebRTC, saludo, contar_al_asistente → /api/asistente 200, lectura de la frase y la ley fijas con trato de usted y orientación en pantalla. Sin errores en la consola. La llamada se cortó sola tras unos 60 s sin voz (colgar_tras_silencio_s). Falta una prueba hablando con un micrófono real."
 }
