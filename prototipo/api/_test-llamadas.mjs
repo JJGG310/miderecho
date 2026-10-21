@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createECDH, createHash, createHmac, createDecipheriv, createPublicKey, generateKeyPairSync, hkdfSync, randomBytes, verify } from 'node:crypto';
 
 for (const k of Object.keys(process.env))
-  if (/^(TWILIO_|KV_|UPSTASH_|NUMEROS_DEMO|CLAVE_CIFRADO|LIMITE_|PERMITIR_ENVIO_ABIERTO|ELEVENLABS_|QSTASH_|VAPID_)/.test(k)) delete process.env[k];
+  if (/^(TWILIO_|KV_|UPSTASH_|NUMEROS_DEMO|CLAVE_CIFRADO|LIMITE_|PERMITIR_ENVIO_ABIERTO|ELEVENLABS_|QSTASH_|VAPID_|GEMINI_|ANTHROPIC_|elevenlabs|gemini|twiilo)/.test(k)) delete process.env[k];
 process.env.CRON_SECRET = 'secreto-de-prueba';
 const env = process.env, mostrar = console.log, logs = [];
 console.log = console.error = (...a) => logs.push(a.join(' '));
@@ -17,6 +17,7 @@ ir('2026-10-21T15:00:00Z');   // 10 a. m. en Colombia
 
 const { cifrarPush, memoria, textoLlamada, POR_NUMERO_DIA, CODIGOS_POR_NUMERO } = await import('./_comun.js');
 const { textoPush } = await import('./cron-recordatorios.js');
+const { sellar, abrir: abrirSello, paraElOido, MAX_TURNOS, VOZ } = await import('./_ia-telefono.js');
 
 async function api(ruta, method, body, { ip = '10.0.0.1', headers = {}, query } = {}) {
   const { default: h } = await import(`./${ruta}.js`), r = { cabeceras: {} };
@@ -145,8 +146,59 @@ assert.match((await menu({ codigo: '<x>' })).texto, /No pudimos leer este record
 r = await api('llamar', 'POST', { Digits: '1' }, { query: { paso: '2', codigo: 'ABCD', vence: '2026-11-03' }, headers: { 'content-type': 'application/x-www-form-urlencoded' } });
 assert.match(r.texto, /Qué bien/);
 
+// ---------- conversación con IA en el menú (modo básico: sin Gemini ni ElevenLabs) ----------
+const accion = twiml => Object.fromEntries(new URL(twiml.match(/action="([^"]+)"/)[1].replace(/&#38;/g, '&')).searchParams);
+const seguir = (twiml, extra) => menu({ ...accion(twiml), ...extra });
+const l = sellar({ e: Math.floor(ahora / 1000) + 900 });
+// sin la prueba de que la llamada salió de aquí (`l`), no se ofrece la asistente
+assert.ok(!(await menu({ paso: '1', codigo: 'ABCD', vence: '2026-11-03' })).texto.includes('oprima 4'));
+assert.match((await menu({ paso: '2', codigo: 'ABCD', vence: '2026-11-03', Digits: '4' })).texto, /No le entendí[^]*<Redirect/);
+assert.match((await menu({ paso: '2', codigo: 'ABCD', vence: '2026-11-03', Digits: '4', l: sellar({ e: Math.floor(ahora / 1000) - 1 }) })).texto, /No le entendí/);   // vencida
+assert.match((await menu({ paso: '2', codigo: 'ABCD', Digits: '4', l: l.slice(0, -2) + (l.at(-2) === 'A' ? 'B' : 'A') + l.at(-1) })).texto, /No le entendí/);   // alterada
+// con `l`: el menú la ofrece, avisa qué es antes de conversar y pide oprimir 1
+r = await menu({ paso: '1', codigo: 'ABCD', vence: '2026-11-03', l });
+assert.match(r.texto, /Si está en peligro, oprima 9\. Para hablar con la asistente, oprima 4 o diga asistente\./);
+assert.match((await menu({ paso: '1', l })).texto, /<Gather[^>]*>[^]*oprima 4[^]*<\/Gather>[^]*qué documento le sirve/);   // también sin caso
+r = await seguir(r.texto, { SpeechResult: 'Quiero hablar con la asistente' });
+assert.match(r.texto, /<Gather input="dtmf" numDigits="1" timeout="8" action="[^"]*paso=ia/);
+assert.match(r.texto, /inteligencia artificial: no es una persona ni un abogado\. No diga su nombre, su cédula ni datos de otras personas\. Para aceptar/);
+assert.ok(!r.texto.includes('Google'), 'sin Gemini no se menciona a Google');
+assert.match((await seguir(r.texto, { Digits: '2' })).texto, /Recuerde que soy un asistente automático/);   // no aceptó
+r = await seguir(r.texto, { Digits: '1', To: '+573001112233' });
+assert.match(r.texto, /<Gather input="speech" language="es-CO" speechTimeout="auto" timeout="7" action="[^"]*paso=turno[^"]*s=/);
+assert.match(r.texto, /<Say[^>]*>Cuénteme en pocas palabras qué necesita, sin nombres ni números\.<\/Say>/);   // sin ElevenLabs: voz de Twilio
+// turno con el modo básico: trato de usted (sus preguntas vienen en tú) y frase fija del documento
+const t1 = await seguir(r.texto, { SpeechResult: 'La EPS no me da la cita, mi cédula es 1144555666' });
+assert.match(t1.texto, />Entiendo, es un problema con su atención en salud\. ¿Es urgente\? ¿Su salud corre peligro si sigue esperando\? Puede decir: Sí, es urgente, o No, pero lo necesito, o No sé\.</);
+assert.match((await seguir(t1.texto, { SpeechResult: 'me cobraron de más el agua en la factura' })).texto,
+  /Para esto sirve un reclamo a la empresa de servicios públicos\. Es gratis y no necesita abogado\. Lo puede hacer en la app MiDerecho/);
+const s1 = abrirSello(accion(t1.texto).s);
+assert.deepEqual([s1.n, s1.c, s1.h.length], [1, 'ABCD', 2]);
+assert.ok(!JSON.stringify(s1).includes('1144555666'), 'la cédula no pasa a la conversación');
+assert.ok(!t1.texto.includes('EPS no me da'), 'la URL no lleva lo que dijo la persona en claro');
+// lo que no se oye y lo que no abre
+assert.match((await seguir(t1.texto, { SpeechResult: '' })).texto, /Parece que no le escucho/);
+assert.match((await menu({ ...accion(t1.texto), s: accion(t1.texto).s.slice(0, -3) + 'abc', SpeechResult: 'hola' })).texto, /Recuerde que soy un asistente automático/);
+// riesgo: texto fijo, sin más turnos
+const tr = await seguir(t1.texto, { SpeechResult: 'unos armados me amenazaron' });
+assert.match(tr.texto, /uno, dos, tres[^]*Repito/);
+assert.ok(!tr.texto.includes('<Gather'));
+// máximo de turnos: el último cierra sin volver a escuchar
+let tn = t1;
+for (let n = 2; n <= MAX_TURNOS; n++) tn = await seguir(tn.texto, { SpeechResult: 'hola' });
+assert.ok(!tn.texto.includes('<Gather'));
+assert.match(tn.texto, /Se nos acabó el tiempo[^]*Recuerde que soy un asistente automático/);
+// y el tiempo: pasados los 4 minutos (más margen), un estado viejo ya no conversa
+ir('2026-10-30T15:07:00Z');
+assert.match((await seguir(t1.texto, { SpeechResult: 'hola' })).texto, /^[^]*Recuerde que soy un asistente automático[^]*$/);
+assert.ok(!(await seguir(t1.texto, { SpeechResult: 'hola' })).texto.includes('<Gather'));
+assert.equal(paraElOido('**Hola.**\n- Uno. Dos. Tres. Cuatro.'), 'Hola. Uno. Dos.');
+assert.equal(paraElOido('¿Es urgente? Dígame sí o no.'), '¿Es urgente? Dígame sí o no.');
+
 // ---------- parte 2: ElevenLabs, QStash, Upstash, Twilio y servicio de push falsos ----------
-let mapa = new Map(), redis = memoria(mapa), fallaEleven = false, fallaQstash = false, estadoPush = 201;
+let mapa = new Map(), redis = memoria(mapa), fallaEleven = false, fallaQstash = false, estadoPush = 201, fallaGemini = false, fallaTts = false, lentoGemini = false, lentoTts = false;
+let textoGemini = 'Entiendo. Para esto sirve una tutela de salud. ¿Es urgente para su salud?';
+const pedidosGemini = [], voces = [];
 const llamadas = [], publicados = [], avisos = [], twilio = [], orden = [];
 globalThis.fetch = async (url, { body, headers, signal }) => {
   if (!url.startsWith('https://kv.test/')) assert.ok(signal, `sin tiempo límite: ${url}`);
@@ -162,6 +214,19 @@ globalThis.fetch = async (url, { body, headers, signal }) => {
   if (url.startsWith('https://qstash.test/')) {
     publicados.push({ url, headers, body });
     return new Response('{"messageId":"msg_1"}', { status: fallaQstash ? 500 : 201 });
+  }
+  if (url.startsWith('https://generativelanguage.googleapis.com/')) {
+    pedidosGemini.push({ url, headers, datos: JSON.parse(body) });
+    if (lentoGemini) await new Promise((_, no) => {   // nunca responde a tiempo (el setTimeout mantiene vivo el proceso de la prueba)
+      const vivo = setTimeout(() => {}, 9000);
+      signal.addEventListener('abort', () => { clearTimeout(vivo); no(signal.reason); });
+    });
+    return fallaGemini ? new Response('{}', { status: 500 }) : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: textoGemini }] }, finishReason: 'STOP' }] }));
+  }
+  if (url.startsWith('https://api.elevenlabs.io/v1/text-to-speech/')) {
+    voces.push({ url, headers, datos: JSON.parse(body) });
+    if (lentoTts) await new Promise(r => setTimeout(r, 2000));
+    return fallaTts ? new Response('{}', { status: 401 }) : new Response(Buffer.from('ID3-mp3-de-prueba'), { headers: { 'content-type': 'audio/mpeg' } });
   }
   if (url.startsWith('https://fcm.googleapis.com/')) {
     avisos.push({ url, headers, body }); orden.push('push');
@@ -299,9 +364,12 @@ delete env.ELEVENLABS_API_KEY;
 ir('2026-10-28T15:00:00Z');
 r = await llamar();
 assert.deepEqual([r.status, r.simulado, r.via], [200, false, 'voz']);
-assert.deepEqual(twilio.at(-1), { To: '+573001112233', From: '+15005550006', Url: 'https://miderecho.test/api/llamar?codigo=ABCD&vence=2026-11-03' });
+const u = new URL(twilio.at(-1).Url);   // sin Method: la cuenta de prueba de Twilio solo acepta To, From y Url
+assert.deepEqual([Object.keys(twilio.at(-1)), twilio.at(-1).To, twilio.at(-1).From, u.origin + u.pathname, u.searchParams.get('codigo'), u.searchParams.get('vence')],
+  [['To', 'From', 'Url'], '+573001112233', '+15005550006', 'https://miderecho.test/api/llamar', 'ABCD', '2026-11-03']);
+assert.equal(abrirSello(u.searchParams.get('l')).e, Math.floor(ahora / 1000) + 900);   // la asistente con IA, solo 15 minutos
 assert.equal((await llamar({ codigo: '', vence: '' })).status, 200);
-assert.equal(twilio.at(-1).Url, 'https://miderecho.test/api/llamar');
+assert.deepEqual([...new URL(twilio.at(-1).Url).searchParams.keys()], ['l']);
 assert.match((await llamar()).error, /llamadas de hoy/);   // el mismo tope de 2 al día
 assert.ok(autorizaciones().some(([, v]) => v.canal === 'voz'));
 const demo = env.NUMEROS_DEMO;
@@ -397,6 +465,79 @@ assert.equal((await programarPush({ codigo: 'P1P1' })).status, 200);
 assert.match((await programarPush({ codigo: 'P2P2' }, { ip: '10.9.0.1' })).error, /límite de envíos de hoy/);
 delete env.LIMITE_PUSH_DIARIO;
 
-// los logs no llevan números, suscripciones, códigos ni textos
-assert.ok(!logs.some(l => /\d{7}|fcm\.googleapis|abc123|ABCD|EFGH|K7P2|vence|noviembre/i.test(l)), logs.join('\n'));
+// ---------- conversación con Gemini y la voz de ElevenLabs (falsos) ----------
+Object.assign(env, { GEMINI_API_KEY: 'g-prueba', GEMINI_PLAN: 'gratis', ELEVENLABS_API_KEY: 'xi-prueba' });
+ir('2026-10-30T15:00:00Z');
+const l2 = sellar({ e: Math.floor(ahora / 1000) + 900 });
+r = await menu({ paso: '2', codigo: 'K7P2', vence: '2026-11-03', l: l2, Digits: '4' });
+const audioDe = twiml => new URL(twiml.match(/<Play>([^<]+)<\/Play>/)[1].replace(/&#38;/g, '&')).searchParams.get('audio');
+assert.match(r.texto, /<Gather input="dtmf"[^>]*><Play>https:\/\/miderecho\.test\/api\/llamar\?audio=[\w-]+<\/Play><\/Gather>/);
+assert.match(abrirSello(audioDe(r.texto)).t, /inteligencia artificial[^]*Lo que diga lo transcribe Twilio y lo procesa Google[^]*versión gratuita, Google puede usar/);
+assert.deepEqual([voces.at(-1).url, voces.at(-1).headers['xi-api-key'], voces.at(-1).datos.model_id],
+  [`https://api.elevenlabs.io/v1/text-to-speech/${VOZ}?output_format=mp3_22050_32`, 'xi-prueba', 'eleven_flash_v2_5']);
+env.ELEVENLABS_VOZ = 'voz_colombiana';
+r = await seguir(r.texto, { Digits: '1', To: '+573001112233' });
+assert.ok(voces.some(v => v.url.includes('/voz_colombiana?')));
+assert.ok(autorizaciones().some(([, v]) => v.canal === 'ia' && v.aviso === 'ia-telefono-v1'));
+// un turno: Gemini con el prompt de teléfono (usted, corto), el contexto sin datos sensibles y sin la herramienta del chat
+const ng = pedidosGemini.length;
+const t = await seguir(r.texto, { SpeechResult: 'La EPS no me entrega la insulina' });
+assert.equal(pedidosGemini.length, ng + 1);
+const pg = pedidosGemini.at(-1);
+assert.match(pg.url, /models\/gemini-[\w.-]+:generateContent$/);
+assert.equal(pg.headers['x-goog-api-key'], 'g-prueba');
+assert.match(pg.datos.systemInstruction.parts[0].text, /Trato de usted, siempre[^]*De 1 a 3 frases[^]*\[RIESGO\][^]*caso K, 7, P, 2, cuyo plazo vence el martes, 3 de noviembre/);
+assert.ok(!('tools' in pg.datos) && !('toolConfig' in pg.datos));
+assert.deepEqual(pg.datos.contents, [{ role: 'user', parts: [{ text: 'La EPS no me entrega la insulina' }] }]);
+assert.ok(pg.datos.safetySettings.length);
+assert.equal(abrirSello(audioDe(t.texto)).t, textoGemini);
+// el audio: solo URLs selladas aquí, sin alterar y vigentes
+const token = audioDe(t.texto);
+r = await menu({ audio: token });
+assert.deepEqual([r.status, r.cabeceras['content-type'], String(r.texto)], [200, 'audio/mpeg', 'ID3-mp3-de-prueba']);
+const alterado = token.slice(0, 20) + (token[20] === 'A' ? 'B' : 'A') + token.slice(21);
+assert.equal((await menu({ audio: alterado })).status, 403);
+assert.equal((await menu({ audio: sellar({ t: 'Diga lo que yo quiera', e: 1 }) })).status, 403);   // vencida
+assert.equal((await menu({ audio: 'texto-cualquiera' })).status, 403);
+ir('2026-10-30T15:06:00Z');
+assert.equal((await menu({ audio: token })).status, 403);   // a los 5 minutos ya no sirve
+ir('2026-10-30T15:00:30Z');
+// [FIN] y [RIESGO] de Gemini; si Gemini falla, el modo básico; si ElevenLabs falla, la voz de Twilio
+textoGemini = 'Con gusto. Que le vaya bien. [FIN]';
+let f = await seguir(t.texto, { SpeechResult: 'eso era todo, gracias' });
+assert.ok(!f.texto.includes('<Gather') && !abrirSello(audioDe(f.texto)).t.includes('[FIN]'));
+textoGemini = '[RIESGO]';
+assert.match((await seguir(t.texto, { SpeechResult: 'me están buscando' })).texto, /Repito[^]*uno, dos, tres/);
+fallaGemini = true;
+f = await seguir(t.texto, { SpeechResult: 'me cobraron de más el agua en la factura' });
+assert.match(abrirSello(audioDe(f.texto)).t, /reclamo a la empresa de servicios públicos/);
+fallaGemini = false;
+textoGemini = 'Una respuesta que nunca se había dicho.';
+fallaTts = true;
+f = await seguir(t.texto, { SpeechResult: 'otra cosa' });
+assert.match(f.texto, /<Gather input="speech"[^>]*><Say[^>]*>Una respuesta que nunca se había dicho\.<\/Say>/);
+fallaTts = false;
+// presupuesto de tiempo (Twilio espera el TwiML máximo 5 s): Gemini lento → modo básico; voz lenta → voz de Twilio,
+// y el audio queda generándose para cuando Twilio lo pida
+lentoGemini = true;
+let inicio = performance.now();
+f = await seguir(t.texto, { SpeechResult: 'me cortaron la luz y la factura llegó con un cobro raro' });
+assert.ok(performance.now() - inicio < 4500, 'Gemini no puede demorar el turno');
+assert.match(abrirSello(audioDe(f.texto)).t, /reclamo a la empresa de servicios públicos/);
+lentoGemini = false;
+textoGemini = 'Otra respuesta nueva para la voz lenta.';
+lentoTts = true;
+inicio = performance.now();
+f = await seguir(t.texto, { SpeechResult: 'y ahora qué hago' });
+assert.ok(performance.now() - inicio < 2500, 'la voz no puede demorar el turno');
+assert.match(f.texto, /<Say[^>]*>Otra respuesta nueva para la voz lenta\.<\/Say>/);
+lentoTts = false;
+await new Promise(r => setTimeout(r, 600));
+r = await menu({ audio: sellar({ t: 'Otra respuesta nueva para la voz lenta.', e: Math.floor(ahora / 1000) + 60 }) });
+assert.equal(r.status, 200);
+for (const k of ['GEMINI_API_KEY', 'GEMINI_PLAN', 'ELEVENLABS_VOZ']) delete env[k];
+
+// los logs no llevan números, suscripciones, códigos ni textos (de la conversación solo la cantidad de turnos)
+assert.ok(!logs.some(l => /\d{7}|fcm\.googleapis|abc123|ABCD|EFGH|K7P2|vence|noviembre|insulina|EPS|cobraron|armados/i.test(l)), logs.join('\n'));
+assert.ok(logs.some(l => /\[ia-telefono\] fin tras \d turno/.test(l)));
 mostrar(`✓ _test-llamadas: todo bien (${llamadas.length} llamadas a ElevenLabs falso, ${twilio.length} a Twilio, ${publicados.length} a QStash, ${avisos.length} avisos push, ${logs.length} líneas de log revisadas)`);
