@@ -83,13 +83,15 @@ const PRUEBAS = ['Copia de la decisión, carta o respuesta de la entidad', 'Copi
 // porque el agente de voz manda tema con los ids de TEMAS y solo debe llenar el derecho cuando coincide. {entidad}, {detalle} y {que} se llenan con lo que responde la persona.
 export const DERECHOS = [
   { id: 'salud', texto: 'Derechos fundamentales a la salud y a la vida en condiciones dignas (artículos 1, 11 y 49 de la Constitución Política y Ley 1751 de 2015).',
-    hecho: 'Necesito {que}, que me ordenó mi médico tratante, como consta en la orden médica que adjunto.',
-    pretension: 'garantice {que}, tal como lo ordenó mi médico tratante',
+    hecho: 'Necesito {que}, que me ordenó mi médico tratante.',
+    hechoMenor: 'Mi hijo(a) necesita {que}, que le ordenó su médico tratante.',
+    pretension: 'garantice {que}, tal como lo ordenó el médico tratante',
     pregunta: '¿Cuál? Escriba el nombre si lo sabe (opcional)', ejemplo: 'Ej.: cita con cardiología, insulina',
     pruebas: ['Orden o fórmula médica', 'Historia clínica o concepto del médico', 'Respuesta de la EPS negando el servicio, o el número de radicado de su solicitud', 'Copia de la petición que le hizo a la EPS'] },
   { id: 'minimo_vital', icono: '🍲', titulo: 'Mínimo vital', sub: 'Le quitaron o no le pagan la pensión, el salario o la ayuda con la que vive',
     texto: 'Derechos fundamentales al mínimo vital y a la vida en condiciones dignas (artículos 1, 11, 48 y 53 de la Constitución Política).',
     hecho: '{entidad} suspendió o no me ha pagado {detalle}. Ese dinero es con lo que vivimos mi familia y yo.',
+    hechoMenor: '{entidad} suspendió o no le ha pagado a mi hijo(a) {detalle}. Ese dinero es con lo que vivimos.',
     pretension: 'pague o restablezca {detalle}',
     pregunta: '¿Qué le quitaron o no le pagan?', ejemplo: 'Ej.: la pensión, el subsidio de adulto mayor', pruebas: PRUEBAS },
   { id: 'educacion', icono: '🏫', titulo: 'Educación', sub: 'Cupo, transporte, docente o alimentación escolar de un niño o una niña',
@@ -100,6 +102,9 @@ export const DERECHOS = [
   { id: 'debido_proceso', icono: '📋', titulo: 'Debido proceso', sub: 'Una entidad decidió algo contra usted sin escucharlo',
     texto: 'Derecho fundamental al debido proceso (artículo 29 de la Constitución Política).',
     hecho: '{entidad} tomó una decisión que me afecta ({detalle}) sin escucharme ni darme la oportunidad de defenderme.',
+    hechoMenor: '{entidad} tomó una decisión que afecta a mi hijo(a) ({detalle}) sin escucharnos ni darnos la oportunidad de defendernos.',
+    // CPACA, arts. 74 a 76: recursos contra actos administrativos en 10 días hábiles. [validar]
+    otraVia: 'Contra una decisión de una entidad casi siempre se puede presentar un recurso (de reposición o de apelación) dentro de los 10 días hábiles siguientes a la notificación. Si no lo usó, el juez puede decir que la tutela no procede.',
     pretension: 'deje sin efecto esa decisión y me dé la oportunidad de presentar mis argumentos y pruebas antes de volver a decidir',
     pregunta: '¿Qué decidieron?', ejemplo: 'Ej.: me sacaron del programa sin avisarme', pruebas: PRUEBAS },
   // Para quien hizo la petición por fuera de la app; si la hizo aquí, la tutela sale desde Mis casos.
@@ -141,11 +146,15 @@ export const SERVICIOS = [
 export const MOTIVOS_SP = [
   { id: 'cobro', icono: '🧾', titulo: 'Me cobraron de más', sub: 'Un cobro que no reconozco o que no es lo que gasté',
     hecho: 'Desde {desde}, en la factura del servicio de {servicio} me cobran un valor que no corresponde a lo que consumo.',
-    // art. 154: no se reclaman facturas de más de 5 meses; art. 155: no hay que pagar lo reclamado, sí lo demás
-    nota: 'Si puede, escriba abajo el mes de la factura y el valor que le cobraron. Solo se pueden reclamar facturas de los últimos 5 meses. Para reclamar no tiene que pagar lo que está reclamando, pero sí el resto de la factura.',
+    // art. 154: no se reclaman facturas de más de 5 meses ni procede recurso contra ellas; art. 155: no se exige pagar lo reclamado
+    // recurso: si la empresa lo niega, procede el recurso de reposición y apelación (art. 154: facturación, suspensión, corte)
+    nota: 'Si puede, escriba abajo el mes de la factura y el valor que le cobraron. Solo se pueden reclamar facturas de los últimos 5 meses. Para reclamar no tiene que pagar lo que está reclamando.',
+    recurso: true,
+    // [validar] el art. 155 protege del corte mientras se resuelven los recursos presentados a tiempo
     peticiones: ['Revisar la factura y cobrarme solo lo que realmente consumí.', 'Revisar el medidor y entregarme el resultado de la revisión.', 'No suspender el servicio mientras resuelven este reclamo (artículo 155 de la Ley 142 de 1994).'] },
   { id: 'corte', icono: '✂️', titulo: 'Me cortaron el servicio', sub: 'Me lo suspendieron o cortaron',
     hecho: 'El servicio de {servicio} de mi vivienda en la vereda {vereda} está suspendido o cortado desde {desde}.',
+    recurso: true,
     peticiones: ['Reconectar el servicio de inmediato.', 'Explicarme por escrito el motivo de la suspensión o el corte.', 'No cobrarme la reconexión si el corte no tenía razón.'] },
   { id: 'dano', icono: '🔧', titulo: 'Hay un daño o una falla', sub: 'El servicio no llega o llega mal',
     hecho: 'El servicio de {servicio} en la vereda {vereda} falla o no llega desde {desde}.',
@@ -165,11 +174,15 @@ export const EXPLICA = {
   juramento: 'La ley no deja presentar dos tutelas por los mismos hechos (Decreto 2591 de 1991, artículos 37 y 38).',
   yaPresento: `<p>Presentar otra tutela por lo mismo puede traerle una sanción. Lo que sigue depende del fallo:</p>
     <ul><li>Si el juez se la <b>negó</b>, puede <b>impugnar</b> dentro de los 3 días hábiles siguientes a la notificación.</li>
-    <li>Si la <b>ganó</b> y no le cumplen, puede pedir el <b>desacato</b>.</li></ul><p>Anote su tutela en Mis casos y le decimos qué hacer.</p>`,
+    <li>Si el juez le <b>dio la razón</b> y no le cumplen, puede pedir el <b>desacato</b>.</li></ul><p>Anote su tutela en Mis casos y le decimos qué hacer.</p>`,
   // carencia actual de objeto por hecho superado
-  hechoSuperado: '<p>La tutela sirve para problemas que siguen pasando. Si ya le dieron lo que necesitaba, el juez la negaría porque ya no hay nada que ordenar.</p><p>Si le causaron un daño, pida orientación gratis en un consultorio jurídico o en la Personería.</p>',
+  hechoSuperado: '<p>La tutela sirve para problemas que siguen pasando. Si ya le dieron lo que necesitaba, normalmente ya no hay nada que el juez pueda ordenar.</p><p>Si le causaron un daño, pida orientación gratis en un consultorio jurídico o en la Personería.</p>',
   // subsidiariedad: en salud la Corte suele exigir que antes se le haya pedido a la EPS
-  subsidiariedad: '<p>El juez revisa si usted ya intentó resolverlo con la entidad. Si todavía no le ha pedido, lo más seguro es hacer primero un derecho de petición. Si no le responden o le dicen que no, la tutela queda más fuerte.</p>',
+  subsidiariedad: '<p>El juez revisa si usted ya intentó resolverlo con la entidad. Si todavía no le ha pedido, conviene hacer primero un derecho de petición: así queda claro que usted ya lo intentó.</p>',
+  inmediatez: '<p>El juez revisa que la tutela se presente pronto, cuando el problema está pasando. Si empezó hace mucho, explique en el documento por qué no la presentó antes y que el problema sigue hoy.</p>',
+  orientacion: '<p>Antes de presentarla puede pedir orientación gratis en la Personería de su municipio o en un consultorio jurídico.</p>',
+  // Decreto 2591, art. 10: se pueden agenciar derechos ajenos si el titular no puede defenderse; también la Defensoría y la Personería. [validar]
+  otraPersona: '<p>La tutela la presenta la persona a la que le niegan el derecho. Si esa persona no puede hacerlo por sí misma (por ejemplo, está muy enferma), la Personería o la Defensoría del Pueblo pueden presentarla por ella.</p><p>Acérquese a la Personería de su municipio: es gratis.</p>',
   presentarTutela: 'Llene a mano su nombre, cédula y teléfono, y fírmela. Llévela con copia de sus papeles al juzgado de su municipio (pida que la reciban para reparto) o preséntela por internet en Tutela en línea. La Personería puede ayudarle. No necesita abogado.',
   urgente: 'Al entregarla, diga que es urgente: pidió una medida provisional.',
   ganada: '<p>El juez le ordenó a {entidad} cumplir, casi siempre en 48 horas. Si no cumple, puede pedir el <b>desacato</b>: el juez puede sancionar al responsable con arresto y multa (Decreto 2591 de 1991, artículo 52).</p>',
@@ -183,11 +196,15 @@ export const EXPLICA = {
   desacatoYa: '<p>Pregunte en el juzgado cómo va su desacato. La Personería puede acompañarle y exigir que se cumpla el fallo.</p>',
   silencioCorto: 'Si no responde a tiempo, la ley entiende que le dio la razón (silencio administrativo positivo).',
   // art. 158; reconocimiento en 72 horas: Decreto 2150 de 1995, art. 123 [validar]
-  silencio: `<p>{entidad} no le respondió en 15 días hábiles. La ley entiende que le dio la razón (artículo 158 de la Ley 142 de 1994).</p>
-    <p>La empresa debe reconocerlo y hacer lo que usted pidió dentro de las 72 horas siguientes. Si no lo hace, quéjese ante la <b>Superintendencia de Servicios Públicos (Superservicios)</b>, que puede sancionarla y obligarla a cumplir.</p>
+  silencio: `<p>Si {entidad} no le respondió en 15 días hábiles, la ley entiende que le dio la razón (silencio administrativo positivo, artículo 158 de la Ley 142 de 1994), salvo que la demora haya sido por su causa o que hiciera falta practicar pruebas.</p>
+    <p>Confírmelo con la Personería o con la <b>Superintendencia de Servicios Públicos (Superservicios)</b>. La empresa debe reconocerlo dentro de las 72 horas siguientes; si no lo hace, la Superservicios puede sancionarla y obligarla a cumplir.</p>
     <p class="nota">Guarde la copia de su reclamo con la fecha de entrega: es su prueba. Prototipo: canales de la Superservicios por confirmar.</p>`,
   // art. 157: las personerías asesoran a los usuarios que quieran presentar recursos
   recurso: '<p>Si no está de acuerdo con la respuesta, puede pedir que la empresa la revise (recurso de reposición) y, si insiste en negarlo, que decida la Superservicios (apelación). Es gratis y no necesita abogado. La Personería puede ayudarle a presentarlo.</p>',
+  // art. 155: para recurrir hay que acreditar el pago de lo no discutido o del promedio de los últimos 5 periodos
+  pagoRecurso: 'Para presentarlo debe tener pagada la parte de la factura que no está discutiendo, o el promedio de lo que pagó en los últimos 5 meses.',
+  // art. 154: el recurso procede contra facturación, suspensión, terminación y corte [validar]
+  sinRecurso: '<p>El recurso ante la empresa sirve para cobros en la factura y para cortes o suspensiones del servicio. Para un daño u otro problema, puede quejarse ante la Superintendencia de Servicios Públicos (Superservicios) o pedir orientación gratis en la Personería.</p>',
   recursoVencido: '<p>Pasaron los 5 días hábiles para el recurso y la decisión de la empresa quedó en firme. Puede pedir orientación en la Personería o quejarse ante la Superservicios.</p>',
   apelacion: '<p>Como pidió la apelación, la empresa debe enviar su caso a la Superintendencia de Servicios Públicos (Superservicios), que toma la decisión final. Si la empresa no lo envía, quéjese ante la Superservicios.</p>',
 };

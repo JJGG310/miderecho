@@ -1,7 +1,7 @@
 // Prueba: node prototipo/test-plantillas.mjs
 import assert from 'node:assert/strict';
 import { TIPOS, generarDocumento } from './plantillas.js';
-import { VERIFICADO } from './contenido.js';
+import { VERIFICADO, MOTIVOS_SP, EXPLICA, TEMAS, DERECHOS, SERVICIOS, SALUD_NIEGA } from './contenido.js';
 import { sumarHabiles, iso } from './plazos.js';
 
 const HOY = new Date(2026, 9, 20);
@@ -42,6 +42,28 @@ assert.match(doc.tutela, /mínimo vital/);
 assert.match(doc.tutela, /Colpensiones suspendió o no me ha pagado la pensión/);
 assert.ok(!doc.tutela.includes('Medida provisional'));
 assert.match(doc.tutela, /Pido que se le solicite a Colpensiones la información/);
+// La orden médica se menciona solo si la marcó como prueba
+assert.match(doc.tutela_salud, /Así consta en la orden médica que adjunto\./);
+const sinOrden = generarDocumento('tutela_salud', { ...ejemplos.tutela_salud, pruebas: [] }, HOY);
+assert.ok(!sinOrden.includes('orden médica que adjunto'));
+// Legitimación: en nombre propio, o en representación de un hijo o hija menor de edad
+assert.match(doc.tutela_salud, /en nombre propio/);
+const menor = generarDocumento('tutela_salud', { ...ejemplos.tutela_salud, afectado: 'menor' }, HOY);
+assert.ok(!menor.includes('en nombre propio'));
+assert.match(menor, /en representación de mi hijo\(a\) menor de edad/);
+assert.match(menor, /Mi hijo\(a\) necesita un medicamento \(insulina\), que le ordenó su médico tratante/);
+assert.match(menor, /grave riesgo la vida y la salud de mi hijo\(a\)/);
+assert.match(menor, /Proteger los derechos fundamentales de mi hijo\(a\)/);
+// Recurso ante la empresa solo contra cobros y cortes (Ley 142, art. 154)
+assert.deepEqual(MOTIVOS_SP.filter(m => m.recurso).map(m => m.id), ['cobro', 'corte']);
+// Las explicaciones no prometen resultados
+for (const [k, t] of Object.entries(EXPLICA)) assert.ok(!/ganó|probablemente|negaría|más seguro|más fuerte/i.test(t), `EXPLICA.${k} promete un resultado`);
+// El agente de voz manda tema con ids de TEMAS: en el menú de la tutela general solo 'educacion' coincide
+// (tema 'salud' pasa a la tutela de salud), y ninguno coincide con un servicio o con lo que niega la EPS
+const temas = TEMAS.map(t => t.id);
+assert.deepEqual(DERECHOS.filter(d => d.icono && temas.includes(d.id)).map(d => d.id), ['educacion']);
+assert.ok(![...SERVICIOS, ...SALUD_NIEGA].some(x => temas.includes(x.id)));
+
 // Tutela por una petición hecha por fuera de la app
 const tp = generarDocumento('tutela', { ...base, derecho: 'peticion', entidad: 'Alcaldía de Ataco', detalle: 'arreglar el puente' }, HOY);
 assert.match(tp, /Le presenté a Alcaldía de Ataco un derecho de petición en el que pedí arreglar el puente/);

@@ -10,6 +10,7 @@ const pie = `<p class="pie">Documento preparado con ${NOMBRE}. ${VERIFICADO}. No
 const lista = xs => `<ol>${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
 const de = (xs, id) => xs.find(x => x.id === id);
 const derecho = id => de(DERECHOS, id) || de(DERECHOS, 'otro_derecho');
+const hechoTutela = c => { const d = derecho(c.derecho); return (c.afectado === 'menor' && d.hechoMenor) || d.hecho; };
 
 // plazo: días hábiles que tiene la entidad, la empresa o el juez para responder o decidir.
 // presentar: días hábiles que tiene la persona para presentar el documento.
@@ -33,7 +34,7 @@ export const generarDocumento = (tipo, datos, hoy = new Date()) => TIPOS[tipo].d
 // Frase plantilla de los hechos según el documento; {campo} se llena con valor().
 export function plantillaHecho(c) {
   if (c.tipo === 'servicios_publicos') return de(MOTIVOS_SP, c.motivo)?.hecho;
-  if (c.tipo?.startsWith('tutela')) return derecho(c.derecho).hecho;
+  if (c.tipo?.startsWith('tutela')) return hechoTutela(c);
   return de(TEMAS, c.temaId)?.hecho;
 }
 export function valor(c, k) {
@@ -83,12 +84,14 @@ function docTutelaPeticion(c) {
 }
 
 // Tutela de salud y tutela general (Decreto 2591 de 1991). Los datos de salud llegan aquí desde la memoria y no se guardan.
-// c: derecho, entidad, municipio, vereda, que/detalle, pidio ('negada'|'sin_respuesta'|'no'), desde, palabras, urgente ('si'|'no'), pruebas
+// c: afectado ('propio'|'menor'), derecho, entidad, municipio, vereda, que/detalle, pidio ('negada'|'sin_respuesta'|'no'), desde, palabras, urgente ('si'|'no'), pruebas
 function docTutela(c, hoy) {
-  const d = derecho(c.derecho), urgente = c.urgente === 'si', salud = d.id === 'salud';
-  const pretension = llenar(d.pretension, c);
+  const d = derecho(c.derecho), urgente = c.urgente === 'si', salud = d.id === 'salud', menor = c.afectado === 'menor';
+  const pretension = llenar(d.pretension, c), plantilla = hechoTutela(c);
+  const derechos = menor ? 'los derechos fundamentales de mi hijo(a)' : 'mis derechos fundamentales';
   const hechos = [
-    d.hecho && llenar(d.hecho, c),
+    plantilla && llenar(plantilla, c),
+    salud && c.pruebas?.some(p => /^orden/i.test(p)) && 'Así consta en la orden médica que adjunto.',
     { negada: `Le pedí a ${c.entidad} que lo solucionara y me respondió que no.`,
       sin_respuesta: `Le pedí a ${c.entidad} que lo solucionara y no me ha respondido, o lo ha aplazado sin darme una fecha cierta.` }[c.pidio],
     `Esta situación comenzó ${c.desde} y continúa a la fecha.`,
@@ -98,19 +101,21 @@ function docTutela(c, hoy) {
     <p>${esc(c.municipio)}, ${fechaDoc(hoy)}</p>
     <p>Señor(a)<br><b>Juez de la República (reparto)</b><br>${esc(c.municipio)}</p>
     <p><b>Referencia:</b> Acción de tutela${urgente ? ' con solicitud de medida provisional' : ''}<br><b>Accionante:</b> ${linea}, C.C. ${linea}<br><b>Accionada:</b> ${esc(c.entidad)}</p>
-    <p>Presento acción de tutela en nombre propio (artículo 10 del Decreto 2591 de 1991) para que se protejan mis derechos fundamentales.</p>
+    <p>${menor // [validar] representación legal del menor por el padre, la madre o quien lo tiene a cargo
+      ? `Presento acción de tutela en representación de mi hijo(a) menor de edad, ${linea} (nombre completo y documento), para que se protejan sus derechos fundamentales (artículo 10 del Decreto 2591 de 1991).`
+      : 'Presento acción de tutela en nombre propio (artículo 10 del Decreto 2591 de 1991) para que se protejan mis derechos fundamentales.'}</p>
     <h3>Hechos</h3>${lista(hechos)}
     <h3>Derechos vulnerados</h3><p>${esc(d.texto)}</p>
-    ${urgente ? `<h3>Medida provisional</h3><p>Pido que, mientras decide esta tutela, ordene de inmediato a ${esc(c.entidad)} que ${esc(pretension)}, porque esperar el fallo pone en grave riesgo ${salud ? 'mi vida y mi salud' : 'mis derechos'} (artículo 7 del Decreto 2591 de 1991).</p>` : ''}
+    ${urgente ? `<h3>Medida provisional</h3><p>Pido que, mientras decide esta tutela, ordene de inmediato a ${esc(c.entidad)} que ${esc(pretension)}, porque esperar el fallo pone en grave riesgo ${salud ? (menor ? 'la vida y la salud de mi hijo(a)' : 'mi vida y mi salud') : derechos} (artículo 7 del Decreto 2591 de 1991).</p>` : ''}
     <h3>Pretensiones</h3>${lista([
-      'Proteger mis derechos fundamentales.',
+      `Proteger ${derechos}.`,
       `Ordenar a ${c.entidad} que, dentro de las 48 horas siguientes a la notificación del fallo, ${pretension}.`,
       // [validar] el tratamiento integral se concede cuando hay diagnóstico y la EPS ha puesto barreras
-      salud && `Ordenar a ${c.entidad} que me brinde el tratamiento integral que mi médico tratante ordene para esta enfermedad, sin nuevas barreras.`,
+      salud && `Ordenar a ${c.entidad} que brinde el tratamiento integral que el médico tratante ordene para esta enfermedad, sin nuevas barreras.`,
     ].filter(Boolean))}
     <h3>Por qué procede la tutela</h3>${lista([
-      `No tengo otro medio de defensa judicial que proteja mis derechos con la rapidez que mi situación necesita${urgente ? ', y esperar me causaría un perjuicio irremediable' : ''} (artículo 6 del Decreto 2591 de 1991).`,
-      'La presento en un tiempo razonable: la vulneración de mis derechos continúa hoy.',
+      `No existe otro medio de defensa judicial que proteja ${derechos} con la rapidez que esta situación necesita${urgente ? ', y esperar causaría un perjuicio irremediable' : ''} (artículo 6 del Decreto 2591 de 1991).`,
+      `La presento en un tiempo razonable: la vulneración de ${derechos} continúa hoy.`,
     ])}
     <h3>Pruebas</h3>${c.pruebas?.length ? `<p>Adjunto copia de:</p>${lista(c.pruebas)}` : `<p>No tengo documentos en este momento. Pido que se le solicite a ${esc(c.entidad)} la información de mi caso.</p>`}
     <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela por los mismos hechos.</p>

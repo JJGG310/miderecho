@@ -82,21 +82,22 @@ const pintarVoz = () => $('#btn-voz').setAttribute('aria-pressed', modoVoz);
 const cod = new TextEncoder(), decod = new TextDecoder();
 const b64 = u8 => btoa(String.fromCharCode(...u8));
 const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-async function derivar(pin) {
+async function derivar(pin, sal) {
   const base = await crypto.subtle.importKey('raw', cod.encode(pin), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: sal, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
 async function guardar() {
+  if (!clave) throw new Error('App bloqueada: no se guarda nada');
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, clave, cod.encode(JSON.stringify(casos))));
   localStorage.setItem(KEY, JSON.stringify({ salt: b64(salt), iv: b64(iv), ct: b64(ct) }));
 }
+// Con una clave errada decrypt falla y no se toca nada: la app sigue bloqueada y nadie puede recifrar los casos con esa clave.
 async function abrir(pin) {
-  const s = JSON.parse(localStorage.getItem(KEY));
-  salt = deB64(s.salt);
-  clave = await derivar(pin);
-  casos = JSON.parse(decod.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(s.iv) }, clave, deB64(s.ct))));
-  casos.forEach(c => { c.tipo ||= 'peticion'; });   // casos guardados antes de que hubiera varios documentos
+  const s = JSON.parse(localStorage.getItem(KEY)), sal = deB64(s.salt), k = await derivar(pin, sal);
+  const leidos = JSON.parse(decod.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(s.iv) }, k, deB64(s.ct))));
+  leidos.forEach(c => { c.tipo ||= 'peticion'; });   // casos guardados antes de que hubiera varios documentos
+  salt = sal; clave = k; casos = leidos;
 }
 
 // ---------- pantallas ----------
@@ -143,7 +144,7 @@ formularios.pin = async ({ pin, pin2 }) => {
     if (!localStorage.getItem(KEY)) {
       if (pin !== pin2) return aviso('Las claves no son iguales');
       salt = crypto.getRandomValues(new Uint8Array(16));
-      clave = await derivar(pin);
+      clave = await derivar(pin, salt);
       casos = [];
       await guardar();
     } else await abrir(pin);
@@ -152,16 +153,19 @@ formularios.pin = async ({ pin, pin2 }) => {
   } catch { aviso('Clave incorrecta'); }
 };
 acciones.pin = () => pantallaPin();
+// Descarta el borrador y el documento, que pueden tener nombre, cédula o datos de salud.
+const olvidar = () => { caso = null; docActual = ''; $('#imprimir').innerHTML = ''; };
+addEventListener('afterprint', () => { $('#imprimir').innerHTML = ''; });
 acciones.bloquear = () => {
-  clave = null; casos = []; caso = null; docActual = ''; $('#imprimir').innerHTML = '';
+  clave = null; casos = []; olvidar();
   window.speechSynthesis?.cancel();
   pantallaPin();
 };
 
 // ---------- inicio ----------
-const necesitaAtencion = (c, h) => (c.venc && deIso(c.venc) < h) || c.estado === 'negada' || c.estado === 'por_recurrir';
+const necesitaAtencion = (c, h) => (c.venc && deIso(c.venc) < h) || !!c.limite || c.estado === 'negada' || c.estado === 'por_recurrir';
 function inicio() {
-  caso = null;
+  olvidar();
   const abiertos = casos.filter(c => c.estado !== 'cerrado');
   const atencion = abiertos.filter(c => necesitaAtencion(c, hoy())).length;
   pantalla(NOMBRE, '<p>¿Qué necesita hoy?</p>', [
@@ -169,7 +173,7 @@ function inicio() {
     { txt: 'Me niegan la salud', sub: 'La EPS no me da la cita, el medicamento o la cirugía', icono: '🏥', accion: 'nuevo', val: 'tutela_salud', clase: 'grande' },
     { txt: 'Me cobraron mal el agua o la luz', sub: 'También si le cortaron el servicio o hay un daño', icono: '💡', accion: 'nuevo', val: 'servicios_publicos', clase: 'grande' },
     { txt: 'No me respetan otro derecho', sub: 'La pensión o ayuda con que vive, la escuela, una decisión sin escucharlo', icono: '⚖️', accion: 'nuevo', val: 'tutela', clase: 'grande' },
-    { txt: `Mis casos (${abiertos.length})`, sub: atencion ? `${atencion} necesitan atención: revise qué sigue` : 'Plazos y qué sigue', icono: '⏰', accion: 'casos', clase: atencion ? 'sugerida' : '' },
+    { txt: `Mis casos (${abiertos.length})`, sub: atencion ? `${atencion === 1 ? '1 necesita' : `${atencion} necesitan`} atención: revise qué sigue` : 'Plazos y qué sigue', icono: '⏰', accion: 'casos', clase: atencion ? 'sugerida' : '' },
     { txt: '¿Su carta venta lo hace dueño?', sub: 'Qué vale su papel y cómo formalizar', icono: '🏡', accion: 'carta' },
     { txt: 'Cómo funciona', icono: '❓', accion: 'como' },
   ], atencion ? 'alerta' : 'reposo');
@@ -185,6 +189,7 @@ function siguiente() {
     [!c.para, pasoPara],
     [!c.acepto, pasoAviso],
     [!c.sinRiesgo, pasoRiesgo],
+    [tutela && !c.afectado, pasoAfectado],
     [t === 'peticion' && !c.temaId, () => elegirDe('¿De qué se trata?', 'temaId', TEMAS)],
     [!c.municipio || c.vereda == null, pasoMunicipio],
     [sp && !c.servicio, () => elegirDe('¿Qué servicio?', 'servicio', SERVICIOS)],
@@ -198,6 +203,7 @@ function siguiente() {
     [tutela && !c.sigue, pasoSigue],
     [tutela && !c.urgente, pasoUrgente],
     [tutela && c.pidio === 'no' && c.urgente === 'no' && !c.seguir, pasoPrimero],
+    [tutela && (LEJOS.includes(c.desde) || de(DERECHOS, c.derecho)?.otraVia) && !c.avisado, pasoAntes],
     [tutela && !c.pruebas, pasoPruebas],
     [(t === 'peticion' || sp) && !c.peticiones?.length, pasoPeticiones],
     [!tutela && !c.modo, pasoEntrega],
@@ -238,9 +244,10 @@ acciones.riesgo = v => {
 };
 
 function pasoMunicipio() {
+  const otro = caso.municipio && !MUNICIPIOS.some(m => m.nombre === caso.municipio) ? caso.municipio : '';
   pantalla('¿Dónde vive?', `<form data-form="municipio" class="form">
-    <label>Municipio<select name="municipio">${MUNICIPIOS.map(m => `<option ${m.nombre === caso.municipio ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}<option value="">Otro municipio</option></select></label>
-    <input name="otro" placeholder="Si es otro municipio, escríbalo aquí" aria-label="Otro municipio">
+    <label>Municipio<select name="municipio">${MUNICIPIOS.map(m => `<option ${m.nombre === caso.municipio ? 'selected' : ''}>${esc(m.nombre)}</option>`).join('')}<option value="" ${otro ? 'selected' : ''}>Otro municipio</option></select></label>
+    <input name="otro" value="${esc(otro)}" placeholder="Si es otro municipio, escríbalo aquí" aria-label="Otro municipio">
     <label>Vereda<input name="vereda" required value="${esc(caso.vereda)}" placeholder="Nombre de su vereda"></label>
     <button class="principal">Continuar</button></form>`);
 }
@@ -283,6 +290,25 @@ function formEntidad(titulo, etiqueta, { valor = '', ph = '', correo, cuenta } =
 formularios.entidad = ({ entidad, correo = '', cuenta = '' }) => { caso.entidad = entidad.trim(); caso.correo = correo.trim(); caso.cuenta = cuenta.trim(); siguiente(); };
 
 // ---------- preguntas de la tutela ----------
+// Legitimación (Decreto 2591, art. 10): la persona afectada o quien representa a un menor. [validar] agencia oficiosa para otros adultos.
+const pasoAfectado = () => pantalla('¿A quién le están negando el derecho?', '', [
+  { txt: caso.para === 'vecino' ? 'A mi vecino, que la va a firmar' : 'A mí', icono: '🙋', accion: 'dato', val: 'afectado:propio' },
+  { txt: 'A un hijo o hija menor de edad', sub: 'La firma el papá, la mamá o quien lo tiene a cargo', icono: '🧒', accion: 'dato', val: 'afectado:menor' },
+  { txt: 'A otra persona adulta', icono: '👥', accion: 'otraPersona' },
+]);
+acciones.otraPersona = () => { caso = null; pantalla('La tutela la presenta la persona afectada', EXPLICA.otraPersona, [{ txt: 'Volver al inicio', accion: 'inicio' }]); };
+const LEJOS = ['hace seis meses', 'hace más de un año'];
+acciones.explicarDemora = () => { caso.avisado = 'si'; acciones.cambiar(); };
+// Inmediatez y subsidiariedad en lenguaje claro antes de generar el documento.
+function pasoAntes() {
+  const d = de(DERECHOS, caso.derecho);
+  const lejos = LEJOS.includes(caso.desde);
+  pantalla('Antes de seguir', `${lejos ? EXPLICA.inmediatez : ''}${d.otraVia ? `<p>${d.otraVia}</p>` : ''}${EXPLICA.orientacion}`, [
+    ...(lejos ? [{ txt: 'Escribir por qué no la presenté antes', icono: '✏️', accion: 'explicarDemora' }] : []),
+    { txt: 'Seguir con la tutela', icono: '⚖️', accion: 'dato', val: 'avisado:si', clase: lejos ? '' : 'principal' },
+    { txt: 'Volver al inicio', accion: 'inicio' },
+  ]);
+}
 const pasoJuramento = () => pantalla('¿Ya presentó otra tutela por esto mismo?', `<p class="nota">${EXPLICA.juramento}</p>`, [
   { txt: 'No, es la primera', icono: '1️⃣', accion: 'dato', val: 'juramento:si' },
   { txt: 'Sí, ya presenté una', icono: '📂', accion: 'yaPresento' },
@@ -310,7 +336,7 @@ const pasoUrgente = () => pantalla(caso.tipo === 'tutela_salud' ? '¿Su vida o s
   { txt: 'No, puedo esperar', icono: '🕐', accion: 'dato', val: 'urgente:no' },
 ]);
 const pasoPrimero = () => pantalla(`Primero pídaselo a ${caso.entidad}`, EXPLICA.subsidiariedad, [
-  { txt: 'Hacer primero el derecho de petición', sub: 'Si no le responden o le dicen que no, la tutela queda más fuerte', icono: '📄', accion: 'peticionPrimero', clase: 'principal' },
+  { txt: 'Hacer primero el derecho de petición', sub: 'Así el juez ve que usted ya intentó resolverlo', icono: '📄', accion: 'peticionPrimero', clase: 'principal' },
   { txt: 'Seguir con la tutela de todos modos', icono: '⚖️', accion: 'dato', val: 'seguir:si' },
 ]);
 acciones.peticionPrimero = () => {
@@ -337,7 +363,7 @@ function hechosListos(c) {
 function pasoHechos() {
   const c = caso;
   if (c.tipo === 'recurso_servicios') return pantalla('¿Por qué no está de acuerdo con la respuesta?', `<form data-form="hechos" class="form">
-    <p class="nota">Tiene hasta el ${fechaLarga(deIso(c.venc))} para presentarlo.</p>
+    <p class="nota">Tiene hasta el ${fechaLarga(deIso(c.limite))} para presentarlo. ${EXPLICA.pagoRecurso}</p>
     ${checks('razon', RAZONES_RECURSO)}
     <label>Otra razón, con sus palabras (opcional)<textarea name="palabras" rows="3" maxlength="600">${esc(c.palabras)}</textarea></label>
     ${botonDictar('palabras')}<button class="principal">Continuar</button></form>`);
@@ -367,7 +393,7 @@ function pasoPeticiones() {
   caso.opciones = [...base.map(texto => ({ texto, tipo: 'general' })), ...(m ? [] : PETICIONES_EXTRA)];
   pantalla('¿Qué quiere que hagan?', `<form data-form="peticiones" class="form">
     ${checks('pet', caso.opciones.map(p => p.texto), base.length)}
-    <label>Otra cosa (opcional)<input name="otra" maxlength="200"></label>
+    <label>${caso.opciones.length ? 'Otra cosa (opcional)' : 'Escriba qué quiere que hagan'}<input name="otra" maxlength="200" ${caso.opciones.length ? '' : 'required'}></label>
     <button class="principal">Continuar</button></form>`);
 }
 formularios.peticiones = ({ otra }, fd) => {
@@ -426,9 +452,10 @@ acciones.imprimir = () => { $('#imprimir').innerHTML = docActual; window.print()
 // Guarda solo lo necesario para el seguimiento: sin nombre, cédula, vereda, hechos ni datos de salud.
 function guardarCaso(estado, rad) {
   const t = caso.tipo;
-  const c = { codigo: caso.codigo ||= nuevoCodigo(), tipo: t, temaId: caso.temaId, servicio: caso.servicio, derecho: caso.derecho,
+  const c = { codigo: caso.codigo ||= nuevoCodigo(), tipo: t, temaId: caso.temaId, servicio: caso.servicio, motivo: caso.motivo, derecho: caso.derecho,
     entidad: caso.entidad, correo: caso.correo, municipio: caso.municipio, modo: caso.modo, plazo: caso.plazo || TIPOS[t].plazo,
-    peticiones: caso.peticiones?.map(p => p.texto), sms: !!caso.telefono, estado };
+    peticiones: t === 'peticion' || t === 'servicios_publicos' ? caso.peticiones?.map(p => p.texto) : undefined,   // en tutelas pueden traer datos de salud
+    limite: caso.limite, sms: !!caso.telefono, estado };
   if (rad) fijarPlazo(c, rad);
   casos = casos.filter(x => x.codigo !== c.codigo);   // el recurso reemplaza al reclamo del que viene
   casos.push(c);
@@ -436,7 +463,7 @@ function guardarCaso(estado, rad) {
   guardar();
   return c;
 }
-const fijarPlazo = (c, rad, n = c.plazo) => { c.rad = iso(rad); c.venc = iso(sumarHabiles(rad, n)); };
+const fijarPlazo = (c, rad, n = c.plazo) => { c.rad = iso(rad); c.venc = iso(sumarHabiles(rad, n)); delete c.limite; };
 
 function resumenPlazo(c) {
   const rad = deIso(c.rad), venc = deIso(c.venc), tutela = esTutela(c);
@@ -464,7 +491,7 @@ acciones.pasoEntregada = () => {
   pedirFecha(esTutela(c) ? '¿Cuándo la presentó?' : `¿Cuándo ${l} entregó?`,
     esTutela(c) ? 'Guarde la constancia de recibido o el número del proceso: es su prueba.' : 'Guarde el sello de recibido o el número de radicado: es su prueba.',
     entregada,
-    caso ? [{ txt: esTutela(c) ? 'Todavía no la he presentado' : `Todavía no ${l} he entregado`, sub: `${l === 'la' ? 'La' : 'Lo'} guardamos y usted anota la fecha después`, icono: '⏳', accion: 'porEntregar' }] : []);
+    caso ? [{ txt: esTutela(c) ? 'Todavía no la he presentado' : `Todavía no ${l} he entregado`, sub: 'Le recordamos el caso, pero el documento no se guarda', icono: '⏳', accion: 'porEntregar' }] : []);
 };
 async function entregada(rad) {
   let c;
@@ -472,7 +499,13 @@ async function entregada(rad) {
   else { c = buscar(sel); c.estado = esTutela(c) ? 'presentada' : 'abierto'; fijarPlazo(c, rad); await guardar(); }
   pantalla('Listo, quedó anotado', resumenPlazo(c), [{ txt: 'Ver mis casos', icono: '⏰', accion: 'casos' }, { txt: 'Volver al inicio', accion: 'inicio' }]);
 }
-acciones.porEntregar = () => { guardarCaso('por_entregar', null); aviso('Quedó guardado. Anote la fecha cuando lo entregue.'); acciones.casos(); };
+acciones.porEntregar = () => {
+  guardarCaso('por_entregar', null);
+  pantalla('Quedó en Mis casos', '<p><b>Guarde o imprima el documento ahora: no lo guardamos.</b> Cuando lo entregue, anote la fecha en Mis casos.</p>', [
+    { txt: 'Imprimir o guardar en PDF', icono: '🖨️', accion: 'imprimir', clase: 'principal' },
+    { txt: 'Ver mis casos', icono: '⏰', accion: 'casos' },
+  ]);
+};
 
 // ---------- mis casos y seguimiento ----------
 // [texto del estado, botón, acción del botón]
@@ -480,19 +513,21 @@ function estadoCaso(c, h) {
   const venc = c.venc && deIso(c.venc), vencido = venc && venc < h, faltan = venc && habilesEntre(h, venc);
   switch (c.estado) {
     case 'en_cola': return ['En cola: se envía cuando haya internet'];
-    case 'por_entregar': return esTutela(c) ? ['Falta presentarla', 'Ya la presenté', 'yaEntregue'] : [`Falta entregar${lo(c)}`, `Ya ${lo(c)} entregué`, 'yaEntregue'];
+    case 'por_entregar': return esTutela(c) ? ['Falta presentarla', 'Ya la presenté', 'yaEntregue']
+      : [c.limite ? (deIso(c.limite) < h ? `Se venció el plazo para entregar${lo(c)} (${fechaCorta(deIso(c.limite))})` : `Urgente: entrégue${lo(c)} a más tardar el ${fechaLarga(deIso(c.limite))}`) : `Falta entregar${lo(c)}`,
+        `Ya ${lo(c)} entregué`, 'yaEntregue'];
     // [validar] en segunda instancia los 20 días cuentan desde que el juez recibe el expediente: la fecha es aproximada
     case 'presentada': case 'impugnada': return [vencido ? `El juez debía decidir hacia el ${fechaCorta(venc)}` : `El juez decide hacia el ${fechaCorta(venc)}`, '¿Qué decidió el juez?', 'fallo'];
     case 'negada': return [vencido ? `Se venció el plazo para impugnar (${fechaCorta(venc)})` : `Urgente: impugne a más tardar el ${fechaLarga(venc)}`, 'Preparar la impugnación', 'impugnar'];
     case 'por_recurrir': return [vencido ? `Se venció el plazo del recurso (${fechaCorta(venc)})` : `Urgente: presente el recurso a más tardar el ${fechaLarga(venc)}`, 'Preparar el recurso', 'recurso'];
-    case 'ganada': return ['Ganó la tutela', '¿Cumplieron? Vea qué sigue', 'cumplio'];
+    case 'ganada': return ['El juez le dio la razón', '¿Cumplieron? Vea qué sigue', 'cumplio'];
     case 'desacato': return [`Pidió el desacato el ${fechaCorta(deIso(c.rad))}`, '¿Cumplieron? Vea qué sigue', 'cumplio'];
     default: return [vencido ? `Plazo vencido el ${fechaCorta(venc)}` : faltan ? `Faltan ${faltan} días hábiles (vence el ${fechaCorta(venc)})` : 'Hoy vence el plazo',
       vencido ? '¿Le respondieron? Vea qué sigue' : 'Ya me respondieron', 'respuesta'];
   }
 }
 acciones.casos = () => {
-  caso = null;
+  olvidar();
   const h = hoy();
   const items = casos.map(c => {
     const t = c.tipo === 'peticion' ? tema(c.temaId) : TIPOS[c.tipo], [estado, boton, accion] = estadoCaso(c, h), atencion = necesitaAtencion(c, h);
@@ -518,7 +553,7 @@ acciones.respuesta = cod => {
   pantalla(`¿Le llegó respuesta de ${c.entidad}?`,
     vencido ? '<p>El plazo ya venció. Cuéntenos qué pasó y le decimos qué sigue.</p>' : `<p>Todavía están en plazo hasta el ${fechaLarga(deIso(c.venc))}.</p>`, esServicio(c) ? [
     { txt: 'Sí, y me dieron la razón', icono: '🎉', accion: 'cerrar' },
-    { txt: 'Sí, pero me lo negaron', sub: c.tipo === 'recurso_servicios' ? 'Su apelación pasa a la Superservicios' : `Tiene ${TIPOS.recurso_servicios.presentar} días hábiles para presentar un recurso`, icono: '✋', accion: 'spNegado' },
+    { txt: 'Sí, pero me lo negaron', sub: c.tipo === 'recurso_servicios' ? 'Su apelación pasa a la Superservicios' : de(MOTIVOS_SP, c.motivo)?.recurso ? `Tiene ${TIPOS.recurso_servicios.presentar} días hábiles para presentar un recurso` : '', icono: '✋', accion: 'spNegado' },
     ultima,
   ] : [
     { txt: 'Sí, y resolvió lo que pedí', icono: '🎉', accion: 'cerrar' },
@@ -533,7 +568,7 @@ acciones.cerrar = async () => {
   pantalla('Caso cerrado', '<p>Lo borramos de este celular. Si vuelve a necesitar algo, aquí estamos.</p>', [{ txt: 'Volver al inicio', accion: 'inicio' }], 'exito');
 };
 acciones.negada = () => pantalla('La entidad sí cumplió con responder',
-  '<p>Si le respondieron de fondo, aunque la respuesta sea un no, la entidad cumplió con el derecho de petición. Una tutela por este motivo probablemente sería negada.</p><p>Si no está de acuerdo con la decisión, puede presentar recursos contra ella. Pida orientación gratis en un consultorio jurídico o en la Personería.</p>',
+  '<p>Si le respondieron de fondo, aunque la respuesta sea un no, la entidad cumplió con el derecho de petición. En ese caso la tutela por falta de respuesta no es el camino.</p><p>Si no está de acuerdo con la decisión, puede presentar recursos contra ella. Pida orientación gratis en un consultorio jurídico o en la Personería.</p>',
   [{ txt: 'Cerrar y borrar el caso', accion: 'cerrar' }, { txt: 'Volver a mis casos', accion: 'casos' }]);
 acciones.sinRespuesta = () => {
   if (buscar(sel).modo === 'envio') return siguientesPasos();
@@ -593,7 +628,7 @@ acciones.falloSi = () => pedirFecha('¿Qué día le notificaron el fallo?', null
   Object.assign(c, { estado: 'ganada', rad: iso(f) });
   delete c.venc;
   await guardar();
-  pantalla('¡Ganó la tutela!', llenar(EXPLICA.ganada, { entidad: esc(c.entidad) }), [
+  pantalla('El juez le dio la razón', llenar(EXPLICA.ganada, { entidad: esc(c.entidad) }), [
     { txt: 'Ya cumplieron', icono: '🎉', accion: 'cerrar' },
     { txt: 'No han cumplido: pedir el desacato', icono: '🔔', accion: 'desacato' },
     { txt: 'Volver a mis casos', accion: 'casos' },
@@ -669,13 +704,14 @@ acciones.anotar = estado => pedirFecha(estado === 'impugnada' ? '¿Cuándo prese
 });
 
 // ---------- seguimiento de servicios públicos: silencio positivo y recurso ----------
-acciones.silencio = () => pantalla('Ganó por silencio administrativo positivo', llenar(EXPLICA.silencio, { entidad: esc(buscar(sel).entidad) }), [
+acciones.silencio = () => pantalla('La ley entiende que la empresa le dio la razón', llenar(EXPLICA.silencio, { entidad: esc(buscar(sel).entidad) }), [
   { txt: 'Ya lo reconocieron: cerrar el caso', icono: '🎉', accion: 'cerrar' },
   { txt: 'Volver a mis casos', accion: 'casos' },
 ], 'exito');
 acciones.spNegado = () => {
-  if (buscar(sel).tipo === 'recurso_servicios') return pantalla('Su apelación pasa a la Superservicios', EXPLICA.apelacion,
-    [{ txt: 'Cerrar y borrar el caso', accion: 'cerrar' }, { txt: 'Volver a mis casos', accion: 'casos' }]);
+  const cerrarOVolver = [{ txt: 'Cerrar y borrar el caso', accion: 'cerrar' }, { txt: 'Volver a mis casos', accion: 'casos' }];
+  if (buscar(sel).tipo === 'recurso_servicios') return pantalla('Su apelación pasa a la Superservicios', EXPLICA.apelacion, cerrarOVolver);
+  if (!de(MOTIVOS_SP, buscar(sel).motivo)?.recurso) return pantalla('Para este reclamo no hay recurso ante la empresa', EXPLICA.sinRecurso, cerrarOVolver);
   pedirFecha('¿Qué día le notificaron la respuesta?', `Desde ese día tiene solo ${TIPOS.recurso_servicios.presentar} días hábiles para presentar el recurso.`, async f => {
     const c = buscar(sel);
     c.estado = 'por_recurrir';
@@ -691,7 +727,7 @@ acciones.recurso = cod => {
   if (deIso(c.venc) < hoy()) return pantalla('Se venció el plazo del recurso', EXPLICA.recursoVencido,
     [{ txt: 'Cerrar y borrar el caso', accion: 'cerrar' }, { txt: 'Volver a mis casos', accion: 'casos' }]);
   caso = { tipo: 'recurso_servicios', para: 'mi', acepto: 'si', sinRiesgo: 'si', codigo: c.codigo, municipio: c.municipio,
-    entidad: c.entidad, correo: c.correo, servicio: c.servicio, notif: c.rad, venc: c.venc };
+    entidad: c.entidad, correo: c.correo, servicio: c.servicio, notif: c.rad, limite: c.venc };
   siguiente();
 };
 
@@ -736,16 +772,17 @@ acciones.borrar = () => pantalla('¿Borrar todo?', '<p>Se borran todos los casos
 ]);
 acciones.borrarSi = () => {
   localStorage.removeItem(KEY);
-  clave = null; casos = []; caso = null;
+  clave = null; casos = []; olvidar();
   pantalla('Se borró todo', '<p>Ya no queda ningún caso en este celular. Si usó WhatsApp o SMS para este caso, borre también esos mensajes.</p>', [{ txt: 'Empezar de nuevo', accion: 'pin' }]);
 };
 
 // ---------- interfaz para el agente de voz (CONTRATOS.md, sección 1) ----------
 // tema según el documento: petición → TEMAS, servicios → SERVICIOS, tutela → DERECHOS del menú, tutela de salud → SALUD_NIEGA.
 const TEMA_DE = { peticion: ['temaId', TEMAS], servicios_publicos: ['servicio', SERVICIOS], tutela: ['derecho', DERECHOS.filter(d => d.icono)], tutela_salud: ['que', SALUD_NIEGA] };
-function iniciarCaso(datos = {}) {
+function iniciarCaso(datos) {
+  datos ??= {};
   const tipo = datos.tipo === 'tutela' && datos.tema === 'salud' ? 'tutela_salud' : datos.tipo || caso?.tipo || 'peticion';
-  if (!TEMA_DE[tipo]) return clave ? acciones.casos() : pantallaPin();   // impugnación, desacato y recurso siguen desde Mis casos
+  if (!Object.hasOwn(TEMA_DE, tipo)) return clave ? acciones.casos() : pantallaPin();   // impugnación, desacato y recurso siguen desde Mis casos
   if (caso?.tipo !== tipo) caso = { tipo, derecho: tipo === 'tutela_salud' ? 'salud' : undefined };   // otro documento: caso nuevo
   const [campo, lista] = TEMA_DE[tipo];
   if (lista.some(x => x.id === datos.tema)) caso[campo] = datos.tema;
@@ -754,8 +791,9 @@ function iniciarCaso(datos = {}) {
   const k = norm(datos.entidad), entidad = { alcaldia: municipio ? `Alcaldía de ${municipio}` : '', eps: '', ant: 'Agencia Nacional de Tierras (ANT)' }[k] ?? datos.entidad;
   const correo = datos.correo || (k === 'alcaldia' ? MUNICIPIOS.find(x => x.nombre === municipio)?.correo : undefined);
   const nuevos = { municipio: m?.nombre || datos.municipio, vereda: datos.vereda, entidad, correo, desde: datos.desde,
-    palabras: datos.palabras, detalle: datos.detalle, peticiones: datos.peticiones && [].concat(datos.peticiones).map(texto => ({ texto, tipo: 'general' })) };
-  for (const [k, v] of Object.entries(nuevos)) if (v != null && v !== '') caso[k] = typeof v === 'string' ? v.trim() : v;
+    palabras: datos.palabras, detalle: datos.detalle,
+    peticiones: datos.peticiones && !tipo.startsWith('tutela') ? [].concat(datos.peticiones).map(p => ({ texto: String(p?.texto ?? p).trim(), tipo: 'general' })).filter(p => p.texto) : undefined };
+  for (const [k, v] of Object.entries(nuevos)) if (v != null && v !== '' && !(Array.isArray(v) && !v.length)) caso[k] = typeof v === 'string' ? v.trim() : v;
   clave ? siguiente() : pantallaPin();
 }
 const opcionesVisibles = () => [...main.querySelectorAll('button:not(:disabled), label.check')]
@@ -769,12 +807,14 @@ window.miderecho = {
       .map(el => el.matches('.doc') ? '[Aquí está el documento. No se comparte con el asistente para proteger sus datos.]' : el.innerText).join('\n');
     return { id: norm(titulo).replace(/ /g, '-'), titulo, texto: texto.replace(/[ \t]+/g, ' ').trim(), opciones: opcionesVisibles().map(o => o.texto) };
   },
+  // Solo coincidencia exacta, sin importar mayúsculas, tildes ni espacios: nunca "parecida" (aviso de privacidad, riesgo).
   elegir(texto) {
-    const q = norm(texto), ops = opcionesVisibles();
-    const o = q && (ops.find(o => norm(o.texto) === q) || ops.find(o => norm(o.texto).includes(q)));
+    const q = norm(texto), o = q && opcionesVisibles().find(o => norm(o.texto) === q);
     o?.el.click();
     return !!o;
   },
+  // Amenaza a mitad del caso: descarta el borrador sin guardar nada y muestra la ayuda del protocolo de riesgo.
+  riesgo() { olvidar(); acciones.riesgo('si'); },
 };
 
 // ---------- sin internet ----------
