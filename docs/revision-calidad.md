@@ -71,16 +71,11 @@ Revisión de la versión actual ([captura](capturas/antes-politica-movil.jpg)):
 
 ## 5. Coordinación con buho-app
 
-Archivos de esta rama que también toca buho-app, y cómo quedan:
-
-- `apps/web/src/estilos.css`: esta rama cambia el bloque «Historieta» (unas 25 líneas) y `.fila-2`. buho-app agrega el bloque `.buho` y cambia `.burbuja.cargando`. Son zonas separadas por más de 15 líneas, así que la unión no debería chocar.
-- `apps/web/public/buho/{lupa,pensando,ley,documento}.webp`: son copias exactas, byte a byte, de los archivos de buho-app (incluido su `pensando.webp` recortado). Si buho-app los vuelve a editar antes de unir, hay que quedarse con su versión.
-- `Documento.jsx`: buho-app ya hizo commit (`a7516e5`) y cambia los imports, el menú y «Su documento está listo». Esta rama solo agrega una línea de import aparte y cambia `Opciones`. Con `git merge-file` contra ese commit, `Documento.jsx` y `estilos.css` se unen sin conflictos.
-- `Derecho.jsx`, `Consentimiento.jsx`, `App.jsx` y `contenido.js`: buho-app no los toca. Se le avisó por mensaje que esta rama se encarga de `Derecho.jsx`.
+buho-app ya está en main (`20f2a6a` y `385c4fa`), y main se unió a esta rama sin conflictos (`5813f64`). Después de la unión, `npm test` y el build pasan. Las historietas y «Crear un documento» se ven bien junto al búho de buho-app. `Politica.jsx` y las imágenes de `public/buho/` quedan exactamente como en main: esta rama no las cambia.
 
 ## 6. Verificación
 
 - `npm test` (raíz): todo pasa (núcleo, api, correo, avisos, llamadas, almacén y avisos web).
-- `npm run build -w apps/web`: pasa; el precache queda en 16 archivos, 598 KB.
+- `npm run build -w apps/web`: pasa; después de unir main, el precache queda en 23 archivos, 606 KB (incluye las 11 poses del búho).
 - En el navegador integrado, con la app local en 375 px y en escritorio, se revisaron los 6 temas de derechos, el formulario del derecho de petición hasta «Su documento está listo», «¿En peligro?» y el aviso de la IA con su enlace a la historieta. También se vio el mensaje de carga de la política. La consola quedó sin errores.
 - Para correr la app local con `preview_start` se agregó la configuración `web` (puerto 5181) en `.claude/launch.json`. Ese archivo está en `.gitignore`, así que no va en el commit.
