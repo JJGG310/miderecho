@@ -1,0 +1,70 @@
+/* Política de datos en historieta. Mismo estilo de las historietas del Figma: viñetas con barra verde numerada. */
+.pc { padding-bottom: 0; overflow-x: clip; }
+.pc-arriba { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pc-avance { display: flex; align-items: center; gap: 10px; flex: 1 1 100%; }
+.pc-arriba .pc-boton { flex: 1; }
+.pc-borrador { margin: 0; padding: 8px 12px; font-size: 14px; line-height: 18px; font-weight: 700; color: #6b4410; background: #f3e3c8; border: 1px dashed #a8743a; border-radius: 10px; }
+.pc-barra { flex: 1 1 120px; height: 10px; overflow: hidden; background: var(--papel); border: 1.5px solid var(--verde); border-radius: 99px; }
+.pc-barra span { display: block; height: 100%; background: var(--verde); transition: width .25s ease; }
+.pc-boton { min-height: 48px; }
+.pc-boton[aria-pressed="true"] { background: var(--verde); color: #fff; }
+
+.pc-vineta { background: var(--papel); border: 1.5px solid var(--verde); border-radius: var(--radio); overflow: hidden; touch-action: pan-y; }
+.pc-vineta h2 { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px; background: var(--verde); color: #fff; font-size: 18px; line-height: 22px; outline: none; }
+.pc-num { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; background: #fff; color: var(--verde); font-weight: 800; }
+.pc-escena { display: block; width: 100%; height: auto; max-height: 40vh; background: #fbefd9; border-bottom: 1.5px solid var(--verde); }
+.pc-escena.cielo { background: #e6f0ee; }
+.pc-escena.alerta { background: #fbe3e3; }
+
+.pc-globos { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 18px 14px 14px; list-style: none; }
+.pc-globo { position: relative; align-self: flex-start; max-width: 90%; padding: 10px 14px; background: #dde4d6; border: 1.5px solid var(--verde); border-radius: var(--radio); font-size: 17px; line-height: 23px; color: #000; }
+.pc-globo::before { content: ""; position: absolute; top: -8px; left: 22px; width: 13px; height: 13px; background: inherit; border: solid var(--verde); border-width: 1.5px 0 0 1.5px; transform: rotate(45deg); }
+.pc-globo.r { align-self: flex-end; background: #fff; border-color: #555; }
+.pc-globo.r::before { left: auto; right: 22px; border-color: #555; }
+.pc-lista { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 12px 14px; list-style: none; background: #fff; border: 1.5px dashed var(--verde); border-radius: var(--radio); font-size: 17px; line-height: 22px; }
+.pc-lista li { display: flex; gap: 8px; align-items: flex-start; }
+.pc-lista svg { flex: none; margin-top: 2px; color: var(--verde); }
+
+.pc-opciones { display: flex; flex-direction: column; gap: 12px; padding: 0 14px 14px; }
+.pc-op { min-height: 60px; padding: 12px 16px; text-align: left; font-size: 18px; font-weight: 700; background: #fff; border: 2px solid var(--verde); border-radius: 12px; }
+.pc-op.bien { background: #dde4d6; }
+.pc-op.mal { border-color: #b23b3b; background: #fbe3e3; }
+.pc-op.bien::after { content: " ✓"; }
+.pc-op.mal::after { content: " ✗"; color: #b23b3b; }
+.pc-respuesta { scroll-margin-bottom: 100px; margin: 0 14px 14px; padding: 10px 14px; font-size: 16px; line-height: 21px; font-weight: 700; color: var(--verde); background: #dde4d6; border-radius: 10px; }
+.pc-respuesta.mal { color: #8f2a2a; background: #fbe3e3; }
+.pc-respuesta:empty { display: none; }
+
+.pc-fin { display: flex; flex-direction: column; gap: 12px; }
+.pc-fin button, .pc-nav button { min-height: 56px; font-size: 17px; }
+.pc-nav { position: sticky; bottom: 0; display: flex; gap: 12px; margin: 0 -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--fondo); border-top: 1px solid var(--borde); }
+.pc-nav button { flex: 1; }
+.pc-nav button:disabled { opacity: .45; }
+
+.pc-politica { display: flex; flex-direction: column; gap: 10px; }
+.pc-politica details { padding: 0; }
+.pc-politica summary { min-height: 52px; padding: 14px 17px; font-size: 16px; font-weight: 700; line-height: 22px; color: var(--texto-fuerte); cursor: pointer; }
+.pc-politica details[open] summary { border-bottom: 1px solid var(--borde); }
+.pc-politica details > div { padding: 4px 17px 12px; overflow-wrap: anywhere; }
+.pc-politica ul, .pc-politica ol { padding-left: 20px; }
+.pc-politica li { margin-bottom: 6px; }
+
+.pc-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* El asistente: mismos estados que en el prototipo (reposo, hablando, alerta, exito). */
+.pc-asis .pc-flota { animation: pc-flotar 3s ease-in-out infinite; }
+.pc-asis .pc-ojos { transform-box: fill-box; transform-origin: center; animation: pc-parpadeo 4s infinite; }
+.pc-asis .pc-boca-abierta, .pc-asis .pc-signo { display: none; }
+.pc-escena[data-estado="hablando"] .pc-boca { display: none; }
+.pc-escena[data-estado="hablando"] .pc-boca-abierta { display: inline; transform-box: fill-box; transform-origin: center; animation: pc-hablar .28s ease-in-out infinite alternate; }
+.pc-escena[data-estado="alerta"] .pc-signo { display: inline; }
+.pc-escena[data-estado="alerta"] .pc-flota { transform-box: fill-box; transform-origin: center; animation: pc-alerta .6s ease-in-out 3; }
+.pc-escena[data-estado="exito"] .pc-flota { transform-box: fill-box; transform-origin: bottom; animation: pc-saltar .5s ease 3; }
+.pc-entra { animation: pc-entra .25s ease-out; }
+@keyframes pc-flotar { 50% { transform: translateY(-3px); } }
+@keyframes pc-parpadeo { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+@keyframes pc-hablar { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
+@keyframes pc-alerta { 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+@keyframes pc-saltar { 50% { transform: translateY(-6px) scale(1.06); } }
+@keyframes pc-entra { from { opacity: .4; transform: translateX(var(--pc-dx)); } }
+/* estilos.css ya apaga animaciones y transiciones con prefers-reduced-motion. */

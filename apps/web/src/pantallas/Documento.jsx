@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, CheckCircle2, ChevronRight, ShieldCheck } from 'lucide-react';
 import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, sumarHabiles, iso } from '@miderecho/nucleo';
 import { Encabezado, Titulo, BotonVoz } from '../componentes/comunes.jsx';
+import EnvioCorreo from '../componentes/EnvioCorreo.jsx';
+import { ElegirAvisos } from '../componentes/Avisos.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir, memoria } from '../lib/ruta.js';
 
@@ -176,7 +178,8 @@ function Formulario({ tipo }) {
         )}
 
         <Campo etiqueta="¿Quieres agregar algo con tus palabras? (opcional)">
-          <textarea rows={3} value={c.palabras} onChange={e => set('palabras', e.target.value)} placeholder="Solo lo necesario. No escribas nombres de otras personas." />
+          <textarea rows={3} maxLength={1000} value={c.palabras} onChange={e => set('palabras', e.target.value)} placeholder="Solo lo necesario. No escribas nombres de otras personas." />
+          <small className="ayuda">{c.palabras.length} de 1.000 letras</small>
         </Campo>
 
 
@@ -213,7 +216,7 @@ function DatosPersonales({ tipo, valores: p, cambiar, volver, listo }) {
       <section className="tarjeta oliva">
         <ShieldCheck size={20} aria-hidden />
         <h2>Por qué te los pedimos ahora</h2>
-        <p className="suave">Para que el documento sea válido, {quien} debe saber quién lo presenta y dónde responderte. Estos datos solo van en el papel: <b>no se envían a la inteligencia artificial ni a ningún servidor, y no se guardan en este celular.</b></p>
+        <p className="suave">Para que el documento sea válido, {quien} debe saber quién lo presenta y dónde responderte. Estos datos solo van en el papel: <b>no se envían a la inteligencia artificial ni a ningún servidor (salvo que pidas que enviemos el documento por correo), y no se guardan en este celular.</b></p>
       </section>
 
       <form className="formulario" onSubmit={e => { e.preventDefault(); if (ok) listo(); }}>
@@ -252,23 +255,32 @@ function Campo({ etiqueta, children }) {
 }
 
 // Vista previa, lectura en voz alta, imprimir o guardar en PDF, y anotar en Mis casos.
-function Vista({ tipo, datos, volver, caso }) {
+function Vista({ tipo, datos: base, volver, caso }) {
+  // Al abrir el envío por correo, el documento pasa a como se envía (sin firma a mano ni anexos, con la entidad del directorio).
+  const [porCorreo, setPorCorreo] = useState(null);
+  const datos = useMemo(() => (porCorreo ? { ...base, ...porCorreo } : base), [base, porCorreo]);
   const html = useMemo(() => generarDocumento(tipo, datos), [tipo, datos]);
-  const [guardado, setGuardado] = useState(false);
+  const [guardado, setGuardado] = useState(null);   // el caso guardado: ofrece los avisos del plazo
+  // "Lo entregué" y el envío por correo actualizan el mismo caso; un documento de otro tipo (la tutela de una petición) es un caso nuevo.
+  const [id] = useState(() => (base.tipo === tipo && base.id) || crypto.randomUUID?.() || String(Date.now()));
   const t = TIPOS[tipo];
   const texto = () => new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/_{3,}/g, ' espacio en blanco ');
 
-  const entregar = () => {
+  const entregar = (extra = {}) => {
     const hoy = new Date();
-    almacen.guardarCaso({
-      id: crypto.randomUUID?.() || String(Date.now()),
+    // Se mezcla con el caso ya guardado para no perder sus avisos (tokens) ni su código.
+    const previo = almacen.casos().find(c => c.id === id) || {};
+    const nuevo = {
+      ...previo,
+      id,
       tipo, titulo: t.titulo, icono: t.icono,
       entidad: datos.entidad, municipio: datos.municipio, vereda: datos.vereda,
       rad: iso(hoy), venc: t.plazo ? iso(sumarHabiles(hoy, t.plazo)) : null, plazo: t.plazo || null,
       // Solo los textos de plantilla de lo que pidió: sirven para la tutela si no responden.
-      peticiones: (datos.peticiones || []).map(p => p.texto), modo: 'mano', estado: 'esperando',
-    });
-    setGuardado(true);
+      peticiones: (datos.peticiones || []).map(p => p.texto ?? p), modo: 'mano', estado: 'esperando', ...extra,
+    };
+    almacen.guardarCaso(nuevo);
+    setGuardado(nuevo);
   };
 
   return (
@@ -282,9 +294,14 @@ function Vista({ tipo, datos, volver, caso }) {
       <div className="doc-papel" dangerouslySetInnerHTML={{ __html: html }} />
       <div className="acciones-doc">
         <button className="btn-secundario" onClick={() => window.print()}><Printer size={18} aria-hidden /> Imprimir o guardar PDF</button>
-        {!guardado && !caso && <button className="btn-primario" onClick={entregar}><CheckCircle2 size={18} aria-hidden /> Lo entregué hoy: avísame el plazo</button>}
+        {!guardado && !caso && <button className="btn-primario" onClick={() => entregar()}><CheckCircle2 size={18} aria-hidden /> Lo entregué hoy: avísame el plazo</button>}
         {guardado && <button className="btn-primario" onClick={() => ir('casos')}>Ver en Mis casos</button>}
+        <EnvioCorreo tipo={tipo} datos={datos} alAbrir={setPorCorreo} alEnviar={k => {
+          entregar({ modo: 'envio', envios: [k] });
+          if (caso && memoria.caso) almacen.guardarCaso({ ...memoria.caso, estado: 'tutela' });   // la petición queda, marcada
+        }} />
       </div>
+      {guardado?.venc && <ElegirAvisos caso={guardado} />}
       <section className="tarjeta tierra">
         <h2>Cómo entregarlo</h2>
         <p className="suave">{tipo.startsWith('tutela')

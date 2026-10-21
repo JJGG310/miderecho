@@ -10,7 +10,9 @@ const pie = `<p class="pie">Documento preparado con ${NOMBRE}. ${VERIFICADO}. No
 // Datos de la persona: si los dio en el paso "Tus datos para el documento" van impresos; si no, queda la línea para llenar a mano.
 const accionante = c => `${esc(c.nombre || linea)}, C.C. ${esc(c.cedula || linea)}`;
 const dondeRecibe = c => `${c.direccion ? esc(c.direccion) : `Vereda ${esc(c.vereda)}, ${esc(c.municipio)}`}. Teléfono: ${esc(c.telefono || linea)}`;
-const firmaJudicial = c => `<p class="firma">${linea}<br>Firma<br>${c.nombre ? `${esc(c.nombre)}<br>` : ''}C.C. ${esc(c.cedula || linea)}</p>`;
+// porCorreo: el documento se envía por correo desde la app (prototipo/api/correo.js): no lleva firma a mano ni anexos. [validar]
+const firmaJudicial = c => `<p class="firma">${c.porCorreo ? 'Sin firma manuscrita (Ley 2213 de 2022, art. 2)' : `${linea}<br>Firma`}<br>${c.nombre ? `${esc(c.nombre)}<br>` : ''}C.C. ${esc(c.cedula || linea)}</p>`;
+const aportare = 'y los aportaré cuando el juzgado lo solicite.';
 const lista = xs => `<ol>${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ol>`;
 const de = (xs, id) => xs.find(x => x.id === id);
 const derecho = id => de(DERECHOS, id) || de(DERECHOS, 'otro_derecho');
@@ -79,7 +81,7 @@ function docTutelaPeticion(c) {
       <li>El plazo de ${c.plazo} días hábiles del artículo 14 de la Ley 1755 de 2015 venció el ${fechaDoc(deIso(c.venc))}, y a la fecha no he recibido una respuesta de fondo.</li></ol>
     <h3>Derecho vulnerado</h3><p>Derecho fundamental de petición (artículo 23 de la Constitución Política y Ley 1755 de 2015).</p>
     <h3>Pretensión</h3><p>Que se ordene a ${esc(c.entidad)} dar una respuesta de fondo, clara, precisa y congruente a mi petición dentro de las 48 horas siguientes a la notificación del fallo.</p>
-    <h3>Pruebas</h3><p>Copia del derecho de petición y de la constancia de entrega${c.modo === 'envio' ? ' (correo electrónico de envío)' : ''}.</p>
+    <h3>Pruebas</h3><p>${c.porCorreo ? 'Tengo copia del' : 'Copia del'} derecho de petición y de la constancia de entrega${c.modo === 'envio' ? ' (correo electrónico de envío)' : ''}${c.porCorreo ? `, ${aportare}` : '.'}</p>
     <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela por los mismos hechos.</p>
     <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
     ${firmaJudicial(c)}
@@ -121,7 +123,7 @@ function docTutela(c, hoy) {
       `No existe otro medio de defensa judicial que proteja ${derechos} con la rapidez que esta situación necesita${urgente ? ', y esperar causaría un perjuicio irremediable' : ''} (artículo 6 del Decreto 2591 de 1991).`,
       `La presento en un tiempo razonable: la vulneración de ${derechos} continúa hoy.`,
     ])}
-    <h3>Pruebas</h3>${c.pruebas?.length ? `<p>Adjunto copia de:</p>${lista(c.pruebas)}` : `<p>No tengo documentos en este momento. Pido que se le solicite a ${esc(c.entidad)} la información de mi caso.</p>`}
+    <h3>Pruebas</h3>${c.pruebas?.length ? `<p>${c.porCorreo ? `Tengo copia de estos documentos ${aportare}` : 'Adjunto copia de:'}</p>${lista(c.pruebas)}` : `<p>No tengo documentos en este momento. Pido que se le solicite a ${esc(c.entidad)} la información de mi caso.</p>`}
     <h3>Juramento</h3><p>Bajo la gravedad del juramento manifiesto que no he presentado otra acción de tutela por los mismos hechos.</p>
     <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
     ${firmaJudicial(c)}
@@ -160,7 +162,7 @@ function docDesacato(c, hoy) {
       `Requerir a ${c.entidad} y a su superior para que cumplan el fallo de inmediato (artículo 27 del Decreto 2591 de 1991).`,
       'Abrir incidente de desacato contra el responsable de cumplir el fallo e imponer las sanciones del artículo 52 del Decreto 2591 de 1991.',
     ])}
-    <h3>Pruebas</h3><p>Copia del fallo de tutela.</p>
+    <h3>Pruebas</h3><p>${c.porCorreo ? `Tengo copia del fallo de tutela ${aportare}` : 'Copia del fallo de tutela.'}</p>
     <h3>Notificaciones</h3><p>${dondeRecibe(c)}</p>
     ${firmaJudicial(c)}
     ${pie}

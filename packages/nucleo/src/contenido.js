@@ -5,9 +5,9 @@ export const NOMBRE = 'MiDerecho';
 export const VERIFICADO = 'Plantilla en borrador, pendiente de validación jurídica';
 export const CORREO_SERVICIO = 'respuestas@miderecho.example'; // buzón del servicio (simulado)
 
-export const AVISO = `<p><b>${NOMBRE}</b> es un servicio gratuito que le ayuda a armar documentos como el derecho de petición, la tutela o un reclamo. Es información general y plantillas: <b>no somos abogados</b> ni reemplazamos a uno.</p>
-<p>No le vamos a pedir nada sensible (si es víctima, su etnia, sus creencias o a qué organización pertenece). Lo que cuente sobre su salud solo va en el documento y no se guarda. Solo si usted quiere que enviemos el documento le pediremos nombre y cédula, y se borran apenas se envía.</p>
-<p>Puede borrar todo cuando quiera con el botón <b>Borrar todo</b>. Responsable: [Organización], [contacto].</p>`;
+export const AVISO = `<p><b>${NOMBRE}</b> es un servicio gratuito de información y plantillas para armar documentos como el derecho de petición, la tutela o un reclamo. <b>No somos abogados</b> ni reemplazamos a uno.</p>
+<p>Lo que usted le cuenta al asistente lo lee Claude, una inteligencia artificial de la empresa Anthropic, en Estados Unidos. Antes intentamos quitar cédulas, teléfonos y correos, pero el filtro no atrapa todo: no escriba nombres, cédulas ni direcciones en el chat. No guardamos la conversación.</p>
+<p>Su nombre y su cédula se piden al crear el documento y solo van en el papel: no van a la inteligencia artificial ni se guardan. En este celular quedan sus casos y su historial, que pueden mostrar el tema de su caso, aunque sea de salud: póngale clave al celular o bórrelos con <b>Borrar todo</b>. Contarnos datos delicados (salud, etnia, si es víctima o a qué organización pertenece) es opcional. Responsable: [Organización], [contacto].</p>`;
 
 export const AYUDA_RIESGO = `<p>Aquí no vamos a guardar nada de lo que nos contó.</p>
 <ul>

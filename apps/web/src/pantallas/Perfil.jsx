@@ -3,6 +3,8 @@ import { Trash2, ShieldCheck } from 'lucide-react';
 import { AVISO, AYUDA_RIESGO } from '@miderecho/nucleo';
 import { Encabezado, BarraNav } from '../componentes/comunes.jsx';
 import { almacen } from '../lib/almacen.js';
+import { ir } from '../lib/ruta.js';
+import { cancelarTodo } from '../lib/avisos.js';   // cancela también los recordatorios del servidor y la suscripción push
 
 export default function Perfil() {
   const [modoVoz, setModoVoz] = useState(() => almacen.pref('modoVoz', false));
@@ -21,6 +23,7 @@ export default function Perfil() {
         <ShieldCheck size={20} aria-hidden />
         <h2>Tu privacidad</h2>
         <div className="suave aviso" dangerouslySetInnerHTML={{ __html: AVISO }} />
+        <button className="btn-secundario" onClick={() => ir('politica')}>Ver la política de datos en historieta</button>
       </section>
 
       <section className="tarjeta tierra">
@@ -28,7 +31,7 @@ export default function Perfil() {
         <div className="suave aviso" dangerouslySetInnerHTML={{ __html: AYUDA_RIESGO }} />
       </section>
 
-      <button className="btn-peligro" onClick={() => { almacen.borrarTodo(); setBorrado(true); setModoVoz(false); }}><Trash2 size={18} aria-hidden /> Borrar todo de este celular</button>
+      <button className="btn-peligro" onClick={() => { cancelarTodo(); almacen.borrarTodo(); setBorrado(true); setModoVoz(false); }}><Trash2 size={18} aria-hidden /> Borrar todo de este celular</button>
       {borrado && <p className="nota-privacidad" role="status">Listo. Borramos tus casos, tu historial y tus preferencias.</p>}
       <BarraNav actual="perfil" />
     </main>
