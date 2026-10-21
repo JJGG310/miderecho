@@ -1,5 +1,10 @@
-// POST /api/elevenlabs-sesion: entrega al navegador el token de UNA conversación con el agente de voz (agente-voz.js).
-// La clave vive solo en la variable de entorno ELEVENLABS_API_KEY de Vercel; sin ella responde 503 y la app sigue sin voz.
+// POST /api/elevenlabs-sesion: entrega al navegador el token de UNA conversación con el agente de voz
+// (apps/web/src/lib/agenteVoz.js). La clave vive solo en la variable de entorno ELEVENLABS_API_KEY de Vercel; sin ella
+// responde 503 y la app sigue sin voz.
+// POST /api/elevenlabs-sesion?herramienta=<nombre>: herramientas de servidor del agente telefónico (_herramientas.js),
+// con su propio secreto. Van en esta misma función para no sumar otra al límite de funciones del plan de Vercel.
+import { herramienta } from './_herramientas.js';
+
 const AGENTE = 'agent_8101m5dg7s5se9trrst6fjpvz52d';   // exige sesión firmada (enable_auth): sin este token no se puede abrir
 const POR_IP_HORA = 10;
 const pedidos = new Map();   // ip -> horas de sus últimos pedidos
@@ -23,6 +28,7 @@ export function dentroDelLimite(ip, ahora = Date.now()) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  if (req.query?.herramienta) return herramienta(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
   if (!mismoSitio(req.headers)) return res.status(403).json({ error: 'Solo desde MiDerecho' });
   const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'sin-ip';
