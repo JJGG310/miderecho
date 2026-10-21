@@ -20,9 +20,10 @@ export const cargarSDK = () => sdk ||= new Promise((ok, mal) => {
 
 // El agente exige sesión firmada: el token de cada conversación lo da prototipo/api/elevenlabs-sesion.js con la clave
 // del servidor. Sin ELEVENLABS_API_KEY responde 503 y el modo voz dice que no está disponible.
-// El servidor solo la entrega con la versión del aviso aceptado (si cambia el texto de ModoVoz.jsx, sube la versión).
+// El servidor solo la entrega con la versión vigente del aviso aceptado: si cambia el texto de ModoVoz.jsx, subir la
+// versión aquí y en prototipo/api/elevenlabs-sesion.js (la prueba _test-agente-avisos.mjs revisa que coincidan).
 // Solo en desarrollo, VITE_AGENTE_PRUEBAS (agente de pruebas: sin firma, solo localhost) permite probar sin la clave.
-export const AVISO_VOZ = 'voz-v2';
+export const AVISO_VOZ = 'voz-v3';   // v3: trato de usted y la IA del asistente según la que esté activa
 const PRUEBAS = import.meta.env?.DEV && import.meta.env.VITE_AGENTE_PRUEBAS;
 export async function pedirSesion() {
   if (PRUEBAS) return { agentId: PRUEBAS, connectionType: 'webrtc' };

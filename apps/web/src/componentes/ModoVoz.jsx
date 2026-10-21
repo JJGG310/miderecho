@@ -11,21 +11,21 @@ import './voz.css';
 // Lo puede escuchar sin internet, con la voz del celular.
 const AVISO = [
   'El asistente de voz es una máquina, no una persona, y no es abogado.',
-  'Para qué: solo para entender lo que te pasa, orientarte y ayudarte con tu documento.',
-  'Tu voz pasa por servicios externos para entenderla y contestarte: ElevenLabs, en Estados Unidos, con el modelo Gemini, de Google (también el de respaldo). Lo que entienda se lo pasa al asistente de MiDerecho, que usa Claude, de Anthropic, sin cédulas, teléfonos ni correos.',
-  'La app no guarda tu voz ni lo que digas, y el servicio está configurado para no grabarla ni guardarla. La voz no se usa para identificar a nadie.',
-  'No digas tu cédula, tu nombre ni tu dirección. Esos datos se escriben a mano en el documento.',
-  'Hablar de temas sensibles, como tu salud, si eres víctima o a qué grupo perteneces, es opcional: no tienes que responder.',
-  'Tienes derecho a conocer, actualizar y corregir tus datos, a pedir que los borremos y a retirar esta autorización.',
-  'Es opcional: puedes escribir en vez de hablar. Hablar gasta datos de internet.',
+  'Para qué: solo para entender lo que le pasa, orientarle y ayudarle con su documento.',
+  'Su voz pasa por servicios externos para entenderla y contestarle: ElevenLabs, en Estados Unidos, con el modelo Gemini, de Google (también el de respaldo). Lo que entienda se lo pasa al asistente de MiDerecho, que usa Claude (de Anthropic) o Gemini (de Google), según el que esté activo, sin cédulas, teléfonos ni correos.',
+  'La app no guarda su voz ni lo que diga, y el servicio está configurado para no grabarla ni guardarla. La voz no se usa para identificar a nadie.',
+  'No diga su cédula, su nombre ni su dirección. Esos datos se escriben a mano en el documento.',
+  'Hablar de temas sensibles, como su salud, si es víctima o a qué grupo pertenece, es opcional: no tiene que responder.',
+  'Usted tiene derecho a conocer, actualizar y corregir sus datos, a pedir que los borremos y a retirar esta autorización.',
+  'Es opcional: puede escribir en vez de hablar. Hablar gasta datos de internet.',
   `Responsable: ${RESPONSABLE} Llame o escriba al ${CONTACTO}.`,
 ];
 const AVISO_HABLADO = conContactoHablado(AVISO.join(' ')) + ' La política de datos completa está en el enlace de la pantalla.';
 const ERRORES = {
-  red: 'El asistente de voz necesita internet. Puedes seguir escribiendo.',
-  microfono: 'No pudimos usar el micrófono. Revisa que el navegador tenga permiso. Puedes seguir escribiendo.',
-  corte: 'Se cortó la conversación. Puedes intentar de nuevo o seguir escribiendo.',
-  general: 'El asistente de voz no está disponible ahora. Puedes seguir escribiendo.',
+  red: 'El asistente de voz necesita internet. Puede seguir escribiendo.',
+  microfono: 'No pudimos usar el micrófono. Revise que el navegador tenga permiso. Puede seguir escribiendo.',
+  corte: 'Se cortó la conversación. Puede intentar de nuevo o seguir escribiendo.',
+  general: 'El asistente de voz no está disponible ahora. Puede seguir escribiendo.',
 };
 
 // "Hablar en vez de escribir" en la pantalla del Asistente. Vive solo en esa pantalla: al salir de ella, al cerrar la app
@@ -125,7 +125,7 @@ export default function ModoVoz({ mensajes, respuesta, responder, marcarRiesgo, 
   return (
     <div className={`voz-barra ${modo === 'speaking' ? 'hablando' : ''}`}>
       <p aria-live="polite" ref={titulo} tabIndex={-1}>
-        {fase === 'conectando' ? 'Conectando…' : modo === 'speaking' ? 'El asistente está hablando…' : 'Te escucho. Habla cuando quieras.'}
+        {fase === 'conectando' ? 'Conectando…' : modo === 'speaking' ? 'El asistente está hablando…' : 'Le escucho. Hable cuando quiera.'}
       </p>
       <button className="voz-colgar" onClick={colgar}><PhoneOff size={18} aria-hidden /> Colgar</button>
     </div>
