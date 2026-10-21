@@ -1,0 +1,8 @@
+import { Config } from "@remotion/cli/config";
+
+Config.setRspack(true);
+Config.setVideoImageFormat("jpeg");
+Config.setOverwriteOutput(true);
+Config.setDefaultPremountInSeconds(2);
+// Las poses del búho se leen directo de identidad/ (sin copiarlas).
+Config.setPublicDir("../../identidad/buho");

@@ -1,0 +1,12 @@
+{
+  "name": "miderecho-presentacion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pptx": "node armar.mjs"
+  },
+  "dependencies": {
+    "jszip": "^3.10.2",
+    "pptxgenjs": "^4.0.1"
+  }
+}
