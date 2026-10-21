@@ -13,6 +13,8 @@ Estado al 21-oct-2026. Rama `claude/voz-v2-avisos-c14c86`. Complementa `docs/com
 | Herramientas del agente telefónico | `prototipo/api/_herramientas.js`, vía `/api/elevenlabs-sesion?herramienta=…` | `orientar`, `documento`, `plazo` y `aviso`, protegidas con secreto. Listas, sin registrar en ElevenLabs (`agente/telefono.md`, §5) |
 | Pruebas | `prototipo/api/_test-agente-avisos.mjs` | Avisos, herramientas de servidor y de cliente, en modo simulado y con Twilio falso |
 
+Preview probado: https://miderecho-324h9g4a9-jjgg310s-projects.vercel.app (sin claves: voz "no disponible", avisos simulados, herramientas cerradas con 503).
+
 ## 2. Reglas que cumple
 
 - **El agente no puede aceptar, borrar, enviar ni cerrar nada.** No existe herramienta para eso: el objeto de herramientas está congelado con dos acciones (se filtra por acción, no por el texto de un botón). El aviso de voz y la autorización del SMS los toca la persona.
@@ -86,7 +88,7 @@ curl -s https://<preview>/api/sms -H 'Content-Type: application/json' -d '{"plan
 1. **Enlazar `AvisoListo`** donde se muestra el documento terminado (`Documento.jsx`, vista "Tu documento", o en Mis casos): `<AvisoListo codigo={caso.codigo} />`. Los casos de la v2 todavía no tienen código: al guardar el caso, agregar `codigo` con el mismo generador del prototipo (`prototipo/app.js`, `nuevoCodigo`: 4 caracteres de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`). Es el mismo código que usan los recordatorios.
 2. **Opcional:** un botón en Inicio hacia `#/asistente/voz` para hablar desde el principio.
 3. **`/api/sms` y `/api/whatsapp` cambiaron de interfaz.** Si alguna otra pieza los llamaba con `{ telefono, texto }`, ahora recibe 400. Actualicé las líneas de `sms` y `whatsapp` de `prototipo/api/_test-api.mjs` (era de Comunicaciones) y la sección de `docs/comunicaciones.md` que habla de texto libre y `pdfUrl` queda desactualizada.
-4. **Límite de funciones de Vercel:** las herramientas del agente van dentro de `/api/elevenlabs-sesion` para no sumar otra función. En `main` hay 10 funciones; con `llamar.js` y `push.js` de la sesión de llamadas serían 12, el tope del plan Hobby.
+4. **Límite de funciones de Vercel:** las herramientas del agente van dentro de `/api/elevenlabs-sesion` para no sumar otra función. En `main` hay 10; con `correo.js`, `llamar.js` y `push.js` de las otras sesiones serían 13. El plan Hobby ha tenido un tope de 12 funciones por despliegue (no lo pude confirmar en la documentación actual): revisarlo en el primer despliegue con todo integrado. Si falla, `asistente.js`, `documento.js`, `plazo.js` y `salud.js` exportan la misma app de Express y se pueden unir en una.
 5. **Dominio del preview en el agente:** el agente principal solo abre desde los dominios de `agente/configuracion.json` (`acceso.dominios_permitidos`). Para probar la voz en un preview hay que agregar su alias fijo en ElevenLabs (Agent → Security → Allowlist) y tener `ELEVENLABS_API_KEY` en Preview.
 
 ## 8. Qué falta para usarlo en vivo
