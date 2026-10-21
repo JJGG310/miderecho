@@ -1,5 +1,5 @@
-// Correos de las entidades a las que MiDerecho envía documentos. Lo usan la app (para mostrar a dónde va) y /api/correo,
-// que solo envía a estas direcciones. Funciona en el navegador y en Node. verificado: false = no confirmado en una fuente oficial.
+// Correos de las entidades a las que MiDerecho envía documentos. Lo usan la app (para mostrar a dónde va) y /api/correo
+// (prototipo/api/correo.js), que solo envía a estas direcciones. verificado: false = no confirmado en una fuente oficial.
 import { MUNICIPIOS } from './contenido.js';
 
 // Alcaldías: correos publicados en su propio sitio web, revisados el 20-oct-2026 (investigacion/08, sección 3).

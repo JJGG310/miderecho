@@ -6,30 +6,36 @@ Fecha: 21-oct-2026. Hasta ahora "Envíenla por mí" era una simulación. Con est
 
 | Archivo | Qué hace |
 |---|---|
-| `prototipo/api/correo.js` | `POST /api/correo { tipo, datos, destino, copia? }`. Arma el documento en el servidor con `plantillas.js` y lo envía con Resend. Responde `{ ok, simulado, copia, constancia: { id, fecha, para, entidad } }` |
-| `prototipo/directorio.js` | Correos de las 15 alcaldías, de los juzgados de los 15 municipios y de la ANT, con la fuente y `verificado`. Funciona en el navegador y en Node |
-| `prototipo/app.js` | Flujo de entrega: envío real, opción "Envíenla al juzgado por correo", cola sin internet y constancia en Mis casos |
-| `prototipo/api/_test-correo.mjs` | Pruebas sin cuentas reales: `node prototipo/api/_test-correo.mjs` |
+| `prototipo/api/correo.js` | Función de Vercel `POST /api/correo { tipo, datos, destino, copia? }`. Arma el documento en el servidor con `generarDocumento` de `@miderecho/nucleo` (la misma plantilla que ve la persona) y lo envía con Resend. Responde `{ ok, simulado, copia, constancia: { id, fecha, para, entidad } }` |
+| `packages/nucleo/src/directorio.js` | Correos de las 15 alcaldías, de los juzgados de los 15 municipios y de la ANT, con fuente y `verificado`. Se exporta desde `@miderecho/nucleo` como el resto del núcleo |
+| `apps/web/src/componentes/EnvioCorreo.jsx` | Botón y panel de envío ("Envíenlo por mí por correo" o "Envíenla al juzgado por correo"), cola sin conexión y constancia |
+| `apps/web/src/pantallas/Documento.jsx`, `MisCasos.jsx` | Cambios mínimos: el panel va en la vista del documento y la constancia en cada caso |
+| `prototipo/api/_test-correo.mjs` | Pruebas sin cuentas reales: `node prototipo/api/_test-correo.mjs` (no está en `npm test`) |
 
-**Por qué Resend:** API REST simple (un `fetch`, sin SDK ni dependencias), plan gratis suficiente para el piloto, verificación de dominio con SPF y DKIM, llave de idempotencia para no enviar dos veces el mismo documento y, si se necesita, buzones de entrada para recibir las respuestas (sección 7).
+**Por qué Resend:** API REST simple (un `fetch`, sin SDK ni dependencias), plan gratis suficiente para el piloto, verificación de dominio con SPF y DKIM, y llave de idempotencia para no enviar dos veces el mismo documento.
 
 ## 2. Qué se envía y a quién
 
+En la vista del documento (`Documento.jsx`, después de "Tus datos para el documento"):
+
 | Documento | Botón | Va a |
 |---|---|---|
-| Derecho de petición | Envíenla por mí | La alcaldía del municipio o la ANT (directorio). A otra entidad, al correo que escribió la persona, sin verificar |
-| Reclamo y recurso de servicios públicos | Envíenlo por mí | El correo de la empresa que escribió la persona (sin verificar: no hay empresas en el directorio) |
-| Tutela de salud y tutela general | Envíenla al juzgado por correo | El juzgado que recibe tutelas en el municipio: la oficina de reparto si existe, si no el juzgado municipal |
-| Tutela por petición no respondida (Mis casos) | Envíenla al juzgado por correo | Igual que la tutela |
-| Impugnación y desacato (Mis casos) | Envíenla al juzgado por correo | El juzgado que decidió la tutela. Donde hay varios (El Carmen de Bolívar, Chaparral, San José del Guaviare), la persona lo escoge |
+| Derecho de petición | Envíenlo por mí por correo | La alcaldía del municipio o la ANT (directorio). A otra entidad (EPS, por ejemplo), al correo que escriba la persona, sin verificar |
+| Reclamo de servicios públicos | Envíenlo por mí por correo | El correo de la empresa que escriba la persona (sin verificar: no hay empresas en el directorio) |
+| Tutela de salud y tutela | Envíenla al juzgado por correo | El juzgado que recibe tutelas en el municipio: la oficina de reparto si existe, si no el juzgado municipal. Fuera de los 15 municipios no aparece el botón |
+| Tutela por petición no respondida (desde Mis casos) | Envíenla al juzgado por correo | Igual que la tutela. Conserva el código y la constancia de la petición |
 
-- **La persona siempre ve a qué entidad y a qué correo va**, antes de dar sus datos y antes de enviar. Si el correo no está verificado con una fuente oficial, la app lo dice.
-- **Autorización expresa:** casilla obligatoria "Autorizo a MiDerecho a enviar este documento en mi nombre…". Copia a su correo: campo opcional y una casilla aparte.
-- **El correo lleva**, arriba del documento, una carta corta: quién presenta (nombre y cédula), que MiDerecho solo transmite y no es abogado ni apoderado, la norma, el correo autorizado para la respuesta y el código del caso. Las tutelas urgentes llevan "URGENTE" y "medida provisional" en el asunto.
+La app nueva todavía no tiene impugnación ni desacato; cuando los tenga, el directorio ya trae los juzgados que deciden (`juzgadosDe(municipio)`: en El Carmen de Bolívar, Chaparral y San José del Guaviare hay varios y la persona escoge).
+
+- **La persona ve a qué entidad y a qué correo va** antes de enviar. Si el correo no está verificado con una fuente oficial (o lo escribió ella), la app lo dice.
+- **Necesita nombre y cédula en el documento.** Si escogió "Prefiero escribirlos a mano", el panel le pide volver y escribirlos (o imprimir).
+- **Autorización expresa:** casilla "Autorizo a MiDerecho a enviar este documento en mi nombre a … Mi nombre y mi cédula pasan por su servidor solo para enviarlo y no se guardan". Copia a su correo: campo opcional y casilla aparte.
+- **Se envía el mismo documento que la persona vio**: mismos datos y plantilla, con su nombre, cédula y datos de contacto. La respuesta de la entidad o del juzgado va a esos datos de contacto (y al correo de la copia, si la pidió: queda como `reply_to`).
+- **Arriba del documento va una carta corta**: quién presenta (nombre y cédula), que MiDerecho solo transmite y no es abogado ni apoderado, la norma, que respondan a los datos del documento y el código del caso. Las tutelas urgentes llevan "URGENTE" y "medida provisional" en el asunto.
 - **Documento en el cuerpo del correo** (HTML y texto plano), no en PDF adjunto: generar un PDF en el servidor pedía una dependencia nueva. Si un juzgado exige adjunto, se agrega con una librería como `pdf-lib`.
-- **Constancia:** número de envío de Resend, fecha y hora, destinatario. Se guarda con el caso (no es dato sensible), se muestra al enviar, en Mis casos y como prueba de entrega en "Qué puede hacer ahora". Para tener prueba de recibo, el correo de respuesta de la entidad o un acuse; Resend también avisa entregas y rebotes por webhook (no está conectado).
+- **Constancia:** número de envío de Resend, fecha y hora, destinatario y código del caso. Se guarda con el caso en `envios` (no es dato sensible), se muestra al enviar y en Mis casos.
 
-## 3. Directorio de correos (`prototipo/directorio.js`)
+## 3. Directorio de correos (`packages/nucleo/src/directorio.js`)
 
 - **Alcaldías (15):** los correos de `contenido.js`, revisados el 20-oct-2026 en el sitio de cada alcaldía (`investigacion/08`, sección 3). Chaparral queda **sin verificar** porque su página mezcla dos dominios.
 - **Juzgados (15 municipios):** "Directorio de cuentas de correo electrónico" de la Rama Judicial ([ramajudicial.gov.co/directorio-cuentas-de-correo-electronico](https://www.ramajudicial.gov.co/directorio-cuentas-de-correo-electronico)), consultado el 21-oct-2026. Todos verificados. En 12 municipios hay un solo juzgado promiscuo municipal. Chaparral y San José del Guaviare tienen oficina de reparto. El Carmen de Bolívar tiene dos juzgados promiscuos municipales y el directorio no muestra oficina de reparto: la tutela nueva va al Juzgado 1 [validar].
@@ -72,12 +78,12 @@ La función no puede usarse como relevo de correo:
 - **Logs:** solo el tipo y la clave del directorio (`[correo] enviado: peticion a alcaldia:Ovejas`). Nunca nombres, cédula, hechos, datos de salud ni correos escritos a mano. Los errores de Resend se registran solo por su código, porque su mensaje puede traer el destinatario.
 - **Antes de abrir en producción:** captcha en la app y verificación del celular o del correo de quien envía. Sin eso, cualquiera puede presentar documentos a nombre de otra persona (la cédula no se verifica).
 
-## 7. Privacidad, cola sin internet y respuestas
+## 7. Privacidad, cola sin conexión y respuestas
 
-- **Nombre y cédula viven solo en memoria** hasta enviar: viajan al servidor en el envío, que no los guarda ni los registra, y la app los borra al terminar. En el celular, el caso guarda solo lo de siempre, más la constancia.
-- **Sin internet:** el documento queda en cola **en la memoria de la app** y se envía solo al volver la señal. No se guarda en el celular porque lleva nombre y cédula. **Si la persona cierra la app antes de tener señal, el envío se pierde**: el caso queda como "No se envió" en Mis casos, con la opción de anotar que lo entregó ella. La app lo advierte al dejarlo en cola. Impugnación y desacato no hacen cola: necesitan señal (o se imprimen).
+- **Nombre y cédula viven solo en memoria**: viajan al servidor únicamente si la persona autoriza el envío; el servidor no los guarda ni los registra. En el celular, el caso guarda lo mismo de antes más la constancia. La pantalla "Tus datos para el documento" ahora dice que no van a ningún servidor "salvo que pidas que enviemos el documento por correo".
+- **Sin conexión** (o con el interruptor en "sin conexión"): el envío queda en cola en la memoria de la pantalla y sale solo cuando vuelve la conexión. No se guarda en el celular porque lleva nombre y cédula: **si la persona cierra la pantalla antes, tiene que enviarlo de nuevo**, y la app lo advierte.
 - **Resend guarda los correos enviados 30 días** en su panel (plan gratis), con el documento completo. Es una transmisión internacional de datos personales (Estados Unidos): hace falta el contrato de transmisión y avisarlo en el aviso de privacidad (`investigacion/06`, sección 1.5). Después del demo, borrar los correos de prueba.
-- **Falta el buzón de respuestas.** Los documentos dicen que la respuesta llega a `CORREO_SERVICIO` (`contenido.js`), que hoy es `respuestas@miderecho.example` y no existe. El correo se envía con ese `reply_to`. Antes de enviar a entidades reales hay que: (1) cambiarlo por un buzón real del dominio verificado (Resend tiene buzones de entrada, o una cuenta de correo normal), y (2) que alguien reenvíe cada respuesta a la persona el mismo día. **En tutelas es crítico:** la notificación del fallo llega a ese buzón y la persona tiene 3 días para impugnar.
+- **Respuestas:** van a los datos de contacto del documento. Si la persona no dio dirección, correo ni celular, el documento solo dice la vereda: la entidad podría responder al remitente, que no recibe respuestas. Conviene sugerirle que escriba un contacto o pida la copia. Si se quiere volver al modelo del prototipo (el servicio recibe y reenvía), hace falta un buzón real en `CORREO_SERVICIO` (`contenido.js`) y alguien que reenvíe cada respuesta el mismo día; en tutelas es crítico, porque hay 3 días para impugnar.
 
 ## 8. Costos (precios de lista de Resend, octubre de 2026, en dólares)
 
@@ -92,10 +98,10 @@ Una copia a la persona cuenta como un correo más. Para el piloto alcanza el pla
 ## 9. Puntos para validar con un abogado
 
 1. **Envío en nombre de la persona.** Si MiDerecho, al enviar el correo, es solo un medio de transmisión o cae en representación o agencia oficiosa; qué consecuencia tiene para exigir poder, para la legitimación en la tutela y para el ejercicio ilegal de la abogacía (Decreto 196 de 1971). El texto dice que la persona es el peticionario o el accionante y que MiDerecho solo transmite (`investigacion/08`, secciones 2 y 6).
-2. **Validez de la tutela por correo.** Decreto 2591 de 1991, art. 14 (sin formalidades) y Ley 2213 de 2022 (actuaciones por medios electrónicos, sin firma manuscrita). Confirmar que basta con nombre y cédula en el correo, sin firma; que vale desde una cuenta que no es de la persona; y que las plantillas de tutela, que hoy dejan en blanco el nombre del accionante, sirven así con la carta de remisión (o pedirle al equipo de Documentos que las llenen cuando se envían).
+2. **Validez de la tutela por correo.** Decreto 2591 de 1991, art. 14 (sin formalidades) y Ley 2213 de 2022 (actuaciones por medios electrónicos, sin firma manuscrita). Confirmar que basta con nombre y cédula en el correo, sin firma; y que vale desde una cuenta que no es de la persona.
 3. **Reparto y competencia.** Si la tutela nueva puede ir al juzgado municipal o a la oficina de reparto del directorio, o si contra entidades nacionales (Nueva EPS, ANT) debe ir al juez del circuito (Decreto 333 de 2021). En El Carmen de Bolívar, a cuál de los dos juzgados.
 4. **Constancia de envío.** Si el número de envío, la fecha y la hora del proveedor sirven como prueba de radicación (Ley 1755, art. 15, par. 1; CPACA, arts. 61 y 62) o hace falta acuse de recibo o correo certificado.
-5. **Correo para notificaciones.** Si el buzón del servicio vale como dirección de notificación autorizada (CPACA, art. 56) y qué responsabilidad asume el servicio si una notificación no se reenvía a tiempo.
+5. **Correo para notificaciones.** Si basta con los datos de contacto de la persona en el documento, o si conviene un buzón del servicio autorizado para notificaciones (CPACA, art. 56), con la responsabilidad de reenviar a tiempo.
 6. **Autorización y datos.** Texto de la autorización expresa, de la copia por correo y del aviso de privacidad sobre la transmisión a Resend.
 
 ## 10. Cómo probar
@@ -104,9 +110,9 @@ Una copia a la persona cuenta como un correo más. Para el piloto alcanza el pla
 node prototipo/api/_test-correo.mjs
 ```
 
-Prueba sin cuentas reales y con reloj fijo. Modo simulado: constancia, destinos del directorio (alcaldía, juzgado, ANT), rechazo de correos sin lista (403) y de destinos inválidos (400), cada documento a su tipo de entidad, copia sin permiso, validación de datos (nombre, cédula, código, plazo, ids, listas, largos, fechas), 415, 403 y 405, sin límites en simulado. Con un `fetch` falso que imita a Resend: cierre por defecto (503, también con envío abierto sin Redis), envío de prueba al equipo, formato exacto de la llamada, documento armado en el servidor (datos, escape de HTML, nada de lo que mande el cliente por fuera), llave de idempotencia, copia oculta, tutela urgente al juzgado, error de Resend, límites por entidad, por red y diario, y que ningún log tenga datos personales ni correos.
+Prueba sin cuentas reales y con reloj fijo. Directorio: las 15 alcaldías y los 15 juzgados. Modo simulado: constancia, destinos del directorio (alcaldía, juzgado, ANT), rechazo de correos sin lista (403) y de destinos inválidos (400), cada documento a su tipo de entidad, copia sin permiso, validación de datos (nombre, cédula, código, plazo, ids, listas, largos, fechas), 415, 403 y 405, sin límites en simulado. Con un `fetch` falso que imita a Resend: cierre por defecto (503, también con envío abierto sin Redis), envío de prueba al equipo, formato exacto de la llamada, documento armado en el servidor con la plantilla del núcleo (datos, escape de HTML, modo y datos de contacto, nada de lo que mande el cliente por fuera), llave de idempotencia, copia oculta y `reply_to`, tutela urgente al juzgado, error de Resend, límites por entidad, por red y diario, y que ningún log tenga datos personales ni correos.
 
-En el navegador: con `python3 -m http.server` la función responde 501 y la app muestra "No se pudo enviar". Para recorrer el flujo completo hace falta un preview de Vercel (sin clave, en modo simulado).
+**En desarrollo** (`npm run dev`), Vite pasa `/api` al Express de `apps/api`, que no tiene `/api/correo`: el envío responde 404 y la app muestra el error. Para probar el flujo completo, usar un preview de Vercel (sin clave, en modo simulado):
 
 ```bash
 curl -X POST https://<preview>.vercel.app/api/correo -H 'Content-Type: application/json' -d '{"tipo":"peticion","destino":"alcaldia:Ovejas","datos":{"codigo":"K7P2","temaId":"vias","municipio":"Ovejas","vereda":"La Peña","desde":"hace un mes","peticiones":["Reparar el camino."],"plazo":15,"nombre":"Prueba","cedula":"12345678"}}'

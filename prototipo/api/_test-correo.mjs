@@ -25,6 +25,16 @@ const tutela = { codigo: 'T3ST', derecho: 'salud', afectado: 'propio', que: 'med
 const alAlcaldia = (cambios = {}, op) => correo({ tipo: 'peticion', destino: 'alcaldia:Ovejas', datos: peticion, ...cambios }, op);
 let r;
 
+// ---------- directorio (packages/nucleo/src/directorio.js) ----------
+const { DIRECTORIO, MUNICIPIOS, juzgadosDe } = await import('@miderecho/nucleo');
+for (const m of MUNICIPIOS) {
+  assert.ok(DIRECTORIO[`alcaldia:${m.nombre}`]?.correo === m.correo, `falta la alcaldía de ${m.nombre}`);
+  assert.match(DIRECTORIO[`juzgado:${m.nombre}`]?.correo || '', /@cendoj\.ramajudicial\.gov\.co$/, `falta el juzgado de ${m.nombre}`);
+  assert.ok(juzgadosDe(m.nombre).length >= 1);
+}
+assert.deepEqual(juzgadosDe('El Carmen de Bolívar').map(([, j]) => j.correo.split('@')[0]), ['j01prmcbolivar', 'j02prmcbolivar']);
+assert.equal(DIRECTORIO['alcaldia:Chaparral'].verificado, false);
+
 // ---------- parte 1: modo simulado ----------
 r = await alAlcaldia();
 assert.deepEqual([r.status, r.ok, r.simulado], [200, true, true]);
@@ -110,7 +120,9 @@ assert.equal(e.cuerpo.subject, 'Derecho de petición · Ovejas · código K7P2')
 const { html, text } = e.cuerpo;
 assert.ok(html.includes('[PRUEBA de MiDerecho]') && html.includes('contactenos@ovejas-sucre.gov.co'));
 assert.ok(html.includes('Ana Rosa Pérez') && html.includes('1.234.567') && html.includes('Reparar la vía o el camino de la vereda.'));
-assert.ok(html.includes('Ley 1755 de 2015') && html.includes('Enviada con autorización del peticionario. Código K7P2'));
+assert.ok(html.includes('Ley 1755 de 2015') && html.includes('use los datos de contacto que aparecen en el documento'));
+assert.ok(html.includes('Otra dirección o correo: ____'));   // el mismo documento que la persona vio (modo mano por defecto)
+assert.equal(e.cuerpo.reply_to, undefined);   // sin copia, nadie responde a este remitente
 assert.ok(html.includes('&lt;script&gt;') && !html.includes('<script>') && !html.includes('malo.example'));
 assert.ok(text.includes('Se cayó el puente <script>') && !text.includes('<p>') && text.includes('- Reparar la vía'));
 assert.ok(!JSON.stringify(e.cuerpo).includes('victima@x.co'));
@@ -123,10 +135,15 @@ assert.notEqual(enviados.at(-1).headers['Idempotency-Key'], e.headers['Idempoten
 // destino libre de la lista: va a ese correo, sin marca de prueba; copia con permiso, en copia oculta
 r = await alAlcaldia({ destino: 'otra@ejemplo.co', datos: { ...peticion, entidad: 'Secretaría de Salud', correo: 'otra@ejemplo.co' }, copia: 'equipo@ejemplo.co' });
 assert.deepEqual([r.status, r.constancia.para, r.constancia.prueba, r.copia], [200, 'otra@ejemplo.co', undefined, true]);
-assert.deepEqual([ultimo().to, ultimo().bcc], [['otra@ejemplo.co'], ['equipo@ejemplo.co']]);
+assert.deepEqual([ultimo().to, ultimo().bcc, ultimo().reply_to], [['otra@ejemplo.co'], ['equipo@ejemplo.co'], 'equipo@ejemplo.co']);
 assert.ok(!ultimo().html.includes('[PRUEBA'));
 r = await alAlcaldia({ copia: 'ana@gmail.com' });
 assert.deepEqual([r.status, r.copia, ultimo().bcc], [200, false, undefined]);
+// el modo de la plantilla pasa tal cual (solo 'mano' o 'envio') y los datos de contacto de la persona van en el documento
+await alAlcaldia({ datos: { ...peticion, modo: 'envio' } });
+assert.ok(ultimo().html.includes('Enviada con autorización del peticionario. Código K7P2'));
+await alAlcaldia({ datos: { ...peticion, modo: '<b>', direccion: 'Finca El Roble', telefono: '3001234567' } });
+assert.ok(ultimo().html.includes('Dirección o correo: Finca El Roble') && ultimo().html.includes('Teléfono: 3001234567') && !ultimo().html.includes('Enviada con'));
 assert.equal((await alAlcaldia({ destino: 'ana@gmail.com' })).status, 403);
 
 // tutela urgente al juzgado: carta al juez, asunto de reparto y la entidad accionada intacta

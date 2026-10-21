@@ -1,14 +1,12 @@
-// POST /api/correo { tipo, datos, destino, copia? }: envía por correo (Resend) un documento que arma este servidor con plantillas.js.
+// POST /api/correo { tipo, datos, destino, copia? }: envía por correo (Resend) un documento que arma este servidor con las plantillas del núcleo.
 // No es un relevo de correo: no recibe HTML ni destinatarios libres. destino es una clave de directorio.js ('alcaldia:Ovejas',
 // 'juzgado:Ovejas', 'juzgado:Chaparral:2', 'ant'); un correo escrito a mano solo pasa si está en CORREOS_DEMO o con PERMITIR_CORREO_ABIERTO=1.
+// El documento es el mismo que la persona vio en la app (mismos datos y plantilla); arriba va una carta corta de remisión.
 // Sin RESEND_API_KEY todo queda en modo simulado: se valida y se arma el documento, pero no sale nada.
 // El documento va en el cuerpo del correo (HTML y texto). ponytail: sin PDF adjunto; agregarlo con un generador mínimo o pdf-lib si un juzgado lo exige.
 import { createHash } from 'node:crypto';
 import { atender, falla, contar, redisListo, hoyColombia, limiteDiario } from './_comun.js';
-import { TIPOS, generarDocumento, esc } from '../plantillas.js';
-import { NOMBRE, CORREO_SERVICIO, TEMAS, SERVICIOS, MOTIVOS_SP, DERECHOS, SALUD_NIEGA } from '../contenido.js';
-import { DIRECTORIO, paraJuzgado } from '../directorio.js';
-import { deIso } from '../plazos.js';
+import { TIPOS, generarDocumento, esc, NOMBRE, TEMAS, SERVICIOS, MOTIVOS_SP, DERECHOS, SALUD_NIEGA, DIRECTORIO, paraJuzgado, deIso } from '@miderecho/nucleo';
 
 const env = process.env;
 // ponytail: 30 por hora y red tolera el Wi-Fi de una reunión de la Junta; 25 al día por destinatario frena el abuso contra una entidad.
@@ -29,9 +27,6 @@ export default async function handler(req, res) {
       const tipo = String(b.tipo ?? '');
       if (!Object.hasOwn(TIPOS, tipo)) throw falla(400, 'Tipo de documento desconocido');
       const d = limpiar(b.datos), dest = destino(b.destino, tipo);
-      // A la entidad: el encabezado lleva el nombre y el correo del directorio. Al juzgado: la entidad es la accionada y no se toca.
-      if (dest.clave !== 'libre' && !paraJuzgado(tipo)) Object.assign(d, { entidad: dest.nombre, correo: dest.correo });
-      d.modo = 'envio';
       let doc;
       try { doc = generarDocumento(tipo, d, deIso(hoyColombia())); } catch { throw falla(400, 'Faltan datos para armar el documento'); }
 
@@ -73,7 +68,7 @@ function libre(c) {
 }
 
 // Solo los campos que usan las plantillas, con topes. Lo demás se descarta. Los ids se validan porque las plantillas los buscan en listas fijas.
-const TEXTOS = { municipio: 100, vereda: 100, entidad: 200, correo: 254, cuenta: 40, nombre: 150, cedula: 20, telefono: 20,
+const TEXTOS = { municipio: 100, vereda: 100, entidad: 200, correo: 254, cuenta: 40, nombre: 150, cedula: 20, telefono: 20, direccion: 200,
   desde: 40, palabras: 1000, detalle: 300, orden: 600, afectado: 10, pidio: 15, urgente: 2, rad: 10, venc: 10, notif: 10 };
 const IDS = { temaId: TEMAS, servicio: SERVICIOS, motivo: MOTIVOS_SP, derecho: DERECHOS, que: SALUD_NIEGA };
 const LISTAS = ['peticiones', 'razones', 'pruebas'];
@@ -100,6 +95,7 @@ function limpiar(d) {
     c.plazo = Number(d.plazo);
     if (!PLAZOS_VALIDOS.includes(c.plazo)) throw falla(400, 'Plazo inválido');
   }
+  c.modo = d.modo === 'envio' ? 'envio' : 'mano';   // 'envio' solo cambia textos de la plantilla (respuesta al buzón del servicio)
   c.codigo = String(d.codigo ?? '');
   if (!/^[A-Z2-9]{4}$/.test(c.codigo)) throw falla(400, 'Código del caso inválido');
   // Quien presenta debe quedar identificado (Ley 1755, art. 16; en la tutela, el accionante).
@@ -107,7 +103,8 @@ function limpiar(d) {
   return c;
 }
 
-// Carta corta que acompaña el documento: quién lo presenta, que el servicio solo lo transmite y dónde recibir la respuesta.
+// Carta corta que acompaña el documento: quién lo presenta, que el servicio solo lo transmite y dónde responder.
+// La respuesta va a los datos de contacto del documento; si la persona pidió copia, también se puede responder a su correo (reply_to).
 // [validar] Decreto 2591 de 1991, art. 14, y Ley 2213 de 2022 (tutela por medios electrónicos, sin firma manuscrita); Ley 1755 de 2015, art. 15.
 function armar(tipo, d, doc, { para, copia, entidad, prueba, destino }) {
   const T = TIPOS[tipo], juzgado = paraJuzgado(tipo), quien = `${esc(d.nombre)}, identificado(a) con cédula de ciudadanía n.º ${esc(d.cedula)}`;
@@ -118,12 +115,12 @@ function armar(tipo, d, doc, { para, copia, entidad, prueba, destino }) {
     prueba && `<p><b>[PRUEBA de ${esc(NOMBRE)}]</b> En uso real, este correo iría a ${esc(entidad)} (${esc(destino)}).</p>`,
     `<p>${juzgado ? 'Señor(a) Juez:' : `Señores ${esc(entidad)}:`}</p>`,
     `<p>Por solicitud y con autorización expresa de ${quien}, quien ${juzgado ? 'es el accionante' : 'es el peticionario'} y aprobó este texto, ${esc(NOMBRE)} transmite por medio electrónico la siguiente ${esc(que)}${juzgado ? ' (artículo 14 del Decreto 2591 de 1991 y Ley 2213 de 2022)' : tipo === 'peticion' ? ' (artículo 15 de la Ley 1755 de 2015)' : ''}. ${esc(NOMBRE)} no actúa como abogado ni como apoderado.</p>`,
-    `<p>Para ${juzgado ? 'las notificaciones' : 'la respuesta'}, ${juzgado ? 'el accionante' : 'el peticionario'} autorizó el correo ${esc(CORREO_SERVICIO)}. Código del caso: ${esc(d.codigo)}.</p>`,
+    `<p>Para ${juzgado ? 'las notificaciones' : 'la respuesta'}, use los datos de contacto que aparecen en el documento${copia ? ` o el correo ${esc(copia)}` : ''}. Este buzón no recibe respuestas. Código del caso: ${esc(d.codigo)}.</p>`,
     urgente && '<p><b>La tutela pide una medida provisional (artículo 7 del Decreto 2591 de 1991).</b></p>',
   ].filter(Boolean).join('');
   const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d1b16;max-width:680px">${intro}<hr>${doc}</div>`;
   return { from: env.CORREO_REMITENTE || `${NOMBRE} <onboarding@resend.dev>`, to: [para], ...(copia && { bcc: [copia] }),
-    reply_to: CORREO_SERVICIO, subject: asunto, html, text: aTexto(intro + '\n\n' + doc) };
+    ...(copia && { reply_to: copia }), subject: asunto, html, text: aTexto(intro + '\n\n' + doc) };
 }
 
 const ENTIDADES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };

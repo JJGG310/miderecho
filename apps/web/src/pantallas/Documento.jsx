@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FileText, Stethoscope, Lightbulb as Bombillo, Scale, Printer, CheckCircle2, ChevronRight, ShieldCheck } from 'lucide-react';
 import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, SERVICIOS, MOTIVOS_SP, SALUD_NIEGA, DERECHOS, EXPLICA, sumarHabiles, iso } from '@miderecho/nucleo';
 import { Encabezado, Titulo, BotonVoz } from '../componentes/comunes.jsx';
+import EnvioCorreo from '../componentes/EnvioCorreo.jsx';
 import { almacen } from '../lib/almacen.js';
 import { ir, memoria } from '../lib/ruta.js';
 
@@ -213,7 +214,7 @@ function DatosPersonales({ tipo, valores: p, cambiar, volver, listo }) {
       <section className="tarjeta oliva">
         <ShieldCheck size={20} aria-hidden />
         <h2>Por qué te los pedimos ahora</h2>
-        <p className="suave">Para que el documento sea válido, {quien} debe saber quién lo presenta y dónde responderte. Estos datos solo van en el papel: <b>no se envían a la inteligencia artificial ni a ningún servidor, y no se guardan en este celular.</b></p>
+        <p className="suave">Para que el documento sea válido, {quien} debe saber quién lo presenta y dónde responderte. Estos datos solo van en el papel: <b>no se envían a la inteligencia artificial ni a ningún servidor (salvo que pidas que enviemos el documento por correo), y no se guardan en este celular.</b></p>
       </section>
 
       <form className="formulario" onSubmit={e => { e.preventDefault(); if (ok) listo(); }}>
@@ -255,18 +256,19 @@ function Campo({ etiqueta, children }) {
 function Vista({ tipo, datos, volver, caso }) {
   const html = useMemo(() => generarDocumento(tipo, datos), [tipo, datos]);
   const [guardado, setGuardado] = useState(false);
+  const [id] = useState(() => datos.id || crypto.randomUUID?.() || String(Date.now()));   // "Lo entregué" y el envío por correo actualizan el mismo caso
   const t = TIPOS[tipo];
   const texto = () => new DOMParser().parseFromString(html, 'text/html').body.textContent.replace(/_{3,}/g, ' espacio en blanco ');
 
-  const entregar = () => {
+  const entregar = (extra = {}) => {
     const hoy = new Date();
     almacen.guardarCaso({
-      id: crypto.randomUUID?.() || String(Date.now()),
+      id,
       tipo, titulo: t.titulo, icono: t.icono,
       entidad: datos.entidad, municipio: datos.municipio, vereda: datos.vereda,
       rad: iso(hoy), venc: t.plazo ? iso(sumarHabiles(hoy, t.plazo)) : null, plazo: t.plazo || null,
       // Solo los textos de plantilla de lo que pidió: sirven para la tutela si no responden.
-      peticiones: (datos.peticiones || []).map(p => p.texto), modo: 'mano', estado: 'esperando',
+      peticiones: (datos.peticiones || []).map(p => p.texto ?? p), modo: 'mano', estado: 'esperando', ...extra,
     });
     setGuardado(true);
   };
@@ -282,8 +284,9 @@ function Vista({ tipo, datos, volver, caso }) {
       <div className="doc-papel" dangerouslySetInnerHTML={{ __html: html }} />
       <div className="acciones-doc">
         <button className="btn-secundario" onClick={() => window.print()}><Printer size={18} aria-hidden /> Imprimir o guardar PDF</button>
-        {!guardado && !caso && <button className="btn-primario" onClick={entregar}><CheckCircle2 size={18} aria-hidden /> Lo entregué hoy: avísame el plazo</button>}
+        {!guardado && !caso && <button className="btn-primario" onClick={() => entregar()}><CheckCircle2 size={18} aria-hidden /> Lo entregué hoy: avísame el plazo</button>}
         {guardado && <button className="btn-primario" onClick={() => ir('casos')}>Ver en Mis casos</button>}
+        <EnvioCorreo tipo={tipo} datos={datos} alEnviar={k => entregar({ modo: 'envio', envios: [...(datos.envios || []), k] })} />
       </div>
       <section className="tarjeta tierra">
         <h2>Cómo entregarlo</h2>
