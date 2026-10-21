@@ -1,0 +1,104 @@
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUp, Mic, ShieldAlert, Loader2 } from 'lucide-react';
+import { Encabezado, Titulo, BotonVoz } from '../componentes/comunes.jsx';
+import Orientacion from '../componentes/Orientacion.jsx';
+import { preguntarAsistente } from '../lib/api.js';
+import { useConexion } from '../lib/conexion.jsx';
+import { useDictado, hayDictado, hablar } from '../lib/voz.js';
+import { almacen } from '../lib/almacen.js';
+import { ir, memoria } from '../lib/ruta.js';
+import { limpiar } from '@miderecho/nucleo/privacidad';
+
+// El ayudante con IA: la persona cuenta lo que pasa, el asistente pregunta lo mínimo y orienta.
+export default function Asistente() {
+  const { enLinea } = useConexion();
+  const [mensajes, setMensajes] = useState(() => memoria.conversacion || []);
+  const [respuesta, setRespuesta] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState(null);
+  const [texto, setTexto] = useState('');
+  const fin = useRef(null);
+  const iniciado = useRef(false);
+  const dictado = useDictado(t => setTexto(x => (x ? x + ' ' : '') + t));
+
+  const consultar = async lista => {
+    setCargando(true); setError(null);
+    try {
+      const r = await preguntarAsistente(lista);
+      const nueva = [...lista, { rol: 'asistente', texto: r.mensaje }];
+      setMensajes(nueva);
+      memoria.conversacion = nueva;
+      setRespuesta(r);
+      if (r.accion === 'orientar') { memoria.orientacion = r.orientacion; almacen.guardarOrientacion(r.orientacion); }
+      if (almacen.pref('modoVoz', false)) hablar(r.mensaje);
+    } catch (e) {
+      setError(navigator.onLine ? 'No pudimos hablar con el asistente. Intenta de nuevo.' : 'Se perdió la conexión. Tu relato no se envió.');
+    } finally { setCargando(false); }
+  };
+
+  // Primera respuesta al llegar desde Inicio.
+  useEffect(() => {
+    if (!mensajes.length) { ir('inicio'); return; }
+    if (iniciado.current) return; // StrictMode monta dos veces en desarrollo
+    iniciado.current = true;
+    if (mensajes.at(-1).rol === 'persona' && enLinea) consultar(mensajes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => { fin.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [mensajes, cargando, respuesta]);
+
+  const responder = t => {
+    if (!t.trim() || cargando) return;
+    const lista = [...mensajes, { rol: 'persona', texto: limpiar(t.trim()).texto }];
+    setMensajes(lista); setTexto(''); setRespuesta(null);
+    consultar(lista);
+  };
+
+  const riesgo = respuesta?.accion === 'riesgo';
+  const orientado = respuesta?.accion === 'orientar';
+
+  return (
+    <main className="pantalla">
+      <Encabezado />
+      <Titulo lectura={() => mensajes.filter(m => m.rol === 'asistente').map(m => m.texto).join(' ')}>Tu situación</Titulo>
+      <p className="nota-privacidad">Antes de enviar, quitamos cédulas, teléfonos y correos. No guardamos lo que nos cuentas.</p>
+
+      <div className="chat" aria-live="polite">
+        {mensajes.map((m, i) => (
+          <div key={i} className={`burbuja ${m.rol}`}>
+            {m.texto}
+            {m.rol === 'asistente' && <BotonVoz texto={m.texto} className="voz-burbuja" />}
+          </div>
+        ))}
+        {cargando && <div className="burbuja asistente cargando"><Loader2 className="girar" size={16} aria-hidden /> Pensando…</div>}
+        {error && <div className="aviso-error" role="alert">{error} <button onClick={() => consultar(mensajes)}>Reintentar</button></div>}
+      </div>
+
+      {riesgo && (
+        <section className="tarjeta riesgo" role="alert">
+          <ShieldAlert size={22} aria-hidden />
+          <h2>A dónde acudir</h2>
+          <div dangerouslySetInnerHTML={{ __html: respuesta.ayuda }} />
+          <button className="btn-secundario" onClick={() => { memoria.conversacion = null; setMensajes([]); ir('inicio'); }}>Salir sin guardar</button>
+        </section>
+      )}
+
+      {respuesta?.accion === 'preguntar' && respuesta.opciones?.length > 0 && !cargando && (
+        <div className="chips">
+          {respuesta.opciones.map(o => <button key={o} className="chip" onClick={() => responder(o)}>{o}</button>)}
+        </div>
+      )}
+
+      {orientado && <Orientacion o={respuesta.orientacion} />}
+
+      {!riesgo && !orientado && (
+        <div className="caja-respuesta tarjeta">
+          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={enLinea ? 'Escribe tu respuesta...' : 'Sin conexión'} disabled={!enLinea} rows={2} aria-label="Tu respuesta" />
+          <button className={`btn-mini mic ${dictado.escuchando ? 'escuchando' : ''}`} disabled={!enLinea || !hayDictado} onClick={dictado.alternar} aria-label="Dictar con la voz"><Mic size={16} /></button>
+          <button className="btn-mini enviar" disabled={!enLinea || !texto.trim() || cargando} onClick={() => responder(texto)} aria-label="Enviar"><ArrowUp size={16} /></button>
+        </div>
+      )}
+      {respuesta?.fuente === 'simulada' && <p className="nota-modo">Modo básico (sin IA){respuesta.aviso ? `: ${respuesta.aviso}` : ''}</p>}
+      <div ref={fin} />
+    </main>
+  );
+}

@@ -1,0 +1,13 @@
+{
+  "name": "miderecho",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w apps/api & npm run dev -w apps/web",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:api": "npm run dev -w apps/api",
+    "build": "npm run build -w apps/web",
+    "test": "npm test -w packages/nucleo && npm test -w apps/api"
+  }
+}
