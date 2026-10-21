@@ -86,7 +86,8 @@ const ip = req => {
 export async function proteger(req, tel, canal) {
   if (simulado(canal)) return;
   // Push solo lleva texto fijo a la suscripción de quien lo pide: sin lista blanca y con su propio cupo diario.
-  const push = canal === 'push', agente = canal === 'agente', demo = env.NUMEROS_DEMO;
+  // 'voz' es la llamada con menú de voz de Twilio (api/llamar.js sin agente): mismas reglas que el agente.
+  const push = canal === 'push', agente = canal === 'agente' || canal === 'voz', demo = env.NUMEROS_DEMO;
   // Cerrado por defecto: texto libre a cualquier número solo si se abre a propósito y hay límites globales (Redis).
   // El agente de voz (IA) solo llama a NUMEROS_DEMO, aunque PERMITIR_ENVIO_ABIERTO esté puesto.
   if (!push && !demo && (agente || env.PERMITIR_ENVIO_ABIERTO !== '1' || !redisListo()))
@@ -173,9 +174,11 @@ export const horaColombia = () => colombia().getUTCHours();
 // Se autentica con el Auth Token o con una API Key de Twilio (SK… y su secreto); la URL siempre lleva el Account SID (AC…).
 const twilioListo = () => !!(env.TWILIO_ACCOUNT_SID && (env.TWILIO_AUTH_TOKEN || (env.TWILIO_API_KEY && env.TWILIO_API_SECRET)));
 const desde = canal => canal === 'whatsapp' ? env.TWILIO_WHATSAPP_FROM?.replace(/^whatsapp:/, '') : env.TWILIO_FROM;
-// 'agente': llamada del agente de voz de ElevenLabs (api/llamar.js); 'push': notificación web con VAPID.
+// 'agente': llamada del agente de voz de ElevenLabs (api/llamar.js); 'voz': la misma llamada con menú de voz de Twilio;
+// 'push': notificación web con VAPID.
 export const simulado = canal =>
   canal === 'agente' ? !(env.ELEVENLABS_API_KEY && env.ELEVENLABS_PHONE_NUMBER_ID)
+  : canal === 'voz' ? simulado('llamada')
   : canal === 'push' ? !(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT)
   : !(twilioListo() && desde(canal));
 
@@ -196,7 +199,14 @@ async function twilio(recurso, datos) {
   throw falla(502, `Twilio no aceptó el envío (código ${code ?? r.status})`);
 }
 
-const xml = t => t.replace(/[<>&"']/g, c => `&#${c.charCodeAt(0)};`);
+export const xml = t => t.replace(/[<>&"']/g, c => `&#${c.charCodeAt(0)};`);
+
+// Llamada que pide su TwiML a una URL (api/llamar.js). La cuenta de prueba de Twilio acepta TwiML propio con <Say> y <Gather>.
+export async function llamarConUrl(tel, url) {
+  await twilio('Calls', { To: tel, From: desde('llamada'), Url: url, Method: 'GET' });
+  console.log(`[voz] llamando a ${oculto(tel)}`);
+  return { ok: true, simulado: false };
+}
 // Voz neural de español latino. Pausa inicial para el "¿aló?" y el mensaje dos veces, por si no se oyó el comienzo.
 // Twilio acepta hasta 4000 caracteres de TwiML en línea: quien llame debe revisar el largo.
 export function twiml(t) {
@@ -207,8 +217,9 @@ export function twiml(t) {
 // Lo que dice una llamada con voz leída (recordatorio, o respaldo si el agente de ElevenLabs no está): plantilla fija,
 // solo el código letra por letra y la fecha. `hoy` decide si el plazo vence o ya venció.
 export const fechaVoz = f => new Date(f + 'T12:00Z').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
-export const textoLlamada = (codigo, vence, hoy) => 'Hola. Le habla MiDerecho, un servicio automático. ' +
-  (codigo ? `Le recordamos su caso ${[...codigo].join(', ')}. ${vence ? `El plazo ${hoy > vence ? 'venció' : 'vence'} el ${fechaVoz(vence)}. ` : ''}` : '') +
+export const presentacionVoz = (codigo, vence, hoy) => 'Hola. Le habla MiDerecho, un servicio automático. ' +
+  (codigo ? `Le recordamos su caso ${[...codigo].join(', ')}. ${vence ? `El plazo ${hoy > vence ? 'venció' : 'vence'} el ${fechaVoz(vence)}. ` : ''}` : '');
+export const textoLlamada = (codigo, vence, hoy) => presentacionVoz(codigo, vence, hoy) +
   'Si la entidad no le ha respondido, abra la app MiDerecho o pida ayuda a su líder o a la Personería.';
 
 // plantilla: { sid, variables } de una plantilla aprobada de WhatsApp (obligatoria fuera de la ventana de 24 h).

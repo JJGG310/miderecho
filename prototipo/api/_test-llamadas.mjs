@@ -18,10 +18,11 @@ ir('2026-10-21T15:00:00Z');   // 10 a. m. en Colombia
 const { cifrarPush, memoria, textoLlamada, POR_NUMERO_DIA, CODIGOS_POR_NUMERO } = await import('./_comun.js');
 const { textoPush } = await import('./cron-recordatorios.js');
 
-async function api(ruta, method, body, { ip = '10.0.0.1', headers = {} } = {}) {
-  const { default: h } = await import(`./${ruta}.js`), r = {};
-  await h({ method, body, headers: { 'x-real-ip': ip, host: 'miderecho.test', 'content-type': 'application/json', ...headers } },
-    { status(s) { r.status = s; return this; }, json(j) { Object.assign(r, j); return this; } });
+async function api(ruta, method, body, { ip = '10.0.0.1', headers = {}, query } = {}) {
+  const { default: h } = await import(`./${ruta}.js`), r = { cabeceras: {} };
+  await h({ method, body, query, headers: { 'x-real-ip': ip, host: 'miderecho.test', 'content-type': 'application/json', ...headers } },
+    { status(s) { r.status = s; return this; }, json(j) { Object.assign(r, j); return this; },
+      setHeader(k, v) { r.cabeceras[k.toLowerCase()] = v; }, send(t) { r.texto = t; return this; } });
   return r;
 }
 const TEL = '3001112233';
@@ -39,7 +40,6 @@ let r;
 r = await llamar();
 assert.deepEqual([r.status, r.ok, r.simulado], [200, true, true]);
 assert.equal((await llamar({ codigo: undefined, vence: undefined })).status, 200);   // solo orientación, sin caso
-assert.equal((await api('llamar', 'GET')).status, 405);
 assert.equal((await llamar({}, { headers: { 'content-type': 'text/plain' } })).status, 415);
 assert.equal((await llamar({}, { headers: { 'sec-fetch-site': 'cross-site' } })).status, 403);
 assert.equal((await llamar({}, { headers: { origin: 'https://malo.example' } })).status, 403);
@@ -115,6 +115,35 @@ assert.equal(cifrarPush('When I grow up, I want to be a watermelon',
   { keys: { p256dh: 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4', auth: 'BTBZMqHH6r4Tts7J_aSIgg' } },
   Buffer.from('yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw', 'base64url'), Buffer.from('DGv6ra1nlYgDCS1FRnbzlw', 'base64url')).toString('base64url'),
   'DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPTpK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN');
+
+// menú de voz (lo pide Twilio por GET): nada del caso antes de que alguien oprima una tecla (un buzón no oprime)
+const menu = (query, opciones) => api('llamar', 'GET', undefined, { query, ...opciones });
+ir('2026-10-30T15:00:00Z');
+r = await menu({ codigo: 'ABCD', vence: '2026-11-03' });
+assert.deepEqual([r.status, r.cabeceras['content-type']], [200, 'text/xml; charset=utf-8']);
+assert.match(r.texto, /<Gather input="dtmf" numDigits="1" timeout="10" action="https:\/\/miderecho\.test\/api\/llamar\?paso=1&#38;codigo=ABCD&#38;vence=2026-11-03" method="GET">/);
+assert.match(r.texto, /oprima cualquier tecla/);
+assert.ok(!/A, B|noviembre|MiDerecho/.test(r.texto), 'antes de la tecla no se dice nada del caso');
+assert.match(r.texto, /<Hangup\/><\/Response>$/);
+r = await menu({ paso: '1', codigo: 'ABCD', vence: '2026-11-03' });
+assert.match(r.texto, /Le recordamos su caso A, B, C, D\. El plazo vence el martes, 3 de noviembre\./);
+assert.match(r.texto, /<Gather input="dtmf speech"[^>]*action="https:\/\/miderecho\.test\/api\/llamar\?paso=2&#38;codigo=ABCD/);
+r = await menu({ paso: '1' });   // llamada sin caso: solo orientación
+assert.match(r.texto, /qué documento le sirve/);
+assert.ok(!r.texto.includes('<Gather'));
+const paso2 = (extra, vence = '2026-11-03') => menu({ paso: '2', codigo: 'ABCD', vence, ...extra }).then(x => x.texto);
+assert.match(await paso2({ Digits: '1' }), /Qué bien/);
+assert.match(await paso2({ SpeechResult: 'Sí.' }), /Qué bien/);
+assert.match(await paso2({ Digits: '2' }), /Todavía están a tiempo/);
+assert.match(await paso2({ SpeechResult: 'No, todavía no.' }), /Todavía están a tiempo/);
+assert.match(await paso2({ Digits: '2' }, '2026-10-20'), /Si ya pasó la fecha[^<]*no consejo de abogado/);
+assert.match(await paso2({ Digits: '9' }), /uno, dos, tres[^]*Repito[^]*uno, dos, tres/);
+assert.match(await paso2({ SpeechResult: 'repetir' }), /^[^]*<Redirect method="GET">https:\/\/miderecho\.test\/api\/llamar\?paso=1&#38;codigo=ABCD/);
+assert.match(await paso2({ Digits: '7' }), /No le entendí\.[^]*<Redirect/);
+assert.match((await menu({ codigo: '<x>' })).texto, /No pudimos leer este recordatorio/);   // datos malos: igual responde TwiML
+// la cuenta de prueba de Twilio puede pedirlo por POST de formulario (no JSON)
+r = await api('llamar', 'POST', { Digits: '1' }, { query: { paso: '2', codigo: 'ABCD', vence: '2026-11-03' }, headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+assert.match(r.texto, /Qué bien/);
 
 // ---------- parte 2: ElevenLabs, QStash, Upstash, Twilio y servicio de push falsos ----------
 let mapa = new Map(), redis = memoria(mapa), fallaEleven = false, fallaQstash = false, estadoPush = 201;
@@ -265,11 +294,22 @@ env.QSTASH_TOKEN = 'qs-token';
 env.LIMITE_DIARIO = '1';   // ya hubo un envío hoy en total
 assert.match((await llamar({ telefono: '3100000000' }, { ip: '10.2.0.1' })).error, /límite de envíos de hoy/);
 delete env.LIMITE_DIARIO;
-// sin clave de ElevenLabs no hay llamada real ni respaldo por Twilio
+// sin agente pero con Twilio (la cuenta de prueba): llama Twilio y sigue el menú de voz de esta misma ruta, sin Redis
 delete env.ELEVENLABS_API_KEY;
 ir('2026-10-28T15:00:00Z');
-assert.deepEqual([(r = await llamar()).status, r.simulado], [200, true]);
-assert.equal(twilio.length, 0);
+r = await llamar();
+assert.deepEqual([r.status, r.simulado, r.via], [200, false, 'voz']);
+assert.deepEqual(twilio.at(-1), { To: '+573001112233', From: '+15005550006', Url: 'https://miderecho.test/api/llamar?codigo=ABCD&vence=2026-11-03', Method: 'GET' });
+assert.equal((await llamar({ codigo: '', vence: '' })).status, 200);
+assert.equal(twilio.at(-1).Url, 'https://miderecho.test/api/llamar');
+assert.match((await llamar()).error, /llamadas de hoy/);   // el mismo tope de 2 al día
+assert.ok(autorizaciones().some(([, v]) => v.canal === 'voz'));
+const demo = env.NUMEROS_DEMO;
+delete env.NUMEROS_DEMO;
+env.PERMITIR_ENVIO_ABIERTO = '1';
+assert.match((await llamar({ telefono: '3100000000' })).error, /NUMEROS_DEMO/);   // la lista blanca también es obligatoria aquí
+env.NUMEROS_DEMO = demo;
+delete env.PERMITIR_ENVIO_ABIERTO;
 env.ELEVENLABS_API_KEY = 'xi-prueba';
 
 // ---------- recordatorios: canales que conviven, códigos distintos y autorización por canal ----------
