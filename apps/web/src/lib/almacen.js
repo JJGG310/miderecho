@@ -18,7 +18,7 @@ const vacio = () => ({ casos: [], historial: [] });
 // sensible), el derecho, el documento y la ley (contenido fijo del núcleo). Nada del texto libre de la IA.
 const categoria = o => (o.documento === 'servicios_publicos' ? 'Servicios públicos' : derechoInfo(o.derecho)?.menu || 'Consulta');
 const soloFijo = o => ({ id: o.id, fecha: o.fecha, tema: categoria(o), derecho: o.derecho, documento: o.documento, documento_titulo: o.documento_titulo, ley: o.ley });
-const ABIERTOS = ['esperando', 'negada', 'impugnada'];
+const ABIERTOS = ['esperando', 'negada', 'impugnada', 'por_recurrir'];
 
 // Versión anterior, sin cifrar: las preferencias pasan aparte y los casos se cifran al crear la clave.
 const viejo = leer(VIEJO);

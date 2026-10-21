@@ -11,6 +11,7 @@ import Documento from './pantallas/Documento.jsx';
 import MisCasos from './pantallas/MisCasos.jsx';
 import Historial from './pantallas/Historial.jsx';
 import Perfil from './pantallas/Perfil.jsx';
+import Carta from './pantallas/Carta.jsx';
 import Clave from './pantallas/Clave.jsx';
 import Peligro, { PreguntaPeligro } from './pantallas/Peligro.jsx';
 import Consentimiento, { consintio } from './pantallas/Consentimiento.jsx';
@@ -35,6 +36,7 @@ function Pantallas({ p, a }) {
     case 'historial': return abierta ? <Historial id={a} key={a || 'lista'} /> : <Clave />;
     case 'perfil': return <Perfil />;
     case 'peligro': return <Peligro />;
+    case 'carta': return <Carta paso={a} />;
     case 'politica': return <Suspense fallback={null}><Politica completa={a === 'completa'} key={a || 'historieta'} /></Suspense>;
     default: return <Inicio />;
   }

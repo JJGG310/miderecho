@@ -1,11 +1,14 @@
-import { MessageCircle, FilePen } from 'lucide-react';
+import { MessageCircle, FilePen, Sprout } from 'lucide-react';
 import { derechoInfo } from '@miderecho/nucleo/derechos';
 import { Encabezado, Titulo, DichoDeOtraForma, LeyDesplegable, BotonVoz, ICONOS_DERECHO } from '../componentes/comunes.jsx';
 import { useConexion } from '../lib/conexion.jsx';
 import { ir, memoria } from '../lib/ruta.js';
+import Buho from '../componentes/Buho.jsx';
 
 // Proporción de los cuadros (ancho, alto): reserva el espacio antes de que carguen. Los WebP están al doble (unos 370 px).
 const TAM = { salud: [185, 229] };
+// Botón de cada ficha: abre el documento o la ruta de la carta venta.
+const ACCIONES = { peticion: ['Hacer un derecho de petición', FilePen], servicios_publicos: ['Hacer un reclamo a la empresa', FilePen], carta: ['¿Su carta venta lo hace dueño?', Sprout] };
 const lecturaCuadro = (q, n) => [`Cuadro ${n}: ${q.titulo}.`, q.texto, ...(q.dice || []).map(([quien, t]) => `${quien}: ${t}`),
   q.lista && `${q.listaTitulo} ${q.lista.join(' ')}`, q.pasos && `Pasos que puede seguir: ${q.pasos.join(' ')}`].filter(Boolean).join(' ');
 
@@ -17,14 +20,27 @@ export default function Derecho({ id }) {
   const [ancho, alto] = TAM[d.id] || [185, 157];
   // Conversación nueva: vuelve a preguntar si hay peligro y a pedir la autorización de la IA.
   const contar = () => { Object.assign(memoria, { conversacion: [{ rol: 'persona', texto: d.consulta }], sinPeligro: false, consentimiento: null }); ir('asistente'); };
-  const peticion = () => { memoria.orientacion = null; ir('documento', 'peticion'); };
+  const hacer = () => { memoria.orientacion = null; d.accion === 'carta' ? ir('carta') : ir('documento', d.accion); };
+  const [txtAccion, IconoAccion] = ACCIONES[d.accion] || [];
+  // La ruta de la carta venta funciona sin internet y es la respuesta principal de Tierras: va primero.
+  const ruta = d.accion === 'carta';
+  const accion = txtAccion && <button className={enLinea && !ruta ? 'btn-secundario' : 'btn-primario'} onClick={hacer}><IconoAccion size={20} aria-hidden /> {txtAccion}</button>;
+  const lectura = d.cuadros ? d.cuadros.map((q, i) => lecturaCuadro(q, i + 1)).join(' ') : `${d.descripcion} Qué puede hacer: ${d.pasos.join(' ')}`;
 
   return (
     <main className="pantalla">
       <Encabezado />
-      <Titulo icono={ICONOS_DERECHO[d.icono]} lectura={`${d.titulo}. ${d.cuadros.map((q, i) => lecturaCuadro(q, i + 1)).join(' ')}`}>{d.titulo}</Titulo>
+      <Titulo icono={ICONOS_DERECHO[d.icono]} lectura={`${d.titulo}. ${lectura}`}>{d.titulo}</Titulo>
 
-      <ol className="historieta" aria-label="Historieta">
+      {/* Fichas sin historieta (todavía): la explicación y qué puede hacer. */}
+      {!d.cuadros && (
+        <section className="tarjeta clara">
+          <div className="fila-titulo"><h2><Buho pose="ley" ancho={40} /> Qué puede hacer</h2><BotonVoz texto={`Qué puede hacer. ${d.pasos.join(' ')}`} /></div>
+          <p className="texto">{d.descripcion}</p>
+          <ol className="pasos">{d.pasos.map(x => <li key={x}>{x}</li>)}</ol>
+        </section>
+      )}
+      {d.cuadros && <ol className="historieta" aria-label="Historieta">
         {d.cuadros.map((q, i) => (
           <li key={i}>
             <img src={`figma/comic-${d.id}-${i + 1}.webp`} alt="" width={ancho} height={alto} loading={i ? 'lazy' : 'eager'} />
@@ -37,19 +53,18 @@ export default function Derecho({ id }) {
             </div>
           </li>
         ))}
-      </ol>
+      </ol>}
 
       <DichoDeOtraForma>{d.dichoDeOtraForma}</DichoDeOtraForma>
 
+      {ruta && accion}
       {enLinea
-        ? <button className="btn-primario" onClick={contar}><MessageCircle size={22} aria-hidden /> ¿Le está pasando algo así? Cuéntenos</button>
+        ? <button className={ruta ? 'btn-secundario' : 'btn-primario'} onClick={contar}><MessageCircle size={22} aria-hidden /> ¿Le está pasando algo así? Cuéntenos</button>
         : <p className="nota-privacidad">Cuando tenga internet, puede contarnos su caso y le decimos qué hacer.</p>}
-      {d.accion === 'peticion' && (
-        <button className={enLinea ? 'btn-secundario' : 'btn-primario'} onClick={peticion}><FilePen size={20} aria-hidden /> Hacer un derecho de petición</button>
-      )}
+      {!ruta && accion}
 
       <LeyDesplegable texto={d.queDiceLaLey} normas={d.normas} fuente={d.fuente}>
-        <p className="texto">{d.descripcion}</p>
+        {d.cuadros && <p className="texto">{d.descripcion}</p>}
       </LeyDesplegable>
     </main>
   );

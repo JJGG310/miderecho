@@ -1,7 +1,8 @@
 // Prueba: node prototipo/test-plantillas.mjs
 import assert from 'node:assert/strict';
 import { TIPOS, generarDocumento } from './src/plantillas.js';
-import { VERIFICADO, MOTIVOS_SP, EXPLICA, TEMAS, DERECHOS, SERVICIOS, SALUD_NIEGA } from './src/contenido.js';
+import { VERIFICADO, MOTIVOS_SP, EXPLICA, TEMAS, DERECHOS, SERVICIOS, SALUD_NIEGA, CARTA, CARTA_PREGUNTAS } from './src/contenido.js';
+import { DERECHOS_INFO } from './src/derechos.js';
 import { sumarHabiles, iso } from './src/plazos.js';
 
 const HOY = new Date(2026, 9, 20);
@@ -103,5 +104,35 @@ const petConDatos = generarDocumento('peticion', { ...ejemplos.peticion, ...pers
 assert.match(petConDatos, /Yo, Rosa Díaz, identificado\(a\) con cédula de ciudadanía n\.º 30111222/);
 assert.match(petConDatos, /Dirección o correo: Finca El Roble/);
 assert.match(petConDatos, /Teléfono: 3001234567/);
+
+// Recurso desde un reclamo guardado en Mis casos (sin datos personales): notif = día en que la empresa dijo que no
+const reclamoGuardado = { tipo: 'servicios_publicos', entidad: 'Aguas del Sur', municipio: 'Ovejas', vereda: 'El Limón', servicio: 'acueducto', motivo: 'cobro',
+  modo: 'mano', estado: 'por_recurrir', rad: '2026-11-09', notif: '2026-11-09', venc: iso(sumarHabiles(new Date(2026, 10, 9), TIPOS.recurso_servicios.presentar)) };
+assert.equal(reclamoGuardado.venc, '2026-11-17');   // 5 días hábiles, salta el festivo del 16 de noviembre
+const recurso = generarDocumento('recurso_servicios', { ...reclamoGuardado, razones: ['El cobro no corresponde a lo que consumo normalmente.'], palabras: '' }, HOY);
+assert.match(recurso, /usuario\(a\) del servicio de acueducto/);
+assert.match(recurso, /notificada el 9 de noviembre de 2026.*dentro de los 5 días hábiles/s);
+assert.match(recurso, /El cobro no corresponde a lo que consumo normalmente\./);
+assert.ok(!/undefined|NaN|Invalid Date/.test(recurso));
+
+// Ruta "¿Su carta venta lo hace dueño?": toda respuesta lleva a otra pregunta o a un resultado, y todo resultado se alcanza
+const alcanzados = new Set(), porVer = ['papel'];
+while (porVer.length) {
+  const id = porVer.pop();
+  for (const [, texto, destino] of CARTA_PREGUNTAS[id].opciones) {
+    assert.ok(Object.hasOwn(CARTA_PREGUNTAS, destino) || Object.hasOwn(CARTA, destino), `"${texto}" lleva a "${destino}", que no existe`);
+    if (Object.hasOwn(CARTA, destino)) alcanzados.add(destino); else porVer.push(destino);
+  }
+}
+assert.deepEqual([...alcanzados].sort(), Object.keys(CARTA).sort());
+
+// "Conocer mis derechos": cada ficha tiene historieta o pasos, y su botón abre algo que existe
+for (const d of DERECHOS_INFO) {
+  assert.ok(d.cuadros?.length || d.pasos?.length, `${d.id}: sin historieta ni pasos`);
+  assert.ok(['ruta', 'carta'].includes(d.accion) || Object.hasOwn(TIPOS, d.accion), `${d.id}: acción ${d.accion}`);
+  for (const k of ['titulo', 'menu', 'sub', 'icono', 'descripcion', 'dichoDeOtraForma', 'queDiceLaLey', 'normas', 'consulta']) assert.ok(d[k], `${d.id}: falta ${k}`);
+}
+assert.ok(DERECHOS_INFO.some(d => d.id === 'servicios' && d.accion === 'servicios_publicos'));
+assert.ok(DERECHOS_INFO.some(d => d.id === 'tierras' && d.accion === 'carta'));
 
 console.log('plantillas ok');
