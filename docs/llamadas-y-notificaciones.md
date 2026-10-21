@@ -1,12 +1,14 @@
 # Llamadas y notificaciones
 
-Estado (21-oct-2026): todo funciona en **modo simulado**. No hay claves de ElevenLabs, Twilio, QStash ni VAPID en Vercel, y no se ha hecho ninguna llamada real. La sección 2 dice exactamente qué hacer para la primera llamada de prueba.
+Estado (21-oct-2026): en Vercel ya están las claves de Twilio (cuenta de **prueba**) y `NUMEROS_DEMO`; faltan las de ElevenLabs, QStash y VAPID. Con lo que hay, la llamada sale **gratis** por el menú de voz de Twilio (§2.0). El agente de ElevenLabs por teléfono necesita Twilio de pago (§2.1). Todavía no se ha hecho ninguna llamada real desde la app.
 
 ## 1. Qué hay
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
 | Llamada del asistente | `POST /api/llamar` `{ telefono, acepto: true, aviso: "llamada-v2", cuando?, codigo?, vence? }` (`prototipo/api/llamar.js`) | El agente **"MiDerecho teléfono"** de ElevenLabs llama a la persona por un número de Twilio importado en ElevenLabs. Sin `cuando`, llama ya; con `cuando` (`"2026-10-22T09:00-05:00"`, en punto o y media, desde 10 minutos y hasta 7 días), la agenda. Devuelve un `token` para cancelar. Una sola agendada por número: la nueva reemplaza la anterior. Si ElevenLabs falla, 502 (sin respaldo con voz leída: podría dejar el código en un buzón) |
+| Llamada con menú de voz (sin agente) | Mismo `POST /api/llamar`, responde `via: "voz"` | Si no hay agente configurado (`ELEVENLABS_API_KEY` y `ELEVENLABS_PHONE_NUMBER_ID`) y sí Twilio, llama Twilio y pide el TwiML a `GET /api/llamar` (§2.0). Funciona con la cuenta de prueba y sin Redis. Mismas reglas que el agente: `NUMEROS_DEMO`, 2 al día por número, horario |
+| Menú de voz | `GET /api/llamar?paso=&codigo=&vence=` (lo pide Twilio) | Sin estado y con texto fijo: (1) "Tiene un recordatorio… oprima cualquier tecla" (nada del caso: un buzón no oprime); (2) código y fecha, y "si ya le respondieron oprima 1 o diga sí, si no 2, repetir 3, peligro 9"; (3) la respuesta fija del agente telefónico. Ante datos malos igual devuelve TwiML |
 | Cancelar la llamada agendada | `DELETE /api/llamar` `{ token }` | Borra el número cifrado; cuando QStash llegue, no pasa nada |
 | Agendado | `PUT /api/llamar` `{ id }` (solo QStash, con firma) | Upstash QStash entrega el mensaje a la hora pedida y la función llama |
 | Clave pública VAPID | `GET /api/recordatorios` → `{ clave }` | Para que el navegador se suscriba a las notificaciones (Web Push con cifrado RFC 8291 y firma VAPID hechos con `node:crypto`, sin librería) |
@@ -19,21 +21,45 @@ Estado (21-oct-2026): todo funciona en **modo simulado**. No hay claves de Eleve
 
 ## 2. Llamada de prueba (pasos exactos, en orden)
 
-### 2.1 Twilio
+### 2.0 La vía gratis: cuenta de prueba de Twilio con menú de voz (recomendada ahora)
+
+Lo que dice la documentación de Twilio (página de la prueba de voz, actualizada el 25-sep-2026):
+- La prueba trae **75 minutos** de voz, llamadas de máximo 10 minutos, solo a números verificados (hasta 5) y dentro del país del registro.
+- **Acepta TwiML propio** con `<Say>`, `<Gather>` (teclas y voz, con `action`), `<Play>`, `<Pause>`, `<Redirect>` y `<Hangup>`.
+- **Bloquea `<Stream>`, `<ConversationRelay>` y `<Dial><Number|Sip|Client>`.** El agente de ElevenLabs conecta la llamada con `<Stream>`, así que **no puede hablar por teléfono con una cuenta de prueba**.
+- Las llamadas salen de un **número de prueba compartido**, que no es de la cuenta. Por eso no se puede importar en ElevenLabs.
+- No menciona el viejo mensaje en inglés de "cuenta de prueba… oprima una tecla". Si aparece, se oprime una tecla y sigue el menú.
+- La misma página dice que, por API, la prueba solo cambia `to` y usa sus plantillas. Esto contradice lo de TwiML propio; por eso hay un plan B por la consola.
+
+Por eso, sin agente configurado, `/api/llamar` llama por Twilio con un **menú de voz propio**. No necesita Redis ni funciones nuevas: el TwiML sale de un GET de la misma ruta. Nada del caso se dice hasta que alguien oprime una tecla, así que no queda en un buzón de voz. Ya está todo en Vercel: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` (el número de prueba de Twilio) y `NUMEROS_DEMO` (el celular verificado de Juan). **No poner `ELEVENLABS_PHONE_NUMBER_ID` todavía**: con él la app intenta el agente.
+
+1. Publicar en producción (los previews piden inicio de sesión y Twilio no puede leer el menú).
+2. Ver el menú en el navegador, sin llamar: <https://miderecho-two.vercel.app/api/llamar?paso=1&codigo=K7P2&vence=2026-11-03> (devuelve XML).
+3. Llamada desde la app, de 8 a. m. a 7 p. m.: **Mis casos → Que el asistente lo llame →** el celular de Juan **→** autorizar **→ Llámenme ahora**. O con curl:
+   ```bash
+   curl -X POST https://miderecho-two.vercel.app/api/llamar -H 'Content-Type: application/json' -H 'Origin: https://miderecho-two.vercel.app' -d '{"telefono":"3XXXXXXXXX","acepto":true,"aviso":"llamada-v2","codigo":"K7P2","vence":"2026-11-03"}'
+   ```
+4. Al contestar: oprimir cualquier tecla, escuchar el código y la fecha, y probar 1, 2, 3 y 9 (o decir "sí" o "no").
+5. **Plan B, si la API responde `No se pudo hacer la llamada` o `Twilio no aceptó el envío (código …)`:** la prueba puede estar limitando la API a sus plantillas. En la consola de Twilio: *Voice → Overview → Try out Voice → Outbound*, el celular verificado, escenario **Custom** y como URL de TwiML `https://miderecho-two.vercel.app/api/llamar?codigo=K7P2&vence=2026-11-03` (método GET). Llama con el mismo menú.
+6. Si falla, el log de Vercel dice el código de Twilio sin el número (`[twilio] Calls falló: …`).
+
+**Costo:** 0 mientras duren los 75 minutos (una llamada de este menú dura 1 o 2 minutos).
+
+### 2.1 Twilio (para el agente de ElevenLabs por teléfono: requiere pasar a pago)
 
 1. Crear la cuenta en <https://www.twilio.com/try-twilio> **con el celular colombiano de Juan José**: la prueba solo llama al país del número con que se registra, y ese número queda verificado solo.
 2. *Phone Numbers → Manage → Buy a number*: un número de **EE. UU. con Voice** (sale en minutos; US$1,15 al mes, la prueba lo paga con el crédito). Uno colombiano pide documentos.
 3. *Voice → Settings → Geo permissions*: marcar **Colombia** (si no, Twilio rechaza con el código 21215).
-4. **Pasar la cuenta a pago (*Upgrade*)** antes de probar el agente. En la prueba, Twilio pone un mensaje en inglés al contestar y pide oprimir una tecla, solo llama a números verificados y bloquea parte del TwiML personalizado; la conexión del agente (`<Connect><Stream>`) puede no funcionar. Con pago esas restricciones desaparecen (recarga inicial de unos US$20; confirmar en la consola). No activar la recarga automática y poner una alerta de gasto (*Monitor → Usage triggers*).
+4. **Pasar la cuenta a pago (*Upgrade*)**: es obligatorio para el agente (la prueba bloquea `<Stream>` y su número es compartido). Al pasar, Twilio regala otra vez 75 minutos de llamadas, 30 de *Media Streams* (lo que usa el agente) y el primer mes de un número de EE. UU. En la prueba, Twilio pone un mensaje en inglés al contestar y pide oprimir una tecla, solo llama a números verificados y bloquea parte del TwiML personalizado; la conexión del agente (`<Connect><Stream>`) puede no funcionar. Con pago esas restricciones desaparecen (recarga inicial de unos US$20; confirmar en la consola). No activar la recarga automática y poner una alerta de gasto (*Monitor → Usage triggers*).
 5. Revisar que la grabación de llamadas esté apagada.
 6. Mejor que el Auth Token de la cuenta: crear una **API Key** (*Account → API keys & tokens → Create API key*, tipo Standard) para ElevenLabs. Su SID empieza por `SK`.
 
 ### 2.2 ElevenLabs
 
 1. Crear una clave en *Settings → API keys* con permiso para agentes conversacionales: es `ELEVENLABS_API_KEY` (sirve también para el agente web, `api/elevenlabs-sesion.js`).
-2. *Agents → Phone numbers → Import number → Twilio*: etiqueta "MiDerecho", el número de EE. UU. en formato +1…, y el SID y el secreto de la API Key de Twilio. ElevenLabs configura solo el número. **El secreto se pega solo en el panel; nunca al repositorio ni al chat.**
-3. Asignar al número el agente **"MiDerecho teléfono"** (sirve para las llamadas entrantes; las salientes lo eligen por API).
-4. Sacar el **`ELEVENLABS_PHONE_NUMBER_ID`** (empieza por `phnum_`): pídale a Claude que lo lea con el conector de ElevenLabs (`agents_list_phone_numbers`), o en la terminal:
+2. *Agents → Phone numbers → Import number → Twilio*: etiqueta "MiDerecho", el número **comprado** de EE. UU. en formato +1… (no el de prueba), y el SID y el secreto de la API Key de Twilio. ElevenLabs configura solo el número. **El secreto lo pega Juan en el panel; nunca va al repositorio ni al chat.**
+3. Avisarle a Claude: con el conector de ElevenLabs lee el número (`agents_list_phone_numbers`), le asigna el agente **"MiDerecho teléfono"** (`agents_update_phone_number`) y entrega el **`ELEVENLABS_PHONE_NUMBER_ID`** (empieza por `phnum_`).
+4. También se puede leer en la terminal:
    ```bash
    curl -s https://api.elevenlabs.io/v1/convai/phone-numbers -H "xi-api-key: $ELEVENLABS_API_KEY"
    ```
@@ -80,7 +106,8 @@ node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'prime25
 
 | Concepto | USD |
 |---|---|
-| ElevenLabs Agents | 0,08 por minuto (más ~0,01 del modelo de lenguaje) |
+| ElevenLabs Agents | Plan gratis: 15 minutos al mes (4 a la vez); Starter 75, Creator 275, Pro 1.238. Extra: 0,08 por minuto (más ~0,01 del modelo de lenguaje) |
+| Menú de voz con la cuenta de prueba de Twilio | 0 (75 minutos incluidos) |
 | Twilio, llamada saliente a celular colombiano | 0,0377 por minuto |
 | Twilio, detección de buzón de voz (cuelga si contesta una grabadora) | ~0,0075 por llamada |
 | Número de EE. UU. en Twilio | 1,15 al mes |

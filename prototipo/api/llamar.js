@@ -1,5 +1,7 @@
-// POST /api/llamar { telefono, acepto: true, aviso, cuando?, codigo?, vence? } → { ok, simulado, token? }
-//   El agente de voz "MiDerecho teléfono" (ElevenLabs) llama a la persona desde el número de Twilio importado en ElevenLabs.
+// POST /api/llamar { telefono, acepto: true, aviso, cuando?, codigo?, vence? } → { ok, simulado, via, token? }
+//   via 'agente': el agente de voz "MiDerecho teléfono" (ElevenLabs) llama desde el número de Twilio importado en ElevenLabs.
+//   via 'voz': sin agente configurado, Twilio llama y sigue el menú de voz de abajo (GET). Funciona con la cuenta de prueba
+//   de Twilio, que bloquea <Stream> (lo que usa el agente) pero acepta <Say> y <Gather>, y no necesita Redis para llamar ya.
 //   Sin `cuando`, llama ya. Con `cuando` ("2026-10-22T09:00-05:00": en punto o y media, desde 10 minutos y hasta 7 días)
 //   la agenda: el número queda cifrado en Redis y Upstash QStash vuelve a esta ruta a esa hora (PUT), porque el cron de
 //   Vercel Hobby corre una vez al día. El agendado de ElevenLabs (batch calling) no admite el modo de retención cero.
@@ -9,8 +11,12 @@
 //   (una voz grabada podría dejar el código del caso en el buzón de un celular compartido).
 // DELETE /api/llamar { token }: cancela la llamada agendada. Siempre responde igual, exista o no.
 // PUT /api/llamar { id }: solo para QStash, con su firma (Upstash-Signature).
+// GET /api/llamar?paso=&codigo=&vence= (lo pide Twilio; con la cuenta de prueba puede llegar como POST de formulario):
+//   menú de voz sin estado y con texto fijo. Nada del caso se dice antes de que alguien oprima una tecla (un buzón de voz
+//   no oprime). Luego: código y fecha, "¿le respondieron?" (1 sí, 2 no, 3 repetir, 9 peligro) y la respuesta fija.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { atender, falla, celular, proteger, cifrar, descifrar, hmac, kv, redisListo, simulado, oculto, fechaVoz, version, autorizacion } from './_comun.js';
+import { atender, falla, celular, proteger, cifrar, descifrar, hmac, kv, redisListo, simulado, oculto, fechaVoz, version, autorizacion,
+  llamarConUrl, presentacionVoz, xml, hoyColombia } from './_comun.js';
 
 const AGENTE = 'agent_3901m5fd72hyedssc8h6r4gznevn';   // "MiDerecho teléfono": agente/prompt-telefono.md y agente/telefono.md
 const FUERA = 'Solo llamamos de 8 a. m. a 7 p. m., hora de Colombia';
@@ -20,16 +26,19 @@ const enHorario = seg => { const h = new Date((seg - 5 * 3600) * 1000).getUTCHou
 const destino = req => `https://${req.headers.host}/api/llamar`;
 
 export default async function handler(req, res) {
+  // Twilio pide el TwiML por GET o, con la cuenta de prueba, por POST de formulario; la app siempre manda JSON.
+  if (req.method === 'GET' || /x-www-form-urlencoded/i.test(req.headers['content-type'] || '')) return menuDeVoz(req, res);
   return atender(req, res, {
     async POST(b) {
       const tel = celular(b.telefono), datos = { codigo: codigoDe(b.codigo), vence: venceDe(b.vence) };
       if (b.acepto !== true) throw falla(400, 'Falta la autorización para llamar a este número');
-      const aviso = version(b.aviso), cuando = b.cuando == null || b.cuando === '' ? null : cuandoDe(b.cuando), real = !simulado('agente');
+      const aviso = version(b.aviso), cuando = b.cuando == null || b.cuando === '' ? null : cuandoDe(b.cuando);
+      const canal = simulado('agente') ? 'voz' : 'agente', real = !simulado(canal);
       if (!cuando && !enHorario(ahora())) throw falla(400, FUERA);
       if (cuando && real && !(env.QSTASH_TOKEN && redisListo())) throw falla(503, 'Para agendar llamadas faltan QSTASH_TOKEN y Redis en el servidor');
-      await proteger(req, tel, 'agente');
-      if (real) await kv(autorizacion(tel, aviso, 'agente'));
-      if (!cuando) return llamarConAgente(tel, datos);
+      await proteger(req, tel, canal);
+      if (real) await kv(autorizacion(tel, aviso, canal));
+      if (!cuando) return llamar(tel, datos, req.headers.host);
 
       const token = randomBytes(16).toString('base64url'), id = hmac('llam:' + token);
       if (real) {
@@ -48,13 +57,13 @@ export default async function handler(req, res) {
         }
       }
       console.log(`[llamar] agendada${real ? '' : ' (simulado)'} a ${oculto(tel)}`);
-      return { ok: true, simulado: !real, token };
+      return { ok: true, simulado: !real, via: canal, token };
     },
     async DELETE(b) {
       const token = String(b.token ?? '');
       if (!/^[\w-]{22}$/.test(token)) throw falla(400, 'Token inválido');
       await kv(['DEL', 'llam:' + hmac('llam:' + token)]);
-      return { ok: true, simulado: simulado('agente') };
+      return { ok: true, simulado: simulado('agente') && simulado('voz') };
     },
     async PUT(b) {
       firmaQstash(req, b);
@@ -65,15 +74,16 @@ export default async function handler(req, res) {
         return { ok: true, simulado: false };
       }
       const r = JSON.parse(txt);
-      return llamarConAgente(descifrar(r.c), r);
+      return llamar(descifrar(r.c), r, req.headers.host);
     },
   });
 }
 
-async function llamarConAgente(tel, { codigo, vence }) {
+async function llamar(tel, { codigo, vence }, host) {
   if (simulado('agente')) {
+    if (!simulado('voz')) return { ...await llamarConUrl(tel, urlVoz(host, { codigo, vence })), via: 'voz' };
     console.log(`[llamar] simulado a ${oculto(tel)}`);
-    return { ok: true, simulado: true };
+    return { ok: true, simulado: true, via: 'voz' };
   }
   const r = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
     method: 'POST', signal: AbortSignal.timeout(8000),
@@ -96,7 +106,61 @@ async function llamarConAgente(tel, { codigo, vence }) {
     throw falla(502, `No se pudo hacer la llamada (código ${r.status})`);
   }
   console.log(`[llamar] llamando a ${oculto(tel)}`);
-  return { ok: true, simulado: false };
+  return { ok: true, simulado: false, via: 'agente' };
+}
+
+// ---------- menú de voz (Twilio, sin agente) ----------
+// Textos fijos, los mismos de agente/prompt-telefono.md. Voz neural de español latino.
+const urlVoz = (host, { codigo, vence }, paso) => {
+  const q = new URLSearchParams(Object.entries({ paso, codigo, vence }).filter(([, v]) => v));
+  return `https://${host}/api/llamar${q.size ? '?' + q : ''}`;
+};
+const decir = t => `<Say language="es-MX" voice="Polly.Mia-Neural">${xml(t)}</Say>`;
+const TEXTOS = {
+  llave: 'Hola. Tiene un recordatorio de un servicio automático. Para escucharlo, oprima cualquier tecla.',
+  nadie: 'No recibimos respuesta. Hasta luego.',
+  opciones: 'Si ya le respondieron, oprima 1 o diga sí. Si no le han respondido, oprima 2 o diga no. Para escuchar de nuevo, oprima 3. Si está en peligro, oprima 9.',
+  respondieron: 'Qué bien. Abra MiDerecho, entre a Mis casos y anote qué le respondieron. La app le dice qué sigue.',
+  aTiempo: 'Todavía están a tiempo de responderle. Si llega esa fecha y no le han respondido, abra Mis casos en la app: ahí le ayuda con el siguiente paso.',
+  vencido: 'Si ya pasó la fecha y no le respondieron, abra Mis casos en la app: le ayuda a preparar el siguiente documento, sin abogado. Esto es información general, no consejo de abogado.',
+  sinFecha: 'Si no le han respondido, abra Mis casos en la app: ahí le ayuda con el siguiente paso.',
+  orienta: 'Para saber qué documento le sirve, abra MiDerecho y cuéntele a la app qué pasa, o pídale ayuda a su líder o a la Personería.',
+  noEntendi: 'No le entendí.',
+  riesgo: 'Si hay peligro ahora mismo, llame al uno, dos, tres. La Personería de su municipio o la Defensoría del Pueblo pueden activar rutas de protección. También puede escribir al Programa Somos Defensores, al correo proteccion arroba somosdefensores punto org.',
+  cierre: 'Recuerde que soy un asistente automático. Para una duda legal, acuda a la Personería o a un consultorio jurídico. Hasta luego.',
+  error: 'No pudimos leer este recordatorio. Abra la app MiDerecho. Hasta luego.',
+};
+// Tecla o palabra → opción. La palabra solo cuenta después de la primera tecla (un buzón de voz también "habla").
+const opcion = (digito, dicho = '') => {
+  const d = dicho.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();   // "Sí." → "si."
+  return digito || (/peligro|amenaz/.test(d) ? '9' : /repet|otra vez/.test(d) ? '3' : /\bno\b/.test(d) ? '2' : /\b(si|ya)\b/.test(d) ? '1' : '');
+};
+
+export function menuDeVoz(req, res) {
+  const q = { ...(req.query || {}), ...(req.body && typeof req.body === 'object' ? req.body : {}) };
+  let cuerpo;
+  try {
+    const datos = { codigo: codigoDe(q.codigo), vence: venceDe(q.vence) }, host = req.headers.host, hoy = hoyColombia();
+    const a = paso => xml(urlVoz(host, datos, paso));
+    if (!q.paso) {
+      cuerpo = `<Pause length="1"/><Gather input="dtmf" numDigits="1" timeout="10" action="${a('1')}" method="GET">${decir(TEXTOS.llave)}</Gather>${decir(TEXTOS.nadie)}`;
+    } else if (q.paso === '1') {
+      cuerpo = decir(presentacionVoz(datos.codigo, datos.vence, hoy)) + (datos.codigo
+        ? `<Gather input="dtmf speech" numDigits="1" timeout="8" speechTimeout="auto" language="es-MX" hints="sí, no, repetir" action="${a('2')}" method="GET">${decir(TEXTOS.opciones)}</Gather>${decir(TEXTOS.cierre)}`
+        : decir(TEXTOS.orienta) + decir(TEXTOS.cierre));
+    } else {
+      const o = opcion(q.Digits, q.SpeechResult);
+      cuerpo = o === '1' ? decir(TEXTOS.respondieron) + decir(TEXTOS.cierre)
+        : o === '2' ? decir(!datos.vence ? TEXTOS.sinFecha : hoy > datos.vence ? TEXTOS.vencido : TEXTOS.aTiempo) + decir(TEXTOS.cierre)
+        : o === '9' ? decir(TEXTOS.riesgo) + decir('Repito.') + decir(TEXTOS.riesgo) + decir('Cuídese. Hasta luego.')
+        : `${o === '3' ? '' : decir(TEXTOS.noEntendi)}<Redirect method="GET">${a('1')}</Redirect>`;
+    }
+  } catch {
+    cuerpo = decir(TEXTOS.error);   // Twilio necesita TwiML aunque los datos vengan mal
+  }
+  res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response>${cuerpo}<Hangup/></Response>`);
 }
 
 // JWT HS256 de QStash: firmado con la clave actual o la siguiente, para esta URL, vigente y con el hash de este cuerpo.

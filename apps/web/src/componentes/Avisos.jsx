@@ -177,7 +177,8 @@ export function LlamadaAsistente({ casos }) {
     if (!r.ok) return setEstado({ error: r.error });
     setF(x => ({ ...x, telefono: '', acepto: false }));   // el número no se guarda en el celular
     setAgendada(llamadaAgendada());
-    setEstado({ texto: ahora ? 'En unos segundos le entra una llamada. Contéstela: es el asistente automático de MiDerecho. Si no entra, pídala de nuevo más tarde.' : `Lo llamamos el ${punto(texto)} Tenga el celular a la mano.`, simulado: r.simulado });
+    const tecla = r.via === 'voz' ? ' Al contestar, oprima cualquier tecla para escuchar su recordatorio.' : '';
+    setEstado({ texto: (ahora ? 'En unos segundos le entra una llamada. Contéstela: es el asistente automático de MiDerecho. Si no entra, pídala de nuevo más tarde.' : `Lo llamamos el ${punto(texto)} Tenga el celular a la mano.`) + tecla, simulado: r.simulado });
   };
   const cancelar = async () => { await cancelarLlamada(); setAgendada(null); setEstado({ texto: 'Llamada cancelada.' }); };
 
