@@ -9,6 +9,7 @@ import Documento from './pantallas/Documento.jsx';
 import MisCasos from './pantallas/MisCasos.jsx';
 import Historial from './pantallas/Historial.jsx';
 import Perfil from './pantallas/Perfil.jsx';
+import Politica from './pantallas/Politica.jsx';
 
 // Pantalla de carga del Figma ("Bandeja de Entrada App").
 function Carga() {
@@ -31,6 +32,7 @@ function Pantallas() {
     case 'casos': return <MisCasos />;
     case 'historial': return <Historial />;
     case 'perfil': return <Perfil />;
+    case 'politica': return <Politica completa={a === 'completa'} key={a || 'historieta'} />;
     default: return <Inicio />;
   }
 }
