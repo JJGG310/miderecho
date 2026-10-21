@@ -24,7 +24,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Todo el modo sin conexión (textos y cuadros de las historietas, ~230 KB) queda guardado en el celular.
+        // Todo el modo sin conexión (textos, historietas y las poses del búho) queda guardado en el celular.
         globPatterns: ['**/*.{js,css,html,png,svg,webp}'],
         navigateFallbackDenylist: [/^\/api\//],
         importScripts: ['sw-avisos.js'],   // notificaciones push de los plazos (public/sw-avisos.js)
