@@ -40,7 +40,12 @@ export default async function handler(req, res) {
   if (!clave) return res.status(503).json({ error: 'Falta ELEVENLABS_API_KEY en el servidor' });
   try {
     const r = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${AGENTE}`, { headers: { 'xi-api-key': clave } });
-    if (!r.ok) throw new Error('ElevenLabs respondió ' + r.status);
+    if (!r.ok) {
+      // Diagnóstico sin datos sensibles: ¿la clave sirve en su cuenta (y entonces el agente es de otra), o la rechazan del todo?
+      const u = await fetch('https://api.elevenlabs.io/v1/user', { headers: { 'xi-api-key': clave } }).catch(() => null);
+      const detalle = (await r.text().catch(() => '')).replace(/[^\w .,:'"-]/g, ' ').slice(0, 160);
+      throw new Error(`ElevenLabs respondió ${r.status} al token (clave en /v1/user: ${u ? u.status : 'sin red'}; motivo: ${detalle})`);
+    }
     const { token } = await r.json();
     if (typeof token !== 'string') throw new Error('ElevenLabs no mandó token');
     await incr(`aviso:${aviso}:${hoyColombia()}`, Math.floor(Date.now() / 1000) + 400 * 86400).catch(() => {});
