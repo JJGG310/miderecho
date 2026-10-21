@@ -80,7 +80,7 @@ export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar }) {
     <section className="tarjeta riesgo">
       <AlertTriangle size={20} aria-hidden />
       <h2>No se envió de verdad (modo de prueba)</h2>
-      <p className="suave">{k.prueba ? `El correo llegó al equipo de MiDerecho, no a ${k.entidad}.` : `No salió ningún correo: ${k.entidad} no recibió nada.`} Tu caso no quedó como entregado. Entrégalo a mano o guarda el PDF.</p>
+      <p className="suave">{k.prueba ? `El correo llegó al equipo de MiDerecho, no a ${k.entidad}.` : `No salió ningún correo: ${k.entidad} no recibió nada.`} Su caso no quedó como entregado. Entréguelo a mano o guarde el PDF.</p>
     </section>
   );
   if (k) return (
@@ -88,8 +88,8 @@ export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar }) {
       <CheckCircle2 size={20} aria-hidden />
       <h2>{judicial ? 'Tutela enviada al juzgado' : 'Documento enviado'}</h2>
       <Constancia k={k} />
-      {copia && <p className="suave">{estado.copia ? 'También enviamos una copia a tu correo.' : 'La copia a tu correo no se envió: ese correo no está autorizado.'}</p>}
-      <p className="suave">Guarda el código {codigo}: con él puedes preguntar por tu caso.</p>
+      {copia && <p className="suave">{estado.copia ? 'También enviamos una copia a su correo.' : 'La copia a su correo no se envió: ese correo no está autorizado.'}</p>}
+      <p className="suave">Guarde el código {codigo}: con él puede preguntar por su caso.</p>
     </section>
   );
   if (!abierto) return (
@@ -102,48 +102,48 @@ export default function EnvioCorreo({ tipo, datos, alAbrir, alEnviar }) {
   const nombreDestino = dest?.nombre || datos.entidad || 'la entidad';
   const salud = tipo === 'tutela_salud' || datos.derecho === 'salud';
   if (!datos.nombre || !datos.cedula) return (
-    <section className="tarjeta clara"><p className="suave">Para enviarlo necesitamos tu nombre y tu cédula en el documento. Vuelve atrás y escríbelos (o imprímelo y entrégalo a mano).</p></section>
+    <section className="tarjeta clara"><p className="suave">Para enviarlo necesitamos su nombre y su cédula en el documento. Vuelva atrás y escríbalos (o imprímalo y entréguelo a mano).</p></section>
   );
   return (
     <section className="tarjeta clara formulario">
       <h2><Mail size={18} aria-hidden /> {judicial ? 'Enviar la tutela al juzgado' : 'Enviar por correo'}</h2>
       {deMentira && <p className="nota-privacidad">Modo de prueba: {modo.prueba ? `el correo llega al equipo de MiDerecho, no a ${nombreDestino}` : `no sale ningún correo; ${nombreDestino} no recibe nada`}.</p>}
       {dest
-        ? <p className="suave">Va a <b>{dest.nombre}</b>: {dest.correo}.{!dest.verificado && <> <b>Ojo:</b> este correo no lo hemos verificado con una fuente oficial; revisa que sea el de la entidad.</>}</p>
+        ? <p className="suave">Va a <b>{dest.nombre}</b>: {dest.correo}.{!dest.verificado && <> <b>Ojo:</b> este correo no lo hemos verificado con una fuente oficial; revise que sea el de la entidad.</>}</p>
         : modo?.libre === false
-          ? <p className="suave">{nombreDestino} no está en nuestro directorio. Imprímelo y entrégalo, o envíalo tú desde tu correo.</p>
+          ? <p className="suave">{nombreDestino} no está en nuestro directorio. Imprímalo y entréguelo, o envíelo usted desde su correo.</p>
           : <div className="campo">
               <span className="etiqueta">Correo de {nombreDestino}</span>
-              <input type="email" value={f.correo} onChange={e => set('correo', e.target.value)} autoComplete="off" placeholder="Búscalo en la factura o en su página web" />
-              <small className="ayuda">No está en nuestro directorio: no lo hemos verificado. Revisa que sea el correo oficial para peticiones o reclamos.{modo?.libre === 'lista' && ' En esta prueba solo llega a correos autorizados del equipo.'}</small>
+              <input type="email" value={f.correo} onChange={e => set('correo', e.target.value)} autoComplete="off" placeholder="Búsquelo en la factura o en la página web de la entidad" />
+              <small className="ayuda">No está en nuestro directorio: no lo hemos verificado. Revise que sea el correo oficial para peticiones o reclamos.{modo?.libre === 'lista' && ' En esta prueba solo llega a correos autorizados del equipo.'}</small>
             </div>}
-      {previo && <p className="aviso-error"><AlertTriangle size={14} aria-hidden /> Ya enviaste {TIPOS[tipo].corto} a {dest.nombre} el {deIso(previo.rad).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })}. {judicial ? 'Presentar dos veces la misma tutela puede traerte una sanción (temeridad).' : `Si no te han respondido, revisa el plazo en Mis casos antes de enviar${TIPOS[tipo].corto.startsWith('la') ? 'la' : 'lo'} otra vez.`}</p>}
+      {previo && <p className="aviso-error"><AlertTriangle size={14} aria-hidden /> Ya envió {TIPOS[tipo].corto} a {dest.nombre} el {deIso(previo.rad).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })}. {judicial ? 'Presentar dos veces la misma tutela puede traerle una sanción (temeridad).' : `Si no le han respondido, revise el plazo en Mis casos antes de enviar${TIPOS[tipo].corto.startsWith('la') ? 'la' : 'lo'} otra vez.`}</p>}
 
       {/* [validar] Decreto 2591 de 1991, art. 14, y Ley 2213 de 2022: tutela por correo, sin abogado y sin firma a mano */}
       {judicial && <p className="suave">La tutela se puede presentar por correo, sin abogado y sin firma a mano (Decreto 2591 de 1991, artículo 14, y Ley 2213 de 2022).</p>}
       <div className="campo">
-        <span className="etiqueta">Tu correo{judicial && !datos.telefono ? ', para que el juzgado te avise' : ', si quieres una copia (opcional)'}</span>
+        <span className="etiqueta">Su correo{judicial && !datos.telefono ? ', para que el juzgado le avise' : ', si quiere una copia (opcional)'}</span>
         <input type="email" value={f.copia} onChange={e => set('copia', e.target.value)} autoComplete="off" />
       </div>
       <label className="check"><input type="checkbox" checked={f.autorizaCopia} onChange={e => set('autorizaCopia', e.target.checked)} /> Envíenme una copia y que {judicial ? 'el juzgado' : 'la entidad'} me pueda responder a ese correo.</label>
       {judicial
         ? (avisos.length
-          ? <p className="suave">El juzgado te avisará {avisos.join(' o ')}. Si el juez decide en tu contra, tienes solo <b>3 días hábiles</b> para impugnar desde que te avise: estate pendiente.</p>
-          : <p className="aviso-error">Para que el juzgado te pueda avisar necesitamos tu celular o tu correo: vuelve y escribe tu celular{copiaPermitida ? ', o escribe tu correo arriba y marca la copia' : ''}.</p>)
-        : <p className="suave">La respuesta llegará a lo que pusiste en el documento{copia ? ' y a tu correo' : ''}.</p>}
+          ? <p className="suave">El juzgado le avisará {avisos.join(' o ')}. Si el juez decide en su contra, tiene solo <b>3 días hábiles</b> para impugnar desde que le avise: esté pendiente.</p>
+          : <p className="aviso-error">Para que el juzgado le pueda avisar necesitamos su celular o su correo: vuelva y escriba su celular{copiaPermitida ? ', o escriba su correo arriba y marque la copia' : ''}.</p>)
+        : <p className="suave">La respuesta llegará a lo que puso en el documento{copia ? ' y a su correo' : ''}.</p>}
 
       {modo?.verificar && (datos.telefono
         ? <div className="campo">
-            <span className="etiqueta">Código que te llega por SMS al {datos.telefono}</span>
+            <span className="etiqueta">Código que le llega por SMS al {datos.telefono}</span>
             <button type="button" className="btn-secundario" onClick={async () => { const r = await pedir({ accion: 'codigo', telefono: datos.telefono }); r.ok ? setCodigoPedido(true) : setEstado({ error: r.error }); }}>{codigoPedido ? 'Enviarme otro código' : 'Enviarme el código'}</button>
             {codigoPedido && <input value={f.codigo} onChange={e => set('codigo', e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6 números" />}
-            <small className="ayuda">Así confirmamos que eres tú quien envía el documento.</small>
+            <small className="ayuda">Así confirmamos que es usted quien envía el documento.</small>
           </div>
-        : <p className="aviso-error">Para enviarlo necesitamos confirmar tu celular con un código: vuelve y escríbelo en tus datos.</p>)}
+        : <p className="aviso-error">Para enviarlo necesitamos confirmar su celular con un código: vuelva y escríbalo en sus datos.</p>)}
 
       <label className="check"><input type="checkbox" checked={f.autoriza} onChange={e => set('autoriza', e.target.checked)} /> Autorizo a MiDerecho a enviar en mi nombre este documento completo a {nombreDestino}{para ? ` (${para.correo})` : ''}. Lleva mi nombre, mi cédula, mis datos de contacto y lo que conté{salud ? ', incluida información de mi salud' : ''}. El correo sale por Resend, un servicio de Estados Unidos que guarda una copia por 30 días. MiDerecho no lo guarda.</label>
-      {estado === 'cola' && <p className="nota-privacidad">Sin conexión: se envía solo apenas vuelva la señal. No cierres esta pantalla; si la cierras, tendrás que enviarlo de nuevo.</p>}
-      {estado?.error && <p className="aviso-error"><AlertTriangle size={14} aria-hidden /> {estado.error}. Puedes intentarlo otra vez o entregarlo a mano.</p>}
+      {estado === 'cola' && <p className="nota-privacidad">Sin conexión: se envía solo apenas vuelva la señal. No cierre esta pantalla; si la cierra, tendrá que enviarlo de nuevo.</p>}
+      {estado?.error && <p className="aviso-error"><AlertTriangle size={14} aria-hidden /> {estado.error}. Puede intentarlo otra vez o entregarlo a mano.</p>}
       <button className="btn-primario" disabled={!listo || estado === 'enviando' || estado === 'cola'} onClick={() => (enLinea ? enviar() : setEstado('cola'))}>
         {estado === 'enviando' ? <><Loader2 className="girar" size={18} aria-hidden /> Enviando…</> : estado?.error ? 'Enviar de nuevo' : deMentira ? 'Probar el envío' : 'Enviar ahora'}
       </button>
