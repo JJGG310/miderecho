@@ -299,7 +299,7 @@ delete env.ELEVENLABS_API_KEY;
 ir('2026-10-28T15:00:00Z');
 r = await llamar();
 assert.deepEqual([r.status, r.simulado, r.via], [200, false, 'voz']);
-assert.deepEqual(twilio.at(-1), { To: '+573001112233', From: '+15005550006', Url: 'https://miderecho.test/api/llamar?codigo=ABCD&vence=2026-11-03', Method: 'GET' });
+assert.deepEqual(twilio.at(-1), { To: '+573001112233', From: '+15005550006', Url: 'https://miderecho.test/api/llamar?codigo=ABCD&vence=2026-11-03' });
 assert.equal((await llamar({ codigo: '', vence: '' })).status, 200);
 assert.equal(twilio.at(-1).Url, 'https://miderecho.test/api/llamar');
 assert.match((await llamar()).error, /llamadas de hoy/);   // el mismo tope de 2 al día

@@ -203,7 +203,7 @@ export const xml = t => t.replace(/[<>&"']/g, c => `&#${c.charCodeAt(0)};`);
 
 // Llamada que pide su TwiML a una URL (api/llamar.js). La cuenta de prueba de Twilio acepta TwiML propio con <Say> y <Gather>.
 export async function llamarConUrl(tel, url) {
-  await twilio('Calls', { To: tel, From: desde('llamada'), Url: url, Method: 'GET' });
+  await twilio('Calls', { To: tel, From: desde('llamada'), Url: url });   // sin Method: la cuenta de prueba de Twilio lo rechaza; el menú acepta el POST
   console.log(`[voz] llamando a ${oculto(tel)}`);
   return { ok: true, simulado: false };
 }
