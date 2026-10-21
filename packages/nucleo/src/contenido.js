@@ -20,7 +20,7 @@ export const AYUDA_RIESGO = `<p>Aquí no vamos a guardar nada de lo que nos cont
 <ul>
   <li>Si hay peligro ahora: <a href="tel:123">llame al 123</a>.</li>
   <li>La <b>Personería</b> de su municipio o la <b>Defensoría del Pueblo</b> pueden activar rutas de protección.</li>
-  <li><b>Programa Somos Defensores</b>: <a href="mailto:proteccion@somosdefensores.org">proteccion@somosdefensores.org</a></li>
+  <li><b>Programa Somos Defensores</b>: <a href="mailto:proteccion@somosdefensores.org">proteccion@<wbr>somosdefensores.org</a></li>
 </ul>
 <p class="nota">Prototipo: números y rutas por confirmar con las entidades aliadas.</p>`;
 
