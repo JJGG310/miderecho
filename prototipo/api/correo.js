@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       try { if (b.copia) copia = correoCopia(b.copia); } catch { /* sin permiso para ese correo: va sin copia y la respuesta lo dice */ }
       // El juzgado tiene que poder avisarle a la persona (el fallo, y desde ahí corren 3 días para impugnar).
       const contacto = [esCelular(d.telefono) && `celular ${d.telefono}`, EMAIL.test((d.direccion || '').toLowerCase()) && `correo ${d.direccion}`, copia && `correo ${copia}`].filter(Boolean);
-      if (paraJuzgado(tipo) && !contacto.length) throw falla(400, 'Para que el juzgado te pueda avisar, escribe tu celular en el documento o un correo para la copia');
+      if (paraJuzgado(tipo) && !contacto.length) throw falla(400, 'Para que el juzgado le pueda avisar, escriba su celular en el documento o un correo para la copia');
       // Con clave real y sin lista ni envío abierto, no sale nada. Con lista, lo del directorio llega al primer correo de la lista (prueba).
       if (!simulado() && !abierto() && !demo().length) throw falla(503, 'Envíos reales cerrados: configure CORREOS_DEMO, o Redis y PERMITIR_CORREO_ABIERTO=1');
       const enPrueba = prueba() && dest.clave !== 'libre';
@@ -109,7 +109,7 @@ async function pedirCodigo(req, telefono) {
   const tel = celular(telefono);
   if (sinSms('sms')) throw falla(503, 'Para enviar documentos de verdad hay que verificar el celular por SMS, y los SMS no están configurados');
   await protegerSms(req, tel, 'sms');   // límites y lista de los SMS (_comun.js)
-  if (await contar('correo-cod:' + tel, 86400) > CODIGOS_DIA) throw falla(429, 'Ya pediste muchos códigos hoy. Intenta mañana');
+  if (await contar('correo-cod:' + tel, 86400) > CODIGOS_DIA) throw falla(429, 'Ya pidió muchos códigos hoy. Intente mañana');
   const codigo = String(randomInt(0, 1e6)).padStart(6, '0');
   await kv(['SET', 'correo-v:' + hmac(tel), hmac(codigo), 'EXAT', Math.floor(Date.now() / 1000) + 600]);
   await enviarSms('sms', tel, `MiDerecho: su codigo para enviar el documento es ${codigo}. Vence en 10 minutos. No lo comparta.`);
@@ -117,8 +117,8 @@ async function pedirCodigo(req, telefono) {
 }
 async function verificado(v, telefono) {
   let tel;
-  try { tel = celular(telefono); } catch { throw falla(400, 'Para enviar, el documento debe tener tu celular (te enviamos un código para confirmarlo)'); }
-  if (await contar('correo-int:' + tel, 600) > INTENTOS_CODIGO) throw falla(429, 'Demasiados intentos. Pide un código nuevo en 10 minutos');
+  try { tel = celular(telefono); } catch { throw falla(400, 'Para enviar, el documento debe tener su celular (le enviamos un código para confirmarlo)'); }
+  if (await contar('correo-int:' + tel, 600) > INTENTOS_CODIGO) throw falla(429, 'Demasiados intentos. Pida un código nuevo en 10 minutos');
   const [guardado] = await kv(['GET', 'correo-v:' + hmac(tel)]);
   if (!guardado || guardado !== hmac(String(v?.codigo ?? ''))) throw falla(403, 'El código no es correcto o ya venció');
   return tel;
@@ -130,7 +130,7 @@ const TEXTOS = { municipio: 100, vereda: 100, entidad: 200, correo: 254, cuenta:
 const MULTILINEA = ['palabras', 'orden'];   // en los demás un salto de línea no tiene sentido (y no debe llegar a un encabezado)
 const IDS = { temaId: TEMAS, servicio: SERVICIOS, motivo: MOTIVOS_SP, derecho: DERECHOS, que: SALUD_NIEGA };
 const LISTAS = ['peticiones', 'razones', 'pruebas'];
-const PLAZOS_VALIDOS = [10, 15, 20, 30];   // los de PLAZOS (contenido.js) y TIPOS (plantillas.js)
+const PLAZOS_VALIDOS = [3, 5, 10, 15, 20, 30];   // los de PLAZOS (contenido.js) y TIPOS (plantillas.js): 3 impugnación, 5 recurso de servicios
 const corto = (t, max, k) => {
   t = String(t ?? '').replace(/\r\n?/g, '\n').replace(/[\x00-\x09\x0B-\x1F\x7F]/g, '');
   t = (MULTILINEA.includes(k) ? t : t.replace(/\n+/g, ' ')).trim();

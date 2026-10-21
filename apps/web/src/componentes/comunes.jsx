@@ -40,7 +40,7 @@ export function Encabezado() {
         {abierta && <button className="btn-encabezado" onClick={bloquear} aria-label="Bloquear con la clave"><Lock size={18} aria-hidden /><span className="solo-ancho">Bloquear</span></button>}
       </div>
     </header>
-    {mensaje && <p className="aviso-envios" role="status">{mensaje} <button onClick={cerrarMensajeEnvios} aria-label="Cerrar el aviso">Listo</button></p>}
+    {mensaje && <p className="aviso-envios" role="status">{mensaje} <button onClick={cerrarMensajeEnvios}>Listo</button></p>}
   </>);
 }
 

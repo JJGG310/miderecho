@@ -66,7 +66,7 @@ assert.equal((await alJuzgado({ destino: 'juzgado:Planadas' })).status, 400);
 // el juzgado tiene que poder avisarle a la persona: celular, correo en la dirección o copia
 const sinContacto = { ...tutela, telefono: '' };
 r = await alJuzgado({ datos: sinContacto });
-assert.deepEqual([r.status, r.error], [400, 'Para que el juzgado te pueda avisar, escribe tu celular en el documento o un correo para la copia']);
+assert.deepEqual([r.status, r.error], [400, 'Para que el juzgado le pueda avisar, escriba su celular en el documento o un correo para la copia']);
 assert.equal((await alJuzgado({ datos: { ...sinContacto, telefono: '6012345678' } })).status, 400);   // un fijo no sirve
 assert.equal((await alJuzgado({ datos: { ...sinContacto, direccion: 'ana@gmail.com' } })).status, 200);
 assert.equal((await alJuzgado({ datos: sinContacto, copia: 'ana@gmail.com' })).status, 400);   // copia sin permiso: no cuenta
