@@ -1,0 +1,6 @@
+{
+  "name": "miderecho-vercel",
+  "private": true,
+  "type": "module",
+  "description": "Raíz del proyecto en Vercel: publica apps/web y las funciones de api/ como ES modules."
+}

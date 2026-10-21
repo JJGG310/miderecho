@@ -1,0 +1,16 @@
+{
+  "name": "@miderecho/nucleo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lógica compartida entre la app y el backend: plazos en días hábiles, plantillas de documentos, contenido jurídico y catálogo de derechos.",
+  "exports": {
+    ".": "./src/index.js",
+    "./plazos": "./src/plazos.js",
+    "./plantillas": "./src/plantillas.js",
+    "./contenido": "./src/contenido.js",
+    "./derechos": "./src/derechos.js",
+    "./privacidad": "./src/privacidad.js"
+  },
+  "scripts": { "test": "node test-plazos.mjs && node test-plantillas.mjs && node test-privacidad.mjs" }
+}
