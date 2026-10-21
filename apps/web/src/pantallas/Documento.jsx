@@ -4,6 +4,7 @@ import { TIPOS, generarDocumento, MUNICIPIOS, TEMAS, PETICIONES_EXTRA, PLAZOS, S
 import { Encabezado, Titulo, BotonVoz, ElegirFecha, fechaLarga } from '../componentes/comunes.jsx';
 import Buho from '../componentes/Buho.jsx';
 import EnvioCorreo from '../componentes/EnvioCorreo.jsx';
+import { ParaQuien, AvisoVecino, NotaVecino, SeguimientoVecino } from '../componentes/Vecino.jsx';
 import { ElegirAvisos } from '../componentes/Avisos.jsx';
 import { FormClave } from './Clave.jsx';
 import { cancelarAvisos } from '../lib/avisos.js';
@@ -114,12 +115,14 @@ function Campo({ k, etiqueta, relato, falta, children }) {
   return <label className="campo" id={k && `campo-${k}`}><span className="etiqueta">{etiqueta}{relato && <Relato />}</span>{falta && <Falta />}{children}</label>;
 }
 
-// Pasos: 1 el caso → 2 dónde y desde cuándo → 3 sus datos (solo aquí se piden) → 4 el documento.
+// Pasos: ¿para quién es? (y el aviso, si es para un vecino) → 1 el caso → 2 dónde y desde cuándo → 3 sus datos (solo aquí
+// se piden) → 4 el documento.
 function Formulario({ tipo }) {
   const abierta = useAbierta();
   const [ini] = useState(() => inicial(tipo));
   const [c, setC] = useState(ini.c);
-  const [paso, setPaso] = useState('caso');
+  const [paso, setPaso] = useState('para');
+  const [vecino, setVecino] = useState(false);   // modo líder: no se guarda nada en este celular (componentes/Vecino.jsx)
   const [persona, setPersona] = useState(PERSONA_VACIA);
   const [faltan, setFaltan] = useState([]);
   const [id] = useState(() => crypto.randomUUID?.() || String(Date.now()));
@@ -189,10 +192,12 @@ function Formulario({ tipo }) {
 
   // "Ya presenté una tutela por esto": no se arma otra; se anota la que ya presentó para seguirla en Mis casos.
   const anotarTutela = f => {
+    if (vecino) return;
     almacen.guardarCaso({ id, tipo, titulo: t.titulo, icono: t.icono, entidad: datos.entidad, municipio: c.municipio.trim(), derecho: c.derecho, rad: iso(f), venc: iso(sumarHabiles(f, t.plazo)), plazo: t.plazo, peticiones: [], modo: 'mano', estado: 'esperando' });
     ir('casos');
   };
   const entregar = (f, extra = {}) => {
+    if (vecino) return null;   // el caso del vecino no se guarda en el celular del líder
     // Se mezcla con el caso ya guardado (anotado y luego enviado por correo) para no perder su código ni sus avisos.
     const previo = almacen.casos().find(x => x.id === id) || {};
     const caso = {
@@ -207,8 +212,10 @@ function Formulario({ tipo }) {
     return caso;
   };
 
-  if (paso === 'datos') return <DatosPersonales tipo={tipo} valores={persona} cambiar={setPersona} volver={() => setPaso('lugar')} listo={() => setPaso('vista')} paso={[3, 4]} />;
-  if (paso === 'vista') return <Vista tipo={tipo} datos={{ ...datos, ...personaParaDocumento(persona) }} volver={() => setPaso('datos')} alEntregar={entregar} paso={[4, 4]} />;
+  if (paso === 'para') return <ParaQuien alElegir={v => { setVecino(v === 'vecino'); setPaso(v === 'vecino' ? 'aviso' : 'caso'); }} />;
+  if (paso === 'aviso') return <AvisoVecino alVolver={() => setPaso('para')} alAceptar={() => setPaso('caso')} />;
+  if (paso === 'datos') return <DatosPersonales tipo={tipo} valores={persona} cambiar={setPersona} volver={() => setPaso('lugar')} listo={() => setPaso('vista')} paso={[3, 4]} vecino={vecino} />;
+  if (paso === 'vista') return <Vista tipo={tipo} datos={{ ...datos, ...personaParaDocumento(persona) }} volver={() => setPaso('datos')} alEntregar={entregar} paso={[4, 4]} vecino={vecino} />;
 
   const lugar = paso === 'lugar';
   return (
@@ -216,6 +223,7 @@ function Formulario({ tipo }) {
       <Encabezado />
       <p className="paso">Paso {lugar ? 2 : 1} de 4: {lugar ? 'dónde y desde cuándo' : 'su caso'}</p>
       <Titulo alVolver={lugar ? () => setPaso('caso') : undefined} lectura={`${t.titulo}. Paso ${lugar ? 2 : 1} de 4. Responda las preguntas. Su nombre y su cédula se piden en el paso 3.`}>{t.titulo}</Titulo>
+      {vecino && <NotaVecino />}
       {ini.relato.length > 0 && !lugar && <p className="nota-privacidad">Marcamos con ✓ lo que nos contó. Revise y complete lo demás.</p>}
 
       <form className="formulario" onSubmit={siguiente} noValidate>
@@ -269,7 +277,7 @@ function Formulario({ tipo }) {
               <small className="ayuda">{EXPLICA.juramento} En el documento usted jura que no ha presentado otra.</small>
               {c.jurado === 'si' && <>
                 <div className="ayuda" dangerouslySetInnerHTML={{ __html: EXPLICA.yaPresento }} />
-                {abierta
+                {vecino ? null : abierta
                   ? <ElegirFecha etiqueta="¿Qué día presentó esa tutela?" boton="Anotar mi tutela en Mis casos" alGuardar={anotarTutela} />
                   : <FormClave enTarjeta motivo="Para anotar su tutela en Mis casos, escriba su clave." />}
               </>}
@@ -315,7 +323,7 @@ const personaParaDocumento = p => (p.aMano ? {} : { nombre: p.nombre.trim(), ced
 const cedulaValida = s => /^\d{5,10}$/.test(s.replace(/[.\s]/g, ''));
 const celularValido = s => !s.trim() || /^(\+?57)?3\d{9}$/.test(s.replace(/[\s-]/g, ''));
 
-function DatosPersonales({ tipo, valores: p, cambiar, volver, listo, paso }) {
+function DatosPersonales({ tipo, valores: p, cambiar, volver, listo, paso, vecino }) {
   const [faltan, setFaltan] = useState([]);
   const set = (k, v) => cambiar(x => ({ ...x, [k]: v }));
   const judicial = judicialDe(tipo);
@@ -338,6 +346,7 @@ function DatosPersonales({ tipo, valores: p, cambiar, volver, listo, paso }) {
       <Encabezado />
       <p className="paso">Paso {paso[0]} de {paso[1]}: sus datos</p>
       <Titulo alVolver={volver} lectura={lectura}>Sus datos para el documento</Titulo>
+      {vecino && <NotaVecino />}
       <section className="tarjeta oliva">
         <h2><ShieldCheck size={22} aria-hidden /> Por qué se los pedimos ahora</h2>
         <p className="texto">Para que el documento sea válido, {quien} debe saber quién lo presenta y dónde responderle. Estos datos solo van en el papel: <b>no se envían a la inteligencia artificial ni a ningún servidor (salvo que pida que enviemos el documento por correo), y no se guardan en este celular.</b></p>
@@ -374,7 +383,7 @@ function DatosPersonales({ tipo, valores: p, cambiar, volver, listo, paso }) {
 }
 
 // Qué hacer con el documento, en orden.
-function pasosEntrega(tipo, datos) {
+function pasosEntrega(tipo, datos, vecino) {
   const firma = datos.nombre ? 'Fírmelo.' : 'Escriba a mano su nombre, su cédula y su celular, y fírmelo.';
   const entrega = {
     impugnacion: 'Entréguelo en el mismo juzgado que decidió la tutela. Escriba a mano el número del proceso (está en la decisión del juez).',
@@ -383,21 +392,23 @@ function pasosEntrega(tipo, datos) {
     ? 'Llévelo al juzgado de su municipio con copia de sus papeles y pida que lo reciban «para reparto», o preséntelo en Tutela en línea. No necesita abogado.'
     : `Entréguelo en ${tipo === 'servicios_publicos' ? 'la empresa' : 'la entidad'} o envíelo a su correo.`);
   return ['Guárdelo o imprímalo con el botón de abajo.', firma, entrega,
-    'Pida una copia con sello o el número de recibido. Después anote aquí el día que lo entregó: desde ese día cuenta el plazo.'];
+    vecino ? 'Pida una copia con sello o el número de recibido: desde ese día cuenta el plazo.'
+      : 'Pida una copia con sello o el número de recibido. Después anote aquí el día que lo entregó: desde ese día cuenta el plazo.'];
 }
 
 // Vista: qué hacer → guardar o imprimir (principal) → anotar el día de entrega o enviarlo por correo → el documento (plegado).
 // Guardar el caso, enviarlo por correo y programar avisos piden la clave en este mismo paso: nada se guarda a medias.
-function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
+function Vista({ tipo, datos: base, volver, alEntregar, paso, vecino }) {
   // Al abrir el envío por correo, el documento pasa a como se envía (sin firma a mano ni anexos, con la entidad del directorio).
   const [porCorreo, setPorCorreo] = useState(null);
   const datos = useMemo(() => (porCorreo ? { ...base, ...porCorreo } : base), [base, porCorreo]);
   const html = useMemo(() => generarDocumento(tipo, datos), [tipo, datos]);
   const [anotar, setAnotar] = useState(false);
   const [guardado, setGuardado] = useState(null);   // el caso guardado: ofrece los avisos del plazo
+  const [enviado, setEnviado] = useState(null);     // modo vecino: la constancia del correo (no se guarda)
   const abierta = useAbierta();
   const papel = useRef(null);
-  const pasos = pasosEntrega(tipo, datos);
+  const pasos = pasosEntrega(tipo, datos, vecino);
   const quien = judicialDe(tipo) ? 'El juez debe decidir' : tipo === 'servicios_publicos' ? 'La empresa debe responder' : 'La entidad debe responder';
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -414,6 +425,7 @@ function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
       <Encabezado />
       <p className="paso">Paso {paso[0]} de {paso[1]}: su documento</p>
       <Titulo alVolver={volver} lectura={`Su documento está listo. Qué hacer ahora: ${pasos.join(' ')}`}>Su documento está listo</Titulo>
+      {vecino && <NotaVecino />}
       <section className="tarjeta clara">
         <h2><Buho pose="documento" ancho={44} primera /> Qué hacer ahora</h2>
         <ol className="pasos">{pasos.map(x => <li key={x}>{x}</li>)}</ol>
@@ -421,7 +433,10 @@ function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
       </section>
       <button className="btn-primario" onClick={imprimir}><Printer size={22} aria-hidden /> Guardar o imprimir PDF</button>
 
-      {!abierta ? (
+      {vecino ? <>
+        <EnvioCorreo tipo={tipo} datos={datos} alAbrir={setPorCorreo} alEnviar={setEnviado} ajeno />
+        <SeguimientoVecino quien={quien} plazo={datos.plazo} enviado={enviado} />
+      </> : !abierta ? (
         <FormClave enTarjeta motivo="Para anotarlo en Mis casos, enviarlo por correo o recibir avisos del plazo, escriba su clave. Si no la escribe, no se guarda nada." />
       ) : guardado ? (
         <section className="tarjeta oliva" role="status">
@@ -433,7 +448,7 @@ function Vista({ tipo, datos: base, volver, alEntregar, paso }) {
       ) : anotar
         ? <ElegirFecha etiqueta="¿Qué día lo entregó?" boton="Guardar en Mis casos" alGuardar={f => entregar(f)} />
         : <button className="btn-secundario" onClick={() => setAnotar(true)}><CalendarCheck size={22} aria-hidden /> Ya lo entregué (elegir fecha)</button>}
-      {abierta && <EnvioCorreo tipo={tipo} datos={datos} alAbrir={setPorCorreo} alEnviar={k => entregar(new Date(), { modo: 'envio', envios: [k] })} />}
+      {abierta && !vecino && <EnvioCorreo tipo={tipo} datos={datos} alAbrir={setPorCorreo} alEnviar={k => entregar(new Date(), { modo: 'envio', envios: [k] })} />}
 
       <details className="desplegable" ref={papel}>
         <summary><FileText size={22} aria-hidden /> Ver el documento</summary>
